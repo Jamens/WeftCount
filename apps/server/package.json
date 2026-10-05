@@ -7,9 +7,13 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "echo \"server: no tests yet\"",
+    "test": "echo \"server: no unit tests yet\"",
     "lint": "echo \"server: no lint yet\"",
-    "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts"
+    "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs -d src/data-source.ts migration:run",
+    "migration:revert": "typeorm-ts-node-commonjs -d src/data-source.ts migration:revert",
+    "migration:show": "typeorm-ts-node-commonjs -d src/data-source.ts migration:show",
+    "seed": "ts-node src/seeds/index.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -29,7 +33,8 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "dotenv": "^16.4.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
