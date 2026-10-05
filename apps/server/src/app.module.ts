@@ -1,10 +1,15 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { APP_INTERCEPTOR } from '@nestjs/core'
 import { WeftNamingStrategy } from './common/naming-strategy'
 import { HealthController } from './health/health.controller'
 import { AuthModule } from './modules/auth/auth.module'
 import { TenantModule } from './modules/tenant/tenant.module'
+import { AuditModule } from './modules/audit/audit.module'
+import { AuditInterceptor } from './modules/audit/audit.interceptor'
+import { MaterialModule } from './modules/material/material.module'
+import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
   imports: [
@@ -33,7 +38,15 @@ import { TenantModule } from './modules/tenant/tenant.module'
     }),
     AuthModule,
     TenantModule,
+    AuditModule,
+    MaterialModule,
   ],
   controllers: [HealthController],
+  providers: [
+    // 顺序要求：响应包装在最外层，审计在里层，
+    // 这样审计拿到的是原始业务数据而非 envelope
+    { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+  ],
 })
 export class AppModule {}
