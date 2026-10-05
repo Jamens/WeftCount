@@ -18,3 +18,4 @@ Thumbs.db
 _trash/
 _tmp_*
 pnpm-debug.log*
+*.timestamp-*.mjs
