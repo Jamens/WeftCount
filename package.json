@@ -1,0 +1,24 @@
+{
+  "name": "weftcount",
+  "version": "0.1.0",
+  "private": true,
+  "description": "纬数 WeftCount · 纺织行业 AI 进销存系统",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "pnpm --filter @weftcount/shared build",
+    "build:server": "pnpm --filter @weftcount/server build",
+    "build:admin": "pnpm --filter @weftcount/admin build",
+    "build:desktop": "pnpm --filter @weftcount/desktop build",
+    "build": "pnpm run build:shared && pnpm run build:server && pnpm run build:admin && pnpm run build:desktop",
+    "dev:server": "pnpm --filter @weftcount/server dev",
+    "dev:admin": "pnpm --filter @weftcount/admin dev",
+    "dev:desktop": "pnpm --filter @weftcount/desktop dev",
+    "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run build"
+  }
+}

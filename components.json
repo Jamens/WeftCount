@@ -1,0 +1,11 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "tailwindConfig": "",
+  "aliases": {
+    "components": "apps/admin/src/components",
+    "utils": "apps/admin/src/lib/utils",
+    "ui": "apps/admin/src/components/ui",
+    "lib": "apps/admin/src/lib",
+    "hooks": "apps/admin/src/hooks"
+  }
+}

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+dist-esm/
+build/
+out/
+release/
+coverage/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+.eslintcache
+.vite-temp/
+
+# pnpm / WorkBuddy 环境产物
+_trash/
+_tmp_*
+pnpm-debug.log*

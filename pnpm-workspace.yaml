@@ -1,0 +1,35 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# ---------------------------------------------------------------------------
+# 本机环境适配（重要，勿随意删除）
+#
+# 1. node-linker: hoisted
+#    本机 Windows 环境下 pnpm isolated linker 无法建立符号链接
+#    （`node_modules/.pnpm/<pkg>/node_modules/<dep>` 目录存在但内部为空），
+#    导致 esbuild 找不到平台二进制、electron 找不到 @electron/get。
+#    hoisted linker 复制真实目录而非建链接，实测可用。
+#    代价：磁盘占用略高、包间隔离性减弱。
+#
+# 2. inject-workspace-packages: true
+#    让 workspace 依赖以「硬链接复制」方式注入，而非符号链接。
+#    这是本机能让 @weftcount/shared 被三端解析到的前提。
+#
+# 3. allowBuilds
+#    esbuild 需要 postinstall 下载对应平台二进制；electron 需要下载运行时。
+#    @scarf/scarf 是 electron 的 postinstall 遥测，关闭。
+#
+# 注：不要加 publicHoistPattern。它会把全部依赖复制到各 app 的 node_modules，
+#     反而使 workspace 链接丢失（实测 apps/*/node_modules 只剩 @weftcount）。
+#     pnpm run 会自动把仓库根的 node_modules/.bin 加入 PATH，bin 脚本可正常解析。
+# ---------------------------------------------------------------------------
+
+nodeLinker: hoisted
+
+injectWorkspacePackages: true
+
+allowBuilds:
+  '@scarf/scarf': false
+  electron: true
+  esbuild: true
