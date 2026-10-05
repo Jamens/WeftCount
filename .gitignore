@@ -19,3 +19,6 @@ _trash/
 _tmp_*
 pnpm-debug.log*
 *.timestamp-*.mjs
+
+# WorkBuddy 工作区数据（不属于项目代码）
+.workbuddy/

@@ -53,6 +53,9 @@ pnpm install
 # 建库
 mysql -h127.0.0.1 -uroot -p1234560 -e "CREATE DATABASE IF NOT EXISTS weft_count DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
+pnpm --filter @weftcount/server migration:run   # 建表
+pnpm --filter @weftcount/server seed            # 种子数据（演示租户+角色+账号）
+
 pnpm dev:server        # http://127.0.0.1:3180/api
 pnpm dev:admin         # http://127.0.0.1:5180
 pnpm dev:desktop       # Electron 车间工作台
@@ -73,6 +76,55 @@ DB_NAME=weft_count
 ```bash
 pnpm run verify        # typecheck + test + build
 ```
+
+## 认证与权限
+
+### 登录
+
+```bash
+curl -X POST http://127.0.0.1:3180/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"factory","password":"weft2026"}'
+```
+
+返回令牌 + 用户 + 租户 + 可访问公司 + 展开后的权限码。后续请求需带三个头：
+
+| 头 | 用途 |
+| --- | --- |
+| `Authorization: Bearer <token>` | 身份认证 |
+| `X-Tenant-Id` | 租户上下文，须与令牌一致 |
+| `X-Company-Id` | 当前操作公司，须在用户可访问列表内 |
+
+### 演示账号
+
+| 账号 | 角色 | 权限范围 |
+| --- | --- | --- |
+| `owner` | 租户管理员 | 全部（`*`） |
+| `factory` | 厂长 | 单公司全权 |
+| `craft` | 工艺员 | 仅规格、系数、用料核算 |
+| `warehouse` | 仓管员 | 仅库存与出入库 |
+| `loom` | 挡车工 | 仅报工与本机产量 |
+
+密码统一 `weft2026`，**部署前必须删除演示账号并改默认密码**。
+
+### 隔离机制
+
+守卫在**每次请求**都复核，而非仅登录时校验：
+
+1. JWT 有效性与过期区分
+2. 用户状态（停用/锁定 → 令牌立即失效）
+3. 租户状态（停用/过期 → 令牌立即失效）
+4. `X-Tenant-Id` 与令牌一致性 → 防跨租户
+5. `X-Company-Id` 在可访问列表内 → 防跨公司
+6. `@RequirePermission()` 声明式权限校验
+
+权限码格式 `<模块>.<资源>.<动作>`，支持通配。匹配采用**双向通配**（任一侧含 `*` 即命中），避免「给了 `*.view` 却读不到 `list`」的割裂。
+
+### 登录安全
+
+- 用户名不存在与密码错误返回**同一错误码**，防账号枚举
+- 连续失败 5 次锁定账号，锁定后正确密码也拒绝
+- bcrypt 存储；密码强度要求≥8 位且含字母与数字
 
 ## 领域内核
 
@@ -191,8 +243,8 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 ### 阶段一 · 地基
 
 - [x] **1.1** monorepo 骨架 + pnpm workspace（三包并行 dev）
-- [x] **1.2** Nest + TypeORM + MySQL 连接
-- [ ]1.3 登录鉴权 + RBAC 多租户
+- [x] **1.2** Nest + TypeORM + MySQL 连接 + 迁移体系
+- [x] **1.3** 登录鉴权 + RBAC 多租户
 - [ ] 1.4 审计日志（异常处理已完成）
 
 ### 阶段二 · 工艺计量内核（护城河）
