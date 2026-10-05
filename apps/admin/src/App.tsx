@@ -1,25 +1,136 @@
 import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { Typography } from 'antd'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Layout, Menu, Typography, Dropdown, Space, Tag, Avatar } from 'antd'
+import {
+  DashboardOutlined,
+  FileSearchOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  ShopOutlined,
+  SwapOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
+import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
-import { tokenStore } from './lib/api'
-import { api } from './lib/api'
 import type { CurrentUserInfo } from '@weftcount/shared'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import AuditLogPage from './pages/AuditLogPage'
+
+const { Text } = Typography
 
 /** 路由守卫：未登录跳登录页 */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = tokenStore.get()
-  if (!token) return <Navigate to="/login" replace />
+  const location = useLocation()
+  if (!token) return <Navigate to="/login" state={{ from: location.pathname }} replace />
   return <>{children}</>
+}
+
+/** 带侧边栏的框架布局 */
+function Shell({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const user = useAuthStore((s) => s.user)
+  const tenant = useAuthStore((s) => s.tenant)
+  const companies = useAuthStore((s) => s.companies)
+  const currentCompanyId = useAuthStore((s) => s.currentCompanyId)
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const logout = useAuthStore((s) => s.logout)
+  const switchCompany = useAuthStore((s) => s.switchCompany)
+
+  const menuItems = [
+    { key: '/', icon: <DashboardOutlined />, label: '工作台' },
+    ...(hasPermission('audit.view')
+      ? [{ key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' }]
+      : []),
+    { key: 'placeholder-m1', icon: <ShopOutlined />, label: '基础资料（建设中）', disabled: true },
+    { key: 'placeholder-m2', icon: <SettingOutlined />, label: '系统设置（建设中）', disabled: true },
+  ]
+
+  const onLogout = () => {
+    void api.post('/auth/logout').catch(() => undefined)
+    logout()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Layout.Header
+        style={{
+          background: '#fff',
+          padding: '0 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #f0f0f0',
+        }}
+      >
+        <Text strong style={{ fontSize: 16 }}>
+          纬数 WeftCount
+        </Text>
+
+        <Space size="middle">
+          {companies.length > 1 && (
+            <Dropdown
+              menu={{
+                items: companies.map((c) => ({ key: c.id, label: c.name })),
+                onClick: ({ key }) => void switchCompany(key),
+              }}
+            >
+              <Space style={{ cursor: 'pointer' }}>
+                <ShopOutlined />
+                <Text>{companies.find((c) => c.id === currentCompanyId)?.name}</Text>
+                <SwapOutlined style={{ fontSize: 11 }} />
+              </Space>
+            </Dropdown>
+          )}
+
+          {tenant && (
+            <Tag color={tenant.aiEnabled ? 'gold' : 'default'}>{tenant.planLabel}</Tag>
+          )}
+
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'name', label: `${user?.realName}（${user?.username}）`, disabled: true },
+                { type: 'divider' },
+                { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'logout') onLogout()
+              },
+            }}
+          >
+            <Space style={{ cursor: 'pointer' }}>
+              <Avatar size="small" icon={<UserOutlined />} />
+              <Text>{user?.realName}</Text>
+            </Space>
+          </Dropdown>
+        </Space>
+      </Layout.Header>
+
+      <Layout>
+        <Layout.Sider width={200} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            style={{ borderInlineEnd: 'none' }}
+            onClick={({ key }) => {
+              if (!key.startsWith('placeholder-')) navigate(key)
+            }}
+          />
+        </Layout.Sider>
+        <Layout.Content style={{ padding: 24, background: '#f5f5f5' }}>{children}</Layout.Content>
+      </Layout>
+    </Layout>
+  )
 }
 
 export default function App() {
   useEffect(() => {
-    const state = useAuthStore.getState()
-    state.hydrate()
-    // 有令牌时补齐权限（用户信息在登录时已存）
+    useAuthStore.getState().hydrate()
     if (tokenStore.get()) {
       api
         .get<CurrentUserInfo>('/auth/me')
@@ -43,7 +154,19 @@ export default function App() {
         path="/"
         element={
           <RequireAuth>
-            <DashboardPage />
+            <Shell>
+              <DashboardPage />
+            </Shell>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/audit-logs"
+        element={
+          <RequireAuth>
+            <Shell>
+              <AuditLogPage />
+            </Shell>
           </RequireAuth>
         }
       />
@@ -51,7 +174,7 @@ export default function App() {
         path="*"
         element={
           <div style={{ padding: 40, textAlign: 'center' }}>
-            <Typography.Text type="secondary">页面不存在</Typography.Text>
+            <Text type="secondary">页面不存在</Text>
           </div>
         }
       />

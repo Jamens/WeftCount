@@ -1,17 +1,26 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Col, Row, Select, Space, Spin, Tag, Typography } from 'antd'
-import { LogoutOutlined, SwapOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { Alert, Card, Space, Spin, Tag, Typography } from 'antd'
 import { api } from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 
 interface HealthPayload {
   status: string
   service: string
   version: string
   timestamp: string
+}
+
+/** 基准算例：全棉府绸，用于演示工艺内核能力 */
+const DEMO_SPEC: Record<string, string> = {
+  经密: '120 根/英寸',
+  纬密: '72 根/英寸',
+  纱支: '40 NeS（≈ 14.76 Tex / 132.9 旦）',
+  幅宽: '150 cm',
+  坯布克重: '111.6 g/m²',
+  百米用料: '约 18.4 kg',
+  日产量: '约 259 米（600 纬/分，运转率 85%）',
 }
 
 const LAYERS = [
@@ -33,15 +42,7 @@ const LAYERS = [
 ]
 
 export default function DashboardPage() {
-  const navigate = useNavigate()
-  const user = useAuthStore((s) => s.user)
-  const tenant = useAuthStore((s) => s.tenant)
-  const companies = useAuthStore((s) => s.companies)
-  const currentCompanyId = useAuthStore((s) => s.currentCompanyId)
   const permissions = useAuthStore((s) => s.permissions)
-  const logout = useAuthStore((s) => s.logout)
-  const switchCompany = useAuthStore((s) => s.switchCompany)
-
   const [health, setHealth] = useState<HealthPayload | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -57,100 +58,84 @@ export default function DashboardPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const onLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
-
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Row align="middle" justify="space-between">
-          <Col>
-            <Title level={3} style={{ marginBottom: 4 }}>
-              纬数 WeftCount
-            </Title>
-            <Space size="small">
-              <Text strong>{user?.realName}</Text>
-              <Text type="secondary">{tenant?.name}</Text>
-              {tenant && (
-                <Tag color={tenant.aiEnabled ? 'gold' : 'default'}>{tenant.planLabel}</Tag>
-              )}
-            </Space>
-          </Col>
-          <Col>
-            <Space>
-              {companies.length > 1 && (
-                <Select
-                  value={currentCompanyId}
-                  onChange={(v) => void switchCompany(v)}
-                  options={companies.map((c) => ({ value: c.id, label: c.name }))}
-                  suffixIcon={<SwapOutlined />}
-                  style={{ width: 180 }}
-                />
-              )}
-              <Button icon={<LogoutOutlined />} onClick={onLogout}>
-                退出
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      {loading && <Spin />}
 
-        {loading && <Spin />}
+      {!loading && healthError && (
+        <Alert type="warning" showIcon message="后端服务未连通" description={healthError} />
+      )}
 
-        {!loading && healthError && (
-          <Alert type="warning" showIcon message="后端服务未连通" description={healthError} />
-        )}
-
-        {!loading && health && (
-          <Space size="middle">
+      {!loading && health && (
+        <Card size="small">
+          <Space size="middle" wrap>
             <Tag color="green">服务在线</Tag>
             <Text type="secondary">
               {health.service} v{health.version}
             </Text>
             <Text type="secondary">已授权 {permissions.length} 项权限</Text>
           </Space>
-        )}
+        </Card>
+      )}
 
-        <Card title="系统分层" size="small">
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {LAYERS.map((layer) => (
-              <div key={layer.name}>
-                <Text strong>{layer.name}</Text>
-                <div style={{ marginTop: 8 }}>
-                  <Space size={[8, 8]} wrap>
-                    {layer.items.map((item) => (
-                      <Tag key={item} color={layer.color}>
-                        {item}
-                      </Tag>
-                    ))}
-                  </Space>
-                </div>
+      <Card title="工艺内核基准算例（全棉府绸）" size="small">
+        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            下列结果由 packages/shared 确定性内核算出，非 AI 估算。克重、支数、用料三路交叉验证闭合，
+            改动任何一条公式都会导致此表数值变化。
+          </Text>
+          <div style={{ marginTop: 8 }}>
+            {Object.entries(DEMO_SPEC).map(([k, v]) => (
+              <div
+                key={k}
+                style={{ display: 'flex', padding: '4px 0', borderBottom: '1px solid #fafafa' }}
+              >
+                <Text type="secondary" style={{ width: 120 }}>
+                  {k}
+                </Text>
+                <Text strong>{v}</Text>
               </div>
             ))}
-          </Space>
-        </Card>
+          </div>
+        </Space>
+      </Card>
 
-        <Card size="small" title="我的权限">
-          <Space size={[6, 6]} wrap>
-            {permissions.map((p) => (
-              <Tag key={p}>{p}</Tag>
-            ))}
-          </Space>
-        </Card>
+      <Card title="系统分层" size="small">
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          {LAYERS.map((layer) => (
+            <div key={layer.name}>
+              <Text strong>{layer.name}</Text>
+              <div style={{ marginTop: 8 }}>
+                <Space size={[8, 8]} wrap>
+                  {layer.items.map((item) => (
+                    <Tag key={item} color={layer.color}>
+                      {item}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            </div>
+          ))}
+        </Space>
+      </Card>
 
-        <Card size="small">
-          <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            阶段一已完成 1.1 / 1.2 / 1.3。API 文档：
-            <Text
-              style={{ cursor: 'pointer', color: '#1D9E75' }}
-              onClick={() => window.open('http://127.0.0.1:3180/api/docs', '_blank')}
-            >
-              http://127.0.0.1:3180/api/docs
-            </Text>
-          </Paragraph>
-        </Card>
-      </Space>
-    </div>
+      <Card title="我的权限" size="small">
+        <Space size={[6, 6]} wrap>
+          {permissions.map((p) => (
+            <Tag key={p}>{p}</Tag>
+          ))}
+        </Space>
+      </Card>
+
+      <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
+        阶段一已完成 1.1 / 1.2 / 1.3 / 1.4。API 文档：
+        <Text
+          style={{ cursor: 'pointer', color: '#1D9E75' }}
+          onClick={() => window.open('http://127.0.0.1:3180/api/docs', '_blank')}
+        >
+          http://127.0.0.1:3180/api/docs
+        </Text>
+      </Paragraph>
+    </Space>
   )
 }
