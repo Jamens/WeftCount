@@ -1,3 +1,5 @@
+import type { SubscriptionPlan } from './tenant'
+
 /**
  * 全局 API 契约
  * 统一响应格式，区分「成功」与「业务失败」两种 envelope，
@@ -116,4 +118,65 @@ export interface AuditLogEntry {
   summary: string
   /** 变更前后快照（脱敏后） */
   diff?: Record<string, { before: unknown; after: unknown }>
+}
+
+// ---------------------------------------------------------------------------
+// 认证契约
+// ---------------------------------------------------------------------------
+
+export interface LoginUserInfo {
+  id: string
+  username: string
+  realName: string
+  phone: string | null
+  email: string | null
+}
+
+export interface LoginTenantInfo {
+  id: string
+  code: string
+  name: string
+  plan: SubscriptionPlan
+  planLabel: string
+  /** 该套餐是否解锁 AI 引擎 */
+  aiEnabled: boolean
+}
+
+export interface LoginCompanyInfo {
+  id: string
+  code: string
+  name: string
+}
+
+export interface LoginResult {
+  accessToken: string
+  tokenType: 'Bearer'
+  user: LoginUserInfo
+  tenant: LoginTenantInfo
+  /** 用户可访问的公司，登录后或切换 */
+  companies: LoginCompanyInfo[]
+  /** 默认选中的公司 */
+  currentCompanyId: string
+  /** 展开后的权限码，前端据此控制菜单与按钮 */
+  permissions: string[]
+}
+
+export interface CurrentUserInfo {
+  userId: string
+  tenantId: string
+  companyId: string
+  username: string
+  realName: string
+  roles: string[]
+  permissions: string[]
+}
+
+/** JWT 载荷 */
+export interface AuthUserPayload {
+  /** 用户 id */
+  sub: string
+  tenantId: string
+  username: string
+  realName: string
+  roleCodes: string[]
 }

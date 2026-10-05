@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { WeftNamingStrategy } from './common/naming-strategy'
 import { HealthController } from './health/health.controller'
+import { AuthModule } from './modules/auth/auth.module'
+import { TenantModule } from './modules/tenant/tenant.module'
 
 @Module({
   imports: [
@@ -19,6 +22,7 @@ import { HealthController } from './health/health.controller'
         password: config.get<string>('DB_PASSWORD', '1234560'),
         database: config.get<string>('DB_NAME', 'weft_count'),
         charset: 'utf8mb4',
+        namingStrategy: new WeftNamingStrategy(),
         timezone: '+08:00',
         synchronize: false,
         logging: config.get<string>('DB_LOGGING') === 'true',
@@ -27,6 +31,8 @@ import { HealthController } from './health/health.controller'
         retryDelay: 2000,
       }),
     }),
+    AuthModule,
+    TenantModule,
   ],
   controllers: [HealthController],
 })
