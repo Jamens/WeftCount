@@ -92,7 +92,15 @@ export default function PickPage() {
     if (rollMode) { void onScanRoll(c); return }
     const b = activeBatches.find((x) => x.batchNo.toUpperCase() === c)
     if (!b) {
-      message.warning(`未找到可用批次「${c}」`)
+      // 区分「压根没这个批次」与「批次存在但已耗尽/不可用」——都说「未找到」会误导排查
+      const any = batches.find((x) => x.batchNo.toUpperCase() === c)
+      if (!any) {
+        message.warning(`未找到批次「${c}」，请确认单号是否正确`)
+      } else if (num(any.remainingQuantity) <= 0) {
+        message.warning(`批次「${c}」已耗尽（剩余 0），不能拣货`)
+      } else {
+        message.warning(`批次「${c}」当前不可用（状态：${any.status}）`)
+      }
       setCode('')
       return
     }
