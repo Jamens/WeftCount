@@ -21,6 +21,8 @@ export default function BoardPage() {
   const [machines, setMachines] = useState<MachineWire[]>([])
   const [specs, setSpecs] = useState<GreigeSpecWire[]>([])
   const [loading, setLoading] = useState(false)
+  /** 最后成功刷新的时间——让看板人员知道数据新鲜度 */
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
 
   const specName = useCallback((id: string) => specs.find((s) => s.id === id)?.name ?? id, [specs])
 
@@ -35,6 +37,7 @@ export default function BoardPage() {
       setOrders(o)
       setMachines(m.filter((x) => x.status !== 'retired'))
       setSpecs(s)
+      setUpdatedAt(Date.now())
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载大屏数据失败')
     } finally {
@@ -43,9 +46,26 @@ export default function BoardPage() {
   }, [message])
 
   useEffect(() => {
+    let timer: number | null = null
+    const start = () => {
+      if (timer == null) timer = window.setInterval(() => void load(), 15000) // 15s 自动刷新
+    }
+    const stop = () => {
+      if (timer != null) {
+        window.clearInterval(timer)
+        timer = null
+      }
+    }
     void load()
-    const t = setInterval(() => void load(), 15000) // 15s 自动刷新
-    return () => clearInterval(t)
+    start()
+    // 车间大屏常年挂着，切到别的页面/窗口最小化时**暂停轮询**：
+    // 无人看时不该持续打后端；回到该页立刻补一次，避免看到过期数据。
+    const onVisibility = () => (document.hidden ? stop() : (void load(), start()))
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [load])
 
   const orderByMachine = useMemo(() => {
@@ -71,7 +91,10 @@ export default function BoardPage() {
           <Title level={3} style={{ color: token.colorText, margin: 0 }}>
             车间生产大屏
           </Title>
-          <Text type="secondary">机台状态 · 在产工单进度 · 异常提示（每 15 秒自动刷新）</Text>
+          <Text type="secondary">
+            机台状态 · 在产工单进度 · 异常提示（每 15 秒自动刷新
+            {updatedAt ? ` · 更新于 ${dayjs(updatedAt).format('HH:mm:ss')}` : ''}）
+          </Text>
         </Col>
         <Col>
           <Space>
