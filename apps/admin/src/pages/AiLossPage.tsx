@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { App as AntdApp, Alert, Button, Card, Col, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { ExperimentOutlined, ReloadOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { fmt, fmtMoney, LIST_TABLE_SCROLL_Y, type AiInsight, type LossData, type SpecLossRow } from '../lib/erp'
+import { fmt, fmtMoney, LIST_TABLE_SCROLL_Y, type AiInsight, type LossData, type LossHotspotWire, type SpecLossRow } from '../lib/erp'
 
 const { Title, Text } = Typography
 
@@ -15,6 +15,7 @@ const { Title, Text } = Typography
 export default function AiLossPage() {
   const { message } = AntdApp.useApp()
   const [insight, setInsight] = useState<AiInsight<LossData> | null>(null)
+  const [hotspots, setHotspots] = useState<LossHotspotWire[]>([])
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
@@ -22,6 +23,13 @@ export default function AiLossPage() {
     try {
       const res = await api.get<AiInsight<LossData>>('/ai/loss')
       setInsight(res.data.data)
+      // 损耗热点到匹（规格级损耗 + 该规格产出的件卡）
+      try {
+        const hs = await api.get<LossHotspotWire[]>('/ai/loss/hotspots')
+        setHotspots(hs.data.data)
+      } catch {
+        setHotspots([])
+      }
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载损耗分析失败')
     } finally {
@@ -88,6 +96,37 @@ export default function AiLossPage() {
                 { title: '产出(米)', dataIndex: 'outputM', width: 90, align: 'right', render: (v: number) => fmt(String(v), 0) },
                 { title: '标准得布率', dataIndex: 'standardYield', width: 100, align: 'right', render: (v: number) => `${(v * 100).toFixed(1)}%` },
                 { title: '实际得布率', dataIndex: 'actualYield', width: 100, align: 'right', render: (v: number) => <Text style={{ color: v < 0.9 ? '#cf1322' : undefined }}>{(v * 100).toFixed(1)}%</Text> },
+                { title: '超额损耗(米)', dataIndex: 'excessLossM', width: 110, align: 'right', render: (v: number) => <Text style={{ color: v > 0 ? '#cf1322' : '#3f8600' }}>{fmt(String(v), 0)}</Text> },
+                { title: '损耗率', dataIndex: 'excessLossRate', width: 90, align: 'right', render: (v: number) => `${(v * 100).toFixed(1)}%` },
+                { title: '折合金额', dataIndex: 'lossAmount', width: 110, align: 'right', render: (v: number) => (v > 0 ? fmtMoney(String(v)) : '-') },
+              ]}
+            />
+          </Card>
+
+          <Card size="small" title="损耗热点到匹（展开看该规格织出的每一匹）">
+            <Table<LossHotspotWire>
+              rowKey="specId" size="small" loading={loading} dataSource={hotspots}
+              pagination={false}
+              expandable={{
+                expandedRowRender: (r) => (
+                  <Space wrap size={4}>
+                    {r.rolls.length === 0 ? (
+                      <Text type="secondary" style={{ fontSize: 12 }}>该规格暂无件卡记录</Text>
+                    ) : (
+                      r.rolls.map((roll) => (
+                        <Tag key={roll.rollNo} color={roll.status === 'in_stock' ? 'blue' : 'default'}>
+                          {roll.rollNo} · {fmt(String(roll.meters), 0)}m · {roll.orderNo}/{roll.machineName}
+                        </Tag>
+                      ))
+                    )}
+                  </Space>
+                ),
+              }}
+              columns={[
+                { title: '规格', dataIndex: 'specName', width: 150, ellipsis: true },
+                { title: '产出匹数', dataIndex: 'rolls', width: 90, align: 'right', render: (v: LossHotspotWire['rolls']) => v.length },
+                { title: '投料(米)', dataIndex: 'inputM', width: 90, align: 'right', render: (v: number) => fmt(String(v), 0) },
+                { title: '产出(米)', dataIndex: 'outputM', width: 90, align: 'right', render: (v: number) => fmt(String(v), 0) },
                 { title: '超额损耗(米)', dataIndex: 'excessLossM', width: 110, align: 'right', render: (v: number) => <Text style={{ color: v > 0 ? '#cf1322' : '#3f8600' }}>{fmt(String(v), 0)}</Text> },
                 { title: '损耗率', dataIndex: 'excessLossRate', width: 90, align: 'right', render: (v: number) => `${(v * 100).toFixed(1)}%` },
                 { title: '折合金额', dataIndex: 'lossAmount', width: 110, align: 'right', render: (v: number) => (v > 0 ? fmtMoney(String(v)) : '-') },

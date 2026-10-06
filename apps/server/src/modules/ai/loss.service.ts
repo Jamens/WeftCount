@@ -5,6 +5,10 @@ import { CostService } from '../cost/cost.service'
 import { MaterialService } from '../material/material.service'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
 import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity'
+import { RollEntity } from '../inventory/entities/roll.entity'
+import { ProductionReportEntity } from '../production/entities/production-report.entity'
+import { ProductionOrderEntity } from '../production/entities/production-order.entity'
+import { MachineEntity } from '../production/entities/machine.entity'
 import { LlmClient } from './llm.client'
 import type { AiInsight } from './ai.types'
 
@@ -44,6 +48,21 @@ export interface LossData {
   specCount: number
 }
 
+export interface LossHotspot {
+  specId: string
+  specName: string
+  inputM: number
+  outputM: number
+  excessLossM: number
+  excessLossRate: number
+  lossAmount: number
+  /**
+   * 该规格织造产出的件卡(匹)——归因落到匹。
+   * 每匹带产出它的工单/机台（产出侧 report→order 可关联；投料侧是车间池不绑工单）。
+   */
+  rolls: { rollNo: string; meters: number; status: string; orderNo: string; machineName: string }[]
+}
+
 /**
  * 损耗归因
  *
@@ -68,7 +87,38 @@ export class LossService {
     private readonly docRepo: Repository<InventoryDocumentEntity>,
     @InjectRepository(InventoryBatchEntity)
     private readonly batchRepo: Repository<InventoryBatchEntity>,
+    @InjectRepository(ProductionReportEntity)
+    private readonly reportRepo: Repository<ProductionReportEntity>,
+    @InjectRepository(RollEntity)
+    private readonly rollRepo: Repository<RollEntity>,
+    @InjectRepository(ProductionOrderEntity)
+    private readonly orderRepo: Repository<ProductionOrderEntity>,
+    @InjectRepository(MachineEntity)
+    private readonly machineRepo: Repository<MachineEntity>,
   ) {}
+
+  /**
+   * 损耗指标计算（analyze 与 hotspots 共用同一口径）
+   *
+   * 投料当量(米) inputM、产出(米) outputM → 实际/标准得布率、超额损耗(米/kg/率)。
+   * yarnKgPerM = (经纱+纬纱 kg/100m)/100；finishedKgPerM = gsm×幅宽米/1000。
+   */
+  private computeLoss(inputM: number, outputM: number, yarnKgPerM: number, finishedKgPerM: number) {
+    const inputYarnKg = inputM * yarnKgPerM
+    const outputKg = outputM * finishedKgPerM
+    const standardYield = yarnKgPerM > 0 ? finishedKgPerM / yarnKgPerM : 0
+    const actualYield = inputYarnKg > 0 ? outputKg / inputYarnKg : 0
+    const excessLossM = inputM - outputM
+    return {
+      inputYarnKg,
+      outputKg,
+      standardYield,
+      actualYield,
+      excessLossM,
+      excessLossKg: excessLossM * finishedKgPerM,
+      excessLossRate: inputM > 0 ? excessLossM / inputM : 0,
+    }
+  }
 
   /** 确定性核算：按规格算超额损耗并排序 */
   async analyze(tenantId: string, companyId: string): Promise<LossData> {
@@ -114,17 +164,16 @@ export class LossService {
       const yarnKgPerM = (Number(snap.warpKgPer100m) + Number(snap.weftKgPer100m)) / 100
       const finishedKgPerM = (Number(snap.totalGsm) * widthM) / 1000 // g/m ÷1000 = kg/m
       if (yarnKgPerM <= 0) continue
-      const standardYield = finishedKgPerM / yarnKgPerM
-      // 投料当量米 = 领用折算米数；实际投纱重由工艺系数推（领用单存的是成品当量，非投纱重）
       const inputM = input.m
-      const inputYarnKg = inputM * yarnKgPerM
       const outputM = output.m
-      const outputKg = outputM * finishedKgPerM
-      const actualYield = inputYarnKg > 0 ? outputKg / inputYarnKg : 0
-      // 超额损耗(成品当量米)：投料当量 − 实际产出（正=比标准差）
-      const excessLossM = inputM - outputM
-      const excessLossKg = excessLossM * finishedKgPerM
-      const excessLossRate = excessLossM / inputM
+      const L = this.computeLoss(inputM, outputM, yarnKgPerM, finishedKgPerM)
+      const standardYield = L.standardYield
+      const actualYield = L.actualYield
+      const excessLossM = L.excessLossM
+      const excessLossKg = L.excessLossKg
+      const excessLossRate = L.excessLossRate
+      const inputYarnKg = L.inputYarnKg
+      const outputKg = L.outputKg
       // 折合金额：按成品材料成本/米计价（loss 当量的价值）
       let lossAmount = 0
       try {
@@ -147,6 +196,96 @@ export class LossService {
     const totalExcessKg = rows.reduce((s, r) => s + Math.max(r.excessLossKg, 0), 0)
     const totalLossAmount = rows.reduce((s, r) => s + Math.max(r.lossAmount, 0), 0)
     return { rows, totalExcessKg, totalLossAmount, specCount: rows.length }
+  }
+
+  /**
+   * 损耗归因到匹
+   *
+   * 损耗是**规格级**现象：生产领用是「内部转移」进车间池、不绑具体工单，所以投料无法
+   * 精确配到单次织造（这是有意的模型设计）。因此这里按**规格**归集超额损耗（与 analyze
+   * 同一口径、共用 computeLoss），并把该规格织造产出的**件卡(匹)**全部列出——每匹标注
+   * 产出它的工单/机台。作用：定位「这个规格损得多，这些匹是它产的（谁织的）」。
+   */
+  async hotspots(tenantId: string, companyId: string): Promise<LossHotspot[]> {
+    // 1) 规格级损耗（复用 analyze）
+    const data = await this.analyze(tenantId, companyId)
+
+    // 2) 各规格织造产出批次 → 报工(→工单/机台) + 件卡
+    const outputBatches = await this.batchRepo
+      .createQueryBuilder('b')
+      .where('b.company_id = :companyId', { companyId })
+      .andWhere("b.source_type = 'production_in'")
+      .getMany()
+    if (outputBatches.length === 0) return []
+
+    const reportIds = [...new Set(outputBatches.map((b) => b.sourceDocId))]
+    const reports = reportIds.length
+      ? await this.reportRepo
+          .createQueryBuilder('r')
+          .where('r.company_id = :companyId', { companyId })
+          .andWhere('r.id IN (:...ids)', { ids: reportIds })
+          .getMany()
+      : []
+    const reportById = new Map(reports.map((r) => [r.id, r]))
+    const orderIds = [...new Set(reports.map((r) => r.orderId))]
+    const orders = orderIds.length
+      ? await this.orderRepo
+          .createQueryBuilder('o')
+          .where('o.id IN (:...ids)', { ids: orderIds })
+          .getMany()
+      : []
+    const orderMap = new Map(orders.map((o) => [o.id, o]))
+    const machineIds = [...new Set(orders.map((o) => o.machineId).filter(Boolean) as string[])]
+    const machines = machineIds.length
+      ? await this.machineRepo
+          .createQueryBuilder('m')
+          .where('m.id IN (:...ids)', { ids: machineIds })
+          .getMany()
+      : []
+    const machineMap = new Map(machines.map((m) => [m.id, m.name]))
+
+    const allBatchIds = outputBatches.map((b) => b.id)
+    const allRolls = allBatchIds.length
+      ? await this.rollRepo
+          .createQueryBuilder('rl')
+          .where('rl.batch_id IN (:...ids)', { ids: allBatchIds })
+          .orderBy('rl.created_at', 'DESC')
+          .getMany()
+      : []
+    const rollsByBatch = new Map<string, RollEntity[]>()
+    for (const r of allRolls) {
+      const arr = rollsByBatch.get(r.batchId) ?? []
+      arr.push(r)
+      rollsByBatch.set(r.batchId, arr)
+    }
+
+    // 3) 按规格归集件卡
+    const rollsBySpec = new Map<string, LossHotspot['rolls']>()
+    for (const b of outputBatches) {
+      const report = reportById.get(b.sourceDocId)
+      const order = report ? orderMap.get(report.orderId) : undefined
+      const orderNo = order?.orderNo ?? '-'
+      const machineName = order?.machineId ? (machineMap.get(order.machineId) ?? order.machineId) : '-'
+      const arr = rollsBySpec.get(b.specId) ?? []
+      for (const r of rollsByBatch.get(b.id) ?? []) {
+        arr.push({ rollNo: r.rollNo, meters: Number(r.meters), status: r.status, orderNo, machineName })
+      }
+      rollsBySpec.set(b.specId, arr)
+    }
+
+    // 4) 合并：规格损耗 + 该规格件卡
+    const rows: LossHotspot[] = data.rows.map((r) => ({
+      specId: r.specId,
+      specName: r.specName,
+      inputM: r.inputM,
+      outputM: r.outputM,
+      excessLossM: r.excessLossM,
+      excessLossRate: r.excessLossRate,
+      lossAmount: r.lossAmount,
+      rolls: rollsBySpec.get(r.specId) ?? [],
+    }))
+    rows.sort((a, b) => b.lossAmount - a.lossAmount || b.excessLossM - a.excessLossM)
+    return rows
   }
 
   /** 损耗归因 + AI 解释/建议 */

@@ -16,6 +16,8 @@ import { GreigeSpecEntity } from '../material/entities/greige-spec.entity'
 import { MaterialEntity } from '../material/entities/material.entity'
 import { MachineEntity } from '../production/entities/machine.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
+import { ProductionReportEntity } from '../production/entities/production-report.entity'
+import { RollEntity } from '../inventory/entities/roll.entity'
 
 @Module({
   // 注册库存/规格/物料/机台/订单实体仅为只读聚合与回写校准系数，不注入上层 Service（避免循环依赖）
@@ -23,6 +25,8 @@ import { ProductionOrderEntity } from '../production/entities/production-order.e
     TypeOrmModule.forFeature([
       InventoryDocumentEntity,
       InventoryBatchEntity,
+      ProductionReportEntity,
+      RollEntity,
       GreigeSpecEntity,
       MaterialEntity,
       MachineEntity,

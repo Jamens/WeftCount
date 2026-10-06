@@ -1,7 +1,7 @@
 // AI 引擎五能力：结构完整性（不依赖 key 是否有效，llm/rule 都得有 source/confidence/derivation/data）
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { login, get, post, activeSpec, activeGreigeMaterial } from './helpers.mjs'
+import { login, get, post, activeSpec, activeGreigeMaterial, supplierOf, assertNear } from './helpers.mjs'
 
 /** 取一个启用机台（报工要求工单已指派机台） */
 async function firstMachine(c) {
@@ -119,4 +119,41 @@ test('报工按匹：各匹之和与产量不符被拒', async () => {
   await assert.rejects(() =>
     post(c, `/production-orders/${order.id}/reports`, { outputM: 100, rolls: [{ rollNo: `RQ${tag}`, meters: 50 }] })
   )
+})
+
+// ---- 损耗归因到匹 ----
+
+test('损耗热点到匹：规格级损耗 + 该规格产出件卡', async () => {
+  const c = await login('factory')
+  const mat = await activeGreigeMaterial(c)
+  const machine = await firstMachine(c)
+  // 建独立规格隔离损耗（损耗是全量聚合，用共享规格会被其它测试数据稀释）
+  const tag = Date.now()
+  const spec = await post(c, '/greige-specs', {
+    name: `热点测试规格${tag}`, finishedWidth: 150, warpDensity: 64, weftDensity: 39,
+    weaveType: 'plain', warpCount: { value: 40, system: 'NeS' }, weftCount: { value: 40, system: 'NeS' },
+  })
+  // 先入库该规格坯布(供领用消耗) → 领用100m(投料) → 报工产出80m
+  const sup = await supplierOf(c)
+  await post(c, '/inventory/purchase-inbound', { materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 150, partnerId: sup.id, unitPrice: 8 })
+  await post(c, '/inventory/production-issue', { materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100 })
+  const order = await post(c, '/production-orders', { materialId: mat.id, specId: spec.id, plannedQuantityM: 500, machineId: machine.id })
+  await post(c, `/production-orders/${order.id}/schedule`, {})
+  const rolls = [{ rollNo: `L${tag}-1`, meters: 45 }, { rollNo: `L${tag}-2`, meters: 35 }]
+  await post(c, `/production-orders/${order.id}/reports`, { outputM: 80, rolls })
+
+  const rows = await get(c, '/ai/loss/hotspots')
+  assert.ok(Array.isArray(rows), '应返回数组')
+  const hit = rows.find((r) => r.specId === spec.id)
+  assert.ok(hit, '热点应包含该规格')
+  assertNear(hit.inputM, 100, 0.01, '投料应=100m')
+  assertNear(hit.outputM, 80, 0.01, '产出应=80m')
+  assertNear(hit.excessLossM, 20, 0.01, '超额损耗应=20m(领用100-产出80)')
+  // 件卡：应含这2匹，且标注产出工单/机台
+  const rollNos = hit.rolls.map((r) => r.rollNo)
+  assert.ok(rollNos.includes(rolls[0].rollNo) && rollNos.includes(rolls[1].rollNo), '应列出该规格产出的件卡')
+  const one = hit.rolls.find((r) => r.rollNo === rolls[0].rollNo)
+  assert.equal(one.meters, 45, '件卡米数45')
+  assert.equal(one.orderNo, order.orderNo, '件卡应标注产出工单')
+  assert.ok(one.machineName, '件卡应标注机台')
 })

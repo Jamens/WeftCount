@@ -80,6 +80,13 @@ export class AiController {
     return this.loss.attribute(ctx.tenantId, ctx.companyId)
   }
 
+  @Get('loss/hotspots')
+  @RequirePermission(Permission.COST_VIEW)
+  @ApiOperation({ summary: '损耗归因到匹：按生产工单归集超额损耗 + 列出该次织造产出的件卡(定位哪次织造损多了、损出哪几匹)' })
+  lossHotspots(@CurrentUser() ctx: RequestContext) {
+    return this.loss.hotspots(ctx.tenantId, ctx.companyId)
+  }
+
   @Get('coefficients')
   @RequirePermission(Permission.PRODUCTION_VIEW)
   @ApiOperation({ summary: '系数自学习：从领用/报工反推各规格实测多耗倍数，给建议校准系数' })

@@ -332,6 +332,18 @@ export interface LossData {
   specCount: number
 }
 
+/** 损耗热点（到匹）：规格级超额损耗 + 该规格织造产出的件卡（各匹标注产出工单/机台） */
+export interface LossHotspotWire {
+  specId: string
+  specName: string
+  inputM: number
+  outputM: number
+  excessLossM: number
+  excessLossRate: number
+  lossAmount: number
+  rolls: { rollNo: string; meters: number; status: string; orderNo: string; machineName: string }[]
+}
+
 export interface SpecCoefficientRow {
   specId: string
   specName: string
