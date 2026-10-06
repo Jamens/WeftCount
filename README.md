@@ -536,6 +536,18 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 
 > ✅ 并发单号已修复：所有 `next*`（单号/批号/编码）改为**撞号重取号重试**（`common/util/unique-no.ts` 的 `withUniqueNo`：唯一键冲突 1062 → 递增退避+抖动 → 重取号重试）。库存/订单/合同/生产工单/往来单位的创建均已包裹。冒烟里「并发建单不撞号」用例守护该修复（并发 6 单全部成功且单号互异）。
 
+### 导入导出（零依赖）
+
+批量建档（物料/规格字段多，逐条点太慢）与报表导出。**坚持零新增依赖**：
+
+- `server/src/common/csv.ts` — CSV 解析/生成（支持引号内逗号/换行/转义；导出带 UTF-8 BOM，Excel 中文不乱码）
+- `server/src/common/xlsx.ts` — **极简 XLSX 写入器**：xlsx 本质是 zip，用 Node 内置 `zlib.deflateRawSync` + 自写 CRC32/zip 头逐文件构造，不引第三方库
+- `modules/import-export`：物料/规格的**模板下载(CSV) → 批量导入 → 物料导出(XLSX)**；导入**逐行校验，错误行不影响其他行**，返回每行的行号+原因
+- 端点 `/import-export/{materials|specs}/{template|import|export}`，导入权限 `material.edit`、模板/导出 `material.view`，导入带审计
+- 前端 `/import-export` 导入导出中心：拖拽选文件（`FileReader` 读文本提交，避免 multipart 依赖）→ 导入 → 结果卡片（成功/失败统计 + 错误行明细表）
+
+> 决策：**导入用 CSV、导出用 XLSX**。xlsx 解析需解压+XML 解析，复杂度高；CSV Excel 原生可开可编辑、解析零风险。导出用 xlsx 更好看。
+
 ### 打印模板（浏览器打印，零依赖）
 
 `admin/src/lib/print.tsx` 提供打印基建：`usePrint()` 把 ReactNode 用 Portal 渲进专用 `.print-root`

@@ -21,6 +21,7 @@ import { ContractModule } from './modules/contract/contract.module'
 import { AiModule } from './modules/ai/ai.module'
 import { AlertModule } from './modules/alert/alert.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
+import { ImportExportModule } from './modules/import-export/import-export.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -64,6 +65,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     AiModule,
     AlertModule,
     AnalyticsModule,
+    ImportExportModule,
   ],
   controllers: [HealthController],
   providers: [

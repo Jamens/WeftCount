@@ -25,6 +25,7 @@ import {
   BarcodeOutlined,
   BellOutlined,
   AreaChartOutlined,
+  InboxOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -50,6 +51,7 @@ import SupplierCodePage from './pages/SupplierCodePage'
 import AiProductionPage from './pages/AiProductionPage'
 import AlertPage from './pages/AlertPage'
 import TrendPage from './pages/TrendPage'
+import ImportExportPage from './pages/ImportExportPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -136,6 +138,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           { key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习(AI)' },
           { key: '/ai-production', icon: <ExperimentOutlined />, label: 'AI 生产助手' },
         ]
+      : []),
+    ...(hasPermission(PERM.MATERIAL_VIEW)
+      ? [{ key: '/import-export', icon: <InboxOutlined />, label: '导入导出' }]
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
       ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
@@ -338,6 +343,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ContractPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/import-export"
+          element={
+            <RequireAuth>
+              <Shell>
+                <ImportExportPage />
               </Shell>
             </RequireAuth>
           }
