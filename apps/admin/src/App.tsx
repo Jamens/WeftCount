@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Layout, Menu, Typography, Dropdown, Space, Tag, Avatar } from 'antd'
+import { App as AntdApp, Layout, Menu, Typography, Dropdown, Space, Tag, Avatar } from 'antd'
 import {
   DashboardOutlined,
   FileSearchOutlined,
@@ -9,6 +9,7 @@ import {
   ShopOutlined,
   SwapOutlined,
   UserOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -16,6 +17,8 @@ import type { CurrentUserInfo } from '@weftcount/shared'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AuditLogPage from './pages/AuditLogPage'
+import MaterialPage from './pages/MaterialPage'
+import { PERM } from './lib/erp'
 
 const { Text } = Typography
 
@@ -41,10 +44,21 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: '工作台' },
-    ...(hasPermission('audit.view')
+    ...(hasPermission(PERM.MATERIAL_VIEW)
+      ? [{ key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' }]
+      : []),
+    ...(hasPermission(PERM.INVENTORY_VIEW)
+      ? [
+          { key: 'placeholder-spec', icon: <AppstoreOutlined />, label: '坯布规格（建设中）', disabled: true },
+          { key: 'placeholder-batch', icon: <AppstoreOutlined />, label: '库存批次（建设中）', disabled: true },
+          { key: 'placeholder-doc', icon: <AppstoreOutlined />, label: '三算单据（建设中）', disabled: true },
+          { key: 'placeholder-txn', icon: <AppstoreOutlined />, label: '事务流水（建设中）', disabled: true },
+          { key: 'placeholder-recon', icon: <AppstoreOutlined />, label: '三算对账（建设中）', disabled: true },
+        ]
+      : []),
+    ...(hasPermission(PERM.AUDIT_VIEW)
       ? [{ key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' }]
       : []),
-    { key: 'placeholder-m1', icon: <ShopOutlined />, label: '基础资料（建设中）', disabled: true },
     { key: 'placeholder-m2', icon: <SettingOutlined />, label: '系统设置（建设中）', disabled: true },
   ]
 
@@ -148,36 +162,48 @@ export default function App() {
   }, [])
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <Shell>
-              <DashboardPage />
-            </Shell>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/audit-logs"
-        element={
-          <RequireAuth>
-            <Shell>
-              <AuditLogPage />
-            </Shell>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="*"
-        element={
-          <div style={{ padding: 40, textAlign: 'center' }}>
-            <Text type="secondary">页面不存在</Text>
-          </div>
-        }
-      />
-    </Routes>
+    <AntdApp>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <Shell>
+                <DashboardPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/materials"
+          element={
+            <RequireAuth>
+              <Shell>
+                <MaterialPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/audit-logs"
+          element={
+            <RequireAuth>
+              <Shell>
+                <AuditLogPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <Text type="secondary">页面不存在</Text>
+            </div>
+          }
+        />
+      </Routes>
+    </AntdApp>
   )
 }
