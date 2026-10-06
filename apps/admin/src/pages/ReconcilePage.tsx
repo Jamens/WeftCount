@@ -65,7 +65,7 @@ export default function ReconcilePage() {
             一件事三算对账
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            同一批布的采购重量 / 生产长度 / 销售面积，折算到重量基准必须闭合：采购 = 生产折算 + 销售折算 + 结存
+            同一批布的采购重量 / 生产长度 / 销售面积，折算到重量基准必须闭合：采购 + 生产产出 = 生产折算 + 销售折算 + 结存
           </Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void load()}>
@@ -108,6 +108,11 @@ export default function ReconcilePage() {
           <Col span={4}>
             <Card size="small">
               <Statistic title="采购入库重量" value={dec(l.purchaseKg)} suffix="kg" precision={2} />
+            </Card>
+          </Col>
+          <Col span={4}>
+            <Card size="small">
+              <Statistic title="生产产出(织造)" value={dec(l.productionInKg)} suffix="kg" precision={2} />
             </Card>
           </Col>
           <Col span={4}>
@@ -176,6 +181,7 @@ export default function ReconcilePage() {
           columns={[
             { title: '规格', dataIndex: 'specId', render: (v: string) => specName(v) },
             { title: '采购(kg)', dataIndex: 'purchaseKg', align: 'right', render: (v: string) => fmt(v, 2) },
+            { title: '生产产出(kg)', dataIndex: 'productionInKg', align: 'right', render: (v: string) => fmt(v, 2) },
             {
               title: '生产折算(kg)',
               dataIndex: 'productionOutKg',

@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Like, Repository } from 'typeorm'
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
+import { DataSource, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { MachineEntity, type MachineStatus } from './entities/machine.entity'
 import { ProductionOrderEntity, type ProductionOrderStatus } from './entities/production-order.entity'
@@ -14,6 +14,7 @@ import type {
   UpdateProductionOrderDto,
 } from './production.dto'
 import { MaterialService } from '../material/material.service'
+import { InventoryService } from '../inventory/inventory.service'
 
 /** 工单号前缀 SC（生产） */
 const ORDER_PREFIX = 'SC'
@@ -44,6 +45,9 @@ export class ProductionService {
     @InjectRepository(ProductionReportEntity)
     private readonly reports: Repository<ProductionReportEntity>,
     private readonly materials: MaterialService,
+    private readonly inventory: InventoryService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -239,8 +243,11 @@ export class ProductionService {
   // -------------------------------------------------------------------------
 
   /**
-   * 挡车工报工：产出入库留待下轮（先累计产出与进度）。
-   * 报工须针对「已排产/生产中」且已指派机台的工单；产出累加，满额自动完成。
+   * 挡车工报工：在**同一事务**内完成「存报工 + 累计产出/推进状态 + 生成坯布入库批次」。
+   *
+   * 报工即入库：织机产出直接变成坯布库存批次（sourceType=production_in），
+   * 打通「织造产出 → 坯布库存 → 销售/领用」，让三算对账的产出侧有数据。
+   * 全程一个事务，任一步失败整体回滚，不会出现「报了工但没库存」。
    * 报工不可编辑/删除，产出只增不减，故满额自动完成安全。
    */
   async report(
@@ -249,7 +256,7 @@ export class ProductionService {
     userId: string,
     orderId: string,
     dto: CreateReportDto,
-  ): Promise<{ report: ProductionReportEntity; order: ProductionOrderEntity }> {
+  ): Promise<{ report: ProductionReportEntity; order: ProductionOrderEntity; batchId: string }> {
     const o = await this.findOrder(tenantId, companyId, orderId)
     if (o.status !== 'scheduled' && o.status !== 'in_progress') {
       throw new BadRequestException({
@@ -261,26 +268,41 @@ export class ProductionService {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '工单未指派机台，无法报工' })
     }
     const reportDate = dto.reportDate ?? new Date().toISOString().slice(0, 10)
-    const report = await this.reports.save(
-      this.reports.create({
-        tenantId,
-        companyId,
-        orderId,
-        machineId: o.machineId,
-        reportDate,
-        outputM: num(dto.outputM, 3),
-        stoppageMinutes: dto.stoppageMinutes ?? null,
-        stopReason: dto.stopReason ?? null,
-        operatorId: userId,
-      }),
-    )
-    // 累加产出
-    const produced = Number(o.producedQuantityM) + dto.outputM
-    o.producedQuantityM = num(produced, 3)
-    // 开工中的工单首次报工自动转「生产中」；满额自动完成
-    if (o.status === 'scheduled') o.status = 'in_progress'
-    if (produced >= Number(o.plannedQuantityM) - 0.01) o.status = 'completed'
-    const order = await this.orders.save(o)
-    return { report, order }
+    const ctx = { tenantId, companyId, userId }
+
+    const { report, order, batchId } = await this.dataSource.transaction(async (manager) => {
+      const savedReport = await manager.save(
+        manager.create(ProductionReportEntity, {
+          tenantId,
+          companyId,
+          orderId,
+          machineId: o.machineId as string,
+          reportDate,
+          outputM: num(dto.outputM, 3),
+          stoppageMinutes: dto.stoppageMinutes ?? null,
+          stopReason: dto.stopReason ?? null,
+          operatorId: userId,
+        }),
+      )
+
+      // 织造产出 → 坯布入库批次（批次 sourceDocId 指向报工，可回溯工单）
+      const batch = await this.inventory.createProductionInbound(manager, ctx, {
+        materialId: o.materialId,
+        specId: o.specId,
+        quantityM: dto.outputM,
+        sourceDocId: savedReport.id,
+        remark: `报工入库 · 工单 ${o.orderNo}`,
+      })
+
+      // 累加产出 + 推进状态
+      const produced = Number(o.producedQuantityM) + dto.outputM
+      o.producedQuantityM = num(produced, 3)
+      if (o.status === 'scheduled') o.status = 'in_progress'
+      if (produced >= Number(o.plannedQuantityM) - 0.01) o.status = 'completed'
+      const savedOrder = await manager.save(o)
+      return { report: savedReport, order: savedOrder, batchId: batch.id }
+    })
+
+    return { report, order, batchId }
   }
 }

@@ -342,6 +342,79 @@ export class InventoryService {
     return savedDoc
   }
 
+  /**
+   * 生产入库：织造产出（报工）自动生成坯布批次。
+   *
+   * 与采购入库不同：产出按**主单位米**直接进（织机产出就是米），内部转移无往来单位，
+   * 不生成三算单据，只落「批次 + 入库流水」。批次 sourceDocId 指向报工记录，
+   * 可经 批次→报工→工单 回溯是哪张工单织出来的。
+   *
+   * 接受外部 EntityManager，由生产模块在**同一事务**内调用，保证「报工 + 入库」原子。
+   */
+  async createProductionInbound(
+    manager: EntityManager,
+    ctx: { tenantId: string; companyId: string; userId: string },
+    input: { materialId: string; specId: string; quantityM: number; sourceDocId: string; remark?: string | null },
+  ): Promise<InventoryBatchEntity> {
+    if (input.quantityM <= 0) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '入库产量必须为正' })
+    }
+    const spec = await this.materials.findSpec(ctx.tenantId, ctx.companyId, input.specId)
+    const snapshot = this.materials.getSnapshot(spec)
+    const widthCm = Number(spec.finishedWidth)
+    const c = this.ctxOf(snapshot, widthCm)
+
+    const meters = input.quantityM
+    const weightKg = this.metersToWeight(meters, c)
+    const areaM2 = this.metersToArea(meters, c)
+    const batchNo = await this.nextBatchNo(ctx.companyId)
+
+    const batch = await manager.save(
+      manager.create(InventoryBatchEntity, {
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        batchNo,
+        materialId: input.materialId,
+        specId: input.specId,
+        widthCm: num(widthCm, 2),
+        specSnapshot: snapshot,
+        quantity: num(meters, 3),
+        weightKg: num(weightKg, 3),
+        areaM2: num(areaM2, 4),
+        remainingQuantity: num(meters, 3),
+        remainingWeightKg: num(weightKg, 3),
+        remainingAreaM2: num(areaM2, 4),
+        unitCost: null,
+        sourceType: 'production_in',
+        sourceDocId: input.sourceDocId,
+        status: 'normal',
+      }),
+    )
+
+    await manager.save(
+      manager.create(InventoryTransactionEntity, {
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        batchId: batch.id,
+        materialId: input.materialId,
+        specId: input.specId,
+        direction: 'in',
+        txnType: 'production_in',
+        changeQuantity: num(meters, 3),
+        changeWeightKg: num(weightKg, 3),
+        changeAreaM2: num(areaM2, 4),
+        afterQuantity: num(meters, 3),
+        afterWeightKg: num(weightKg, 3),
+        afterAreaM2: num(areaM2, 4),
+        unitPrice: null,
+        docId: input.sourceDocId,
+        operatorId: ctx.userId,
+        remark: input.remark ?? null,
+      }),
+    )
+    return batch
+  }
+
   // ---------------------------------------------------------------------------
   // FIFO 消耗规划 + 出库（生产领用按长度 / 销售出库按面积）
   // ---------------------------------------------------------------------------
@@ -581,6 +654,7 @@ export class InventoryService {
   ): Promise<{
     ledger: {
       purchaseKg: string
+      productionInKg: string
       productionOutKg: string
       salesOutKg: string
       remainingKg: string
@@ -591,6 +665,7 @@ export class InventoryService {
     bySpec: Array<{
       specId: string
       purchaseKg: string
+      productionInKg: string
       productionOutKg: string
       salesOutKg: string
       remainingKg: string
@@ -615,15 +690,18 @@ export class InventoryService {
     if (filter?.specId) batchQb.andWhere('b.spec_id = :specId', { specId: filter.specId })
     const batches = await batchQb.getMany()
 
-    // 按规格聚合
+    // 按规格聚合。入库侧 = 采购入库 + 生产产出（织造报工入库），
+    // 出库侧 = 生产领用 + 销售出库，结存 = 批次剩余。恒等式：
+    //   采购入库 + 生产产出 = 生产领用 + 销售出库 + 期末结存
+    // 早期版本只把采购入库当入库侧，加了生产产出后每米织造布都会被误报「去向不明」。
     const groups = new Map<
       string,
-      { purchaseKg: number; productionOutKg: number; salesOutKg: number; remainingKg: number }
+      { purchaseKg: number; productionInKg: number; productionOutKg: number; salesOutKg: number; remainingKg: number }
     >()
     const ensure = (specId: string) => {
       let g = groups.get(specId)
       if (!g) {
-        g = { purchaseKg: 0, productionOutKg: 0, salesOutKg: 0, remainingKg: 0 }
+        g = { purchaseKg: 0, productionInKg: 0, productionOutKg: 0, salesOutKg: 0, remainingKg: 0 }
         groups.set(specId, g)
       }
       return g
@@ -643,12 +721,18 @@ export class InventoryService {
       }
     }
     for (const b of batches) {
-      ensure(b.specId).remainingKg += Number(b.remainingWeightKg)
+      const g = ensure(b.specId)
+      // 生产产出按原始入库量计（weightKg），不是剩余量
+      if (b.sourceType === 'production_in') {
+        g.productionInKg += Number(b.weightKg)
+      }
+      g.remainingKg += Number(b.remainingWeightKg)
     }
 
     const bySpec: Array<{
       specId: string
       purchaseKg: string
+      productionInKg: string
       productionOutKg: string
       salesOutKg: string
       remainingKg: string
@@ -658,16 +742,19 @@ export class InventoryService {
     }> = []
 
     let tPurchase = 0
+    let tProdIn = 0
     let tProd = 0
     let tSales = 0
     let tRemain = 0
     for (const [specId, g] of groups) {
-      const unexplained = g.purchaseKg - g.productionOutKg - g.salesOutKg - g.remainingKg
-      const rate = g.purchaseKg > 0 ? Math.abs(unexplained) / g.purchaseKg : 0
+      const inKg = g.purchaseKg + g.productionInKg
+      const unexplained = inKg - g.productionOutKg - g.salesOutKg - g.remainingKg
+      const rate = inKg > 0 ? Math.abs(unexplained) / inKg : 0
       const within = rate <= toleranceRate
       bySpec.push({
         specId,
         purchaseKg: num(g.purchaseKg, 3),
+        productionInKg: num(g.productionInKg, 3),
         productionOutKg: num(g.productionOutKg, 3),
         salesOutKg: num(g.salesOutKg, 3),
         remainingKg: num(g.remainingKg, 3),
@@ -676,20 +763,22 @@ export class InventoryService {
         withinTolerance: within,
       })
       tPurchase += g.purchaseKg
+      tProdIn += g.productionInKg
       tProd += g.productionOutKg
       tSales += g.salesOutKg
       tRemain += g.remainingKg
     }
 
-    const tUnexplained = tPurchase - tProd - tSales - tRemain
-    const tRate = tPurchase > 0 ? Math.abs(tUnexplained) / tPurchase : 0
+    const tIn = tPurchase + tProdIn
+    const tUnexplained = tIn - tProd - tSales - tRemain
+    const tRate = tIn > 0 ? Math.abs(tUnexplained) / tIn : 0
     const warnings: string[] = []
     if (tRate > toleranceRate) {
       warnings.push(
-        `采购 ${num(tPurchase, 2)}kg，生产+销售折算 ${num(tProd + tSales, 2)}kg，结存 ${num(
-          tRemain,
+        `入库合计 ${num(tIn, 2)}kg（采购 ${num(tPurchase, 2)} + 生产产出 ${num(tProdIn, 2)}），生产+销售折算 ${num(
+          tProd + tSales,
           2,
-        )}kg，差异 ${num(tUnexplained, 2)}kg（占比 ${(tRate * 100).toFixed(
+        )}kg，结存 ${num(tRemain, 2)}kg，差异 ${num(tUnexplained, 2)}kg（占比 ${(tRate * 100).toFixed(
           2,
         )}%），超出容差 ${(toleranceRate * 100).toFixed(0)}%。请核查报废/盘亏单据，或录入单位、规格版本是否一致。`,
       )
@@ -697,6 +786,7 @@ export class InventoryService {
 
     const ledger = {
       purchaseKg: num(tPurchase, 3),
+      productionInKg: num(tProdIn, 3),
       productionOutKg: num(tProd, 3),
       salesOutKg: num(tSales, 3),
       remainingKg: num(tRemain, 3),

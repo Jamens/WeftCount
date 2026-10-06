@@ -134,6 +134,7 @@ export interface TxnWire {
 export interface ReconcileWire {
   ledger: {
     purchaseKg: string
+    productionInKg: string
     productionOutKg: string
     salesOutKg: string
     remainingKg: string
@@ -144,6 +145,7 @@ export interface ReconcileWire {
   bySpec: Array<{
     specId: string
     purchaseKg: string
+    productionInKg: string
     productionOutKg: string
     salesOutKg: string
     remainingKg: string
