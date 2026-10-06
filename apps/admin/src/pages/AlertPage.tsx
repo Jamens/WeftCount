@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Badge, Button, Card, Modal, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { BellOutlined, CheckOutlined, ReloadOutlined, ShoppingCartOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { App as AntdApp, Badge, Button, Card, InputNumber, Modal, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { BellOutlined, CheckOutlined, ReloadOutlined, SettingOutlined, ShoppingCartOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { PERM, fmt, type AlertWire, type AlertSeverity, type PartnerWire } from '../lib/erp'
 import { useLookups } from '../lib/lookups'
@@ -46,6 +46,10 @@ export default function AlertPage() {
   const [scope, setScope] = useState<'open' | 'all'>('open')
   const [loading, setLoading] = useState(false)
   const [scanning, setScanning] = useState(false)
+  /** 确认静默天数设置（按公司；0=不静默） */
+  const [silenceDays, setSilenceDays] = useState<number | null>(null)
+  const [setOpen_, setSetOpen] = useState(false)
+  const [silenceInput, setSilenceInput] = useState<number>(7)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -64,6 +68,29 @@ export default function AlertPage() {
   }, [scope, message])
 
   useEffect(() => { void load() }, [load])
+
+  // 读设置（确认静默天数）
+  useEffect(() => {
+    void api
+      .get<{ ackSilenceDays: number }>('/alerts/settings')
+      .then((r) => {
+        setSilenceDays(r.data.data.ackSilenceDays)
+        setSilenceInput(r.data.data.ackSilenceDays)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  const saveSilence = async () => {
+    try {
+      const r = await api.put<{ ackSilenceDays: number }>('/alerts/settings', { ackSilenceDays: silenceInput })
+      setSilenceDays(r.data.data.ackSilenceDays)
+      setSetOpen(false)
+      message.success(`确认静默期已设为 ${r.data.data.ackSilenceDays} 天`)
+      void load()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '保存失败')
+    }
+  }
 
   const scan = async () => {
     setScanning(true)
@@ -156,6 +183,11 @@ export default function AlertPage() {
         </div>
         <Space>
           {canManage && <Button type="primary" icon={<ThunderboltOutlined />} loading={scanning} onClick={() => void scan()}>扫描预警</Button>}
+          <Tooltip title="确认预警后，同一问题在静默期内不再重复提醒（按本公司设置）">
+            <Button icon={<SettingOutlined />} onClick={() => { setSilenceInput(silenceDays ?? 7); setSetOpen(true) }}>
+              静默期{silenceDays != null ? ` ${silenceDays}天` : ''}
+            </Button>
+          </Tooltip>
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>刷新</Button>
         </Space>
       </Space>
@@ -242,6 +274,31 @@ export default function AlertPage() {
           ]}
         />
       </Card>
+
+      {/* 确认静默期设置（按公司） */}
+      <Modal
+        open={setOpen_}
+        title="确认静默期"
+        okText="保存"
+        cancelText="取消"
+        onOk={() => void saveSilence()}
+        onCancel={() => setSetOpen(false)}
+      >
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          确认（忽略）一条预警后，同一问题在静默期内< b>不再重复提醒</b>。
+          不同厂子处理节奏不同：每天报工的厂 7 天合适，一周盘一次货的小厂可能要 15 天。
+          设为 <b>0</b> 表示不静默——只要条件还在就继续提醒。
+        </Text>
+        <div style={{ marginTop: 14 }}>
+          <InputNumber
+            style={{ width: '100%' }}
+            min={0} max={365} precision={0}
+            value={silenceInput}
+            onChange={(v) => setSilenceInput(Math.max(0, Math.floor(v ?? 0)))}
+            addonAfter="天"
+          />
+        </div>
+      </Modal>
 
       {/* 推断不出规格时：让用户补选（首次采购的新物料没有历史入库可依据） */}
       <Modal

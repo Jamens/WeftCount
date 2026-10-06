@@ -44,6 +44,15 @@ export class CompanyEntity {
   @Column({ type: 'varchar', length: 32, nullable: true })
   phone!: string | null
 
+  /**
+   * 预警确认后的静默天数（按公司）
+   *
+   * 不同厂子处理节奏差别大：每天报工的厂 7 天合适，一周盘一次货的小厂 7 天太久。
+   * 0 = 不静默（确认后只要条件还在就继续提醒）。
+   */
+  @Column({ type: 'int', default: 7 })
+  alertAckSilenceDays!: number
+
   @Column({ type: 'enum', enum: ['active', 'closed'], default: 'active' })
   status!: CompanyStatus
 

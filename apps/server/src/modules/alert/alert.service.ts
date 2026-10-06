@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, IsNull, Not, Repository } from 'typeorm'
 import dayjs from 'dayjs'
+import { ErrorCode } from '@weftcount/shared'
 import {
   computeReorderSuggestion,
   DEFAULT_LEAD_TIME_DAYS,
@@ -13,13 +14,15 @@ import { ProductionOrderEntity } from '../production/entities/production-order.e
 import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity'
 import { InventoryTransactionEntity } from '../inventory/entities/inventory-transaction.entity'
 import { TradeOrderEntity } from '../order/entities/trade-order.entity'
+import { CompanyEntity } from '../tenant/entities/company.entity'
 
 /** 呆滞批次阈值：入库超此天数且仍有剩余未动 */
 const STALE_DAYS = 60
 /** 低库存判定：库存 < 安全库存（仅对设了安全库存的物料生效） */
 const LOW_STOCK_RATIO = 1
 /** 确认后的静默天数：期内同一问题不再重复报，避免「点了确认像没反应」 */
-const ACK_SILENCE_DAYS = 7
+/** 确认后静默天数的缺省值（公司可在预警中心改） */
+const DEFAULT_ACK_SILENCE_DAYS = 7
 
 /** 数量展示统一 1 位小数 */
 function fmtQty(v: number): string {
@@ -59,7 +62,30 @@ export class AlertService {
     /** 只读汇总用：判断「是否已由预警生成采购单」，不注入 OrderService（避免模块循环） */
     @InjectRepository(TradeOrderEntity)
     private readonly orders: Repository<TradeOrderEntity>,
+    @InjectRepository(CompanyEntity)
+    private readonly companies: Repository<CompanyEntity>,
   ) {}
+
+  /** 读取该公司的预警确认静默天数（缺省 7；0=不静默） */
+  private async ackSilenceDays(companyId: string): Promise<number> {
+    const c = await this.companies.findOne({ where: { id: companyId } })
+    const n = Number(c?.alertAckSilenceDays ?? DEFAULT_ACK_SILENCE_DAYS)
+    return Number.isFinite(n) && n >= 0 ? n : DEFAULT_ACK_SILENCE_DAYS
+  }
+
+  /** 当前公司的预警设置（供界面展示/修改） */
+  async getSettings(companyId: string) {
+    return { ackSilenceDays: await this.ackSilenceDays(companyId) }
+  }
+
+  /** 修改当前公司的预警设置 */
+  async updateSettings(companyId: string, ackSilenceDays: number) {
+    const c = await this.companies.findOne({ where: { id: companyId } })
+    if (!c) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '公司不存在' })
+    c.alertAckSilenceDays = Math.max(0, Math.floor(Number(ackSilenceDays) || 0))
+    await this.companies.save(c)
+    return { ackSilenceDays: c.alertAckSilenceDays }
+  }
 
   async list(companyId: string, onlyOpen = true): Promise<AlertEntity[]> {
     return this.alerts.find({
@@ -82,7 +108,6 @@ export class AlertService {
     return this.alerts.save(a)
   }
 
-  /** 扫描并生成预警（去重：已有未确认的同类同对象预警则跳过） */
   /**
    * 物料在观察窗口内的**出库总量**（主单位）
    *
@@ -104,6 +129,7 @@ export class AlertService {
     return Number(row?.qty ?? 0)
   }
 
+  /** 扫描并生成预警（去重三条规则见下方 toCreate 处注释） */
   async scan(tenantId: string, companyId: string): Promise<AlertScanResult> {
     const candidates: {
       type: AlertType
@@ -224,8 +250,9 @@ export class AlertService {
     const existing = await this.alerts.find({ where: { companyId, acknowledged: false } })
     const seen = new Set(existing.map((a) => `${a.type}:${a.refId}`))
 
-    // 静默期内的已确认预警
-    const silenceBefore = new Date(Date.now() - ACK_SILENCE_DAYS * 86400000)
+    // 静默期内的已确认预警（静默天数按公司配置；0 表示不静默）
+    const silenceDays = await this.ackSilenceDays(companyId)
+    const silenceBefore = new Date(Date.now() - silenceDays * 86400000)
     const recentAcked = await this.alerts
       .createQueryBuilder('a')
       .where('a.company_id = :companyId', { companyId })
