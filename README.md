@@ -354,6 +354,16 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - `GET /traceability/batch/:batchId`：批次双向追溯——来源链 + 被哪些单据消耗（正向）。
 - 权限 `report.view`；前端 `/traceability` 追溯页（销售单倒查 / 批次追溯双模式，来源链树状展示，规格工艺卡片），菜单按 `report.view` 门控。
 
+### 桌面端 · 车间工作台（阶段七八）
+
+Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把已有能力搬到车间场景：
+
+- **API 客户端** `renderer/src/lib/api.ts`：axios + `Bearer` token + `X-Tenant-Id`/`X-Company-Id` 三件套（与 admin 一致），统一拆服务端 envelope（成功返回 `data`、失败抛后端 message），会话存 localStorage 免重复登录。
+- **登录门禁**：无 token 显示登录页，登录后进入「织机报工 / 车间大屏」两页导航。
+- **织机报工**（挡车工核心）：列出**可报工工单**（`scheduled/in_progress`，服务端已带机台名/规格名），选一个填「本次产出(米)+停机分钟」提交 → 调 `/production-orders/:id/reports`，**报工即自动入库为坯布批次**并累加工单进度（满额自动完成）。只依赖 `production.report` 权限——挡车工没有 `production.view`/`material.view` 也能用。
+- **车间大屏**：深色底，机台×工单网格（各机台当前工单+进度+交期）、机台数/运转数/在产工单/累计产出汇总、逾期工单与维修机台提示，每 15 秒自动刷新。
+- 渲染层 `apps/desktop/src/renderer`，`pnpm dev:desktop` 启动（需后端在线）。扫码出入库与离线标签打印（主进程 `app:printLabel` IPC 已留桩）待后续接入条码/打印机。
+
 ### 成本报表（阶段六 · 成本核算）
 
 **制造成本 = 纱线成本 + 加工费**。纱线用量（每百米经/纬纱 kg）由工艺内核快照给出，成本只做「用量 × 单价」的确定性乘法——数字不会错。

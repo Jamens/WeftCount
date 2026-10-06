@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Like, Repository } from 'typeorm'
+import { DataSource, In, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { MachineEntity, type MachineStatus } from './entities/machine.entity'
 import { ProductionOrderEntity, type ProductionOrderStatus } from './entities/production-order.entity'
@@ -176,6 +176,39 @@ export class ProductionService {
     const o = await this.orders.findOne({ where: { id, tenantId, companyId } })
     if (!o) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '生产工单不存在' })
     return o
+  }
+
+  /**
+   * 可报工工单（挡车工用）
+   *
+   * 车间终端的挡车工只有 `production.report` 权限，没有 `production.view`/`material.view`，
+   * 若复用 findAll 就看不到任何工单、无法报工。故这里单独提供**已带机台名/规格名**的
+   * 可报工工单（scheduled/in_progress），权限只需 production.report，一次请求即可渲染。
+   */
+  async listReportable(tenantId: string, companyId: string) {
+    const orders = await this.findOrders(tenantId, companyId)
+    const reportable = orders.filter((o) => o.status === 'scheduled' || o.status === 'in_progress')
+    if (reportable.length === 0) return []
+    const machineIds = [...new Set(reportable.map((o) => o.machineId).filter((v): v is string => !!v))]
+    const specIds = [...new Set(reportable.map((o) => o.specId))]
+    const [machines, specs] = await Promise.all([
+      machineIds.length ? this.machines.find({ where: { id: In(machineIds) } }) : Promise.resolve([]),
+      this.materials.findSpecs(tenantId, companyId).then((all) => all.filter((s) => specIds.includes(s.id))),
+    ])
+    const machineName = new Map(machines.map((m) => [m.id, m.name]))
+    const specName = new Map(specs.map((s) => [s.id, s.name]))
+    return reportable.map((o) => ({
+      id: o.id,
+      orderNo: o.orderNo,
+      specId: o.specId,
+      specName: specName.get(o.specId) ?? null,
+      machineId: o.machineId,
+      machineName: o.machineId ? (machineName.get(o.machineId) ?? null) : null,
+      plannedQuantityM: o.plannedQuantityM,
+      producedQuantityM: o.producedQuantityM,
+      status: o.status,
+      dueDate: o.dueDate,
+    }))
   }
 
   /** 工单详情：含报工记录与进度 */

@@ -70,6 +70,13 @@ export class ProductionOrderController {
     return this.svc.findOrders(ctx.tenantId, ctx.companyId, filter)
   }
 
+  @Get('reportable')
+  @RequirePermission(Permission.PRODUCTION_REPORT)
+  @ApiOperation({ summary: '可报工工单（挡车工用，含机台名/规格名，只需 production.report 权限）' })
+  reportable(@CurrentUser() ctx: RequestContext) {
+    return this.svc.listReportable(ctx.tenantId, ctx.companyId)
+  }
+
   @Get(':id')
   @RequirePermission(Permission.PRODUCTION_VIEW)
   @ApiOperation({ summary: '查询工单详情（含报工记录与进度）' })

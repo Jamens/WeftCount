@@ -1,23 +1,19 @@
-import { useEffect, useState } from 'react'
-import { Card, Space, Tag, Typography, Row, Col } from 'antd'
-import { BarcodeOutlined, FileTextOutlined, DashboardOutlined } from '@ant-design/icons'
+import { useCallback, useEffect, useState } from 'react'
+import { App as AntdApp, Layout, Menu, Space, Tag, Typography } from 'antd'
+import { FundOutlined, DashboardOutlined, LogoutOutlined } from '@ant-design/icons'
+import { authStore } from './lib/api'
+import LoginPage from './pages/LoginPage'
+import ReportPage from './pages/ReportPage'
+import BoardPage from './pages/BoardPage'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
-interface EnvInfo {
-  version: string
-  platform: string
-}
-
-const MODULES = [
-  { key: 'inbound', label: '扫码入库', icon: <BarcodeOutlined />, desc: '扫布匹码 / 纱线筒子号入库' },
-  { key: 'outbound', label: '扫码出库', icon: <BarcodeOutlined />, desc: '拣货扫码出库与送货车绑定' },
-  { key: 'report', label: '织机报工', icon: <FileTextOutlined />, desc: '挡车工报工，产量自动累加' },
-  { key: 'board', label: '车间大屏', icon: <DashboardOutlined />, desc: '产线状态、当日产量、异常预警' },
-]
+type View = 'report' | 'board'
 
 export default function App() {
-  const [env, setEnv] = useState<EnvInfo | null>(null)
+  const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())
+  const [view, setView] = useState<View>('report')
+  const [env, setEnv] = useState<{ version: string; platform: string } | null>(null)
 
   useEffect(() => {
     if (!window.weftDesktop) return
@@ -26,53 +22,49 @@ export default function App() {
     )
   }, [])
 
+  const onLogout = useCallback(() => {
+    authStore.clear()
+    setAuthed(false)
+  }, [])
+
+  if (!authed) {
+    return (
+      <AntdApp>
+        <LoginPage onSuccess={() => setAuthed(true)} />
+      </AntdApp>
+    )
+  }
+
   return (
-    <div style={{ padding: '32px 40px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Row align="middle" justify="space-between">
-          <Col>
-            <Title level={3} style={{ marginBottom: 4 }}>
-              纬数车间工作台
-            </Title>
-            <Text type="secondary">仓管 · 挡车 · 工艺员的日常操作台</Text>
-          </Col>
-          <Col>
-            {env ? (
-              <Space size="small">
-                <Tag color="green">Electron 在线</Tag>
-                <Tag>v{env.version}</Tag>
-                <Tag>{env.platform}</Tag>
-              </Space>
-            ) : (
-              <Tag color="default">预加载桥未就绪</Tag>
-            )}
-          </Col>
-        </Row>
-
-        <Row gutter={[16, 16]}>
-          {MODULES.map((m) => (
-            <Col key={m.key} span={12}>
-              <Card hoverable size="small">
-                <Space align="start">
-                  <Text style={{ fontSize: 22, color: '#BA7517' }}>{m.icon}</Text>
-                  <Space direction="vertical" size={2}>
-                    <Text strong>{m.label}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {m.desc}
-                    </Text>
-                  </Space>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-
-        <Card size="small" title="阶段说明">
-          <Text type="secondary">
-            桌面端骨架已就绪，扫码出入库与报工功能将在阶段五、阶段八接入。
+    <AntdApp>
+      <Layout style={{ minHeight: '100vh' }}>
+      <Layout.Header style={{ background: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}>
+        <Text strong style={{ color: '#fff', fontSize: 16 }}>纬数 · 车间工作台</Text>
+        <Space>
+          {env && <Tag style={{ margin: 0 }}>v{env.version}</Tag>}
+          <Text style={{ color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }} onClick={onLogout}>
+            <LogoutOutlined /> 退出
           </Text>
-        </Card>
-      </Space>
-    </div>
+        </Space>
+      </Layout.Header>
+      <Layout>
+        <Layout.Sider width={160} theme="dark">
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[view]}
+            items={[
+              { key: 'report', icon: <FundOutlined />, label: '织机报工' },
+              { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
+            ]}
+            onClick={({ key }) => setView(key as View)}
+          />
+        </Layout.Sider>
+        <Layout.Content style={{ background: view === 'board' ? '#0f1115' : '#f5f5f5' }}>
+          {view === 'report' ? <ReportPage /> : <BoardPage />}
+        </Layout.Content>
+      </Layout>
+    </Layout>
+    </AntdApp>
   )
 }
