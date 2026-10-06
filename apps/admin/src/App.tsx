@@ -14,6 +14,7 @@ import {
   KeyOutlined,
   ShoppingCartOutlined,
   ClusterOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -27,6 +28,7 @@ import UserPage from './pages/UserPage'
 import RolePage from './pages/RolePage'
 import OrderPage from './pages/OrderPage'
 import ProductionPage from './pages/ProductionPage'
+import CostPage from './pages/CostPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -86,6 +88,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
       ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
+      : []),
+    ...(hasPermission(PERM.COST_VIEW)
+      ? [{ key: '/cost', icon: <PieChartOutlined />, label: '成本报表' }]
       : []),
     ...(hasPermission(PERM.USER_VIEW)
       ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }]
@@ -269,6 +274,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ProductionPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/cost"
+          element={
+            <RequireAuth>
+              <Shell>
+                <CostPage />
               </Shell>
             </RequireAuth>
           }

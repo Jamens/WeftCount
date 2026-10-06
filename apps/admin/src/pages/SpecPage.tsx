@@ -46,6 +46,7 @@ interface SpecForm {
   weftLossRate?: number
   machineRunRate?: number
   picksPerMinute?: number
+  overheadCostPerMeter?: number
   measuredGsm?: number
   remark?: string
 }
@@ -142,6 +143,7 @@ export default function SpecPage() {
         weftLossRate: v.weftLossRate ?? DEFAULTS.weftLossRate,
         machineRunRate: v.machineRunRate ?? DEFAULTS.machineRunRate,
         picksPerMinute: v.picksPerMinute ?? null,
+        overheadCostPerMeter: v.overheadCostPerMeter ?? 0,
         measuredGsm: v.measuredGsm ?? null,
         remark: v.remark ?? null,
       })
@@ -395,6 +397,13 @@ export default function SpecPage() {
             <Col span={12}>
               <Form.Item name="picksPerMinute" label="织机转速(纬/分)">
                 <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="可选" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="overheadCostPerMeter" label="加工费(元/米)" extra="制造成本 = 纱线成本 + 加工费；按电费/人工/折旧核定">
+                <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="如 0.5" />
               </Form.Item>
             </Col>
           </Row>

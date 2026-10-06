@@ -295,6 +295,7 @@ export class MaterialService {
       weftLossRate?: number
       picksPerMinute?: number | null
       machineRunRate?: number
+      overheadCostPerMeter?: number
       measuredGsm?: number | null
       remark?: string
     },
@@ -349,6 +350,7 @@ export class MaterialService {
         weftLossRate: String(input.weftLossRate ?? 0.05),
         picksPerMinute: input.picksPerMinute ?? null,
         machineRunRate: String(input.machineRunRate ?? 0.85),
+        overheadCostPerMeter: String(input.overheadCostPerMeter ?? 0),
         // 克重来自内核，不是入参
         calculatedGsm: String(snapshot.totalGsm),
         measuredGsm: input.measuredGsm != null ? String(input.measuredGsm) : null,
@@ -419,6 +421,7 @@ export class MaterialService {
       weftLossRate?: number
       picksPerMinute?: number | null
       machineRunRate?: number
+      overheadCostPerMeter?: number
       measuredGsm?: number | null
       remark?: string
     },
@@ -469,6 +472,8 @@ export class MaterialService {
     if (input.warpLossRate !== undefined) s.warpLossRate = String(input.warpLossRate)
     if (input.weftLossRate !== undefined) s.weftLossRate = String(input.weftLossRate)
     if (input.machineRunRate !== undefined) s.machineRunRate = String(input.machineRunRate)
+    // 加工费是成本项，不影响工艺计算，单独赋值
+    if (input.overheadCostPerMeter !== undefined) s.overheadCostPerMeter = String(input.overheadCostPerMeter)
 
     const snapshot = this.calculateSpec({
       finishedWidth: Number(s.finishedWidth),

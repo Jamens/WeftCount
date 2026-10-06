@@ -277,8 +277,7 @@ export interface ProductionOrderDetail {
   progressPct: number
 }
 
-export const MACHINE_STATUS_LABEL: Record<MachineStatusValue, { text: string; color: string }> = {
-  idle: { text: '空闲', color: 'default' },
+export const MACHINE_STATUS_LABEL: Record<MachineStatusValue, { text: string; color: string }> = {  idle: { text: '空闲', color: 'default' },
   running: { text: '运转中', color: 'green' },
   maintenance: { text: '维修中', color: 'orange' },
   retired: { text: '已报废', color: 'red' },
@@ -329,6 +328,7 @@ export const PERM = {
   PURCHASE_MANAGE: 'purchase.manage',
   SALES_VIEW: 'sales.view',
   SALES_MANAGE: 'sales.manage',
+  COST_VIEW: 'cost.view',
   PRODUCTION_VIEW: 'production.view',
   PRODUCTION_ORDER_EDIT: 'production.order.edit',
   PRODUCTION_REPORT: 'production.report',
@@ -551,4 +551,42 @@ export const PARTNER_TYPE_OPTIONS = (Object.keys(PARTNER_TYPE_LABEL) as PartnerT
 export const PARTNER_STATUS_LABEL: Record<PartnerStatusValue, { text: string; color: string }> = {
   active: { text: '启用', color: 'green' },
   disabled: { text: '停用', color: 'default' },
+}
+
+// ---------------------------------------------------------------------------
+// 成本报表
+// ---------------------------------------------------------------------------
+
+/** 纱价来源：最新采购入库成本 / 物料参考价 / 无 */
+export type YarnPriceSource = 'latest_purchase' | 'standard_price' | 'none'
+
+/** 成本分析行（成本引擎算出的成本是 number，非 decimal 字符串——由内核实时计算） */
+export interface CostRow {
+  specId: string
+  specCode: string
+  specName: string
+  warpMaterialName: string | null
+  weftMaterialName: string | null
+  warpYarnPrice: number
+  weftYarnPrice: number
+  warpPriceSource: YarnPriceSource
+  weftPriceSource: YarnPriceSource
+  warpKgPer100m: number
+  weftKgPer100m: number
+  overheadPerM: number
+  warpCostPerM: number
+  weftCostPerM: number
+  materialCostPerM: number
+  totalCostPerM: number
+  totalCostPerKg: number
+  totalCostPerM2: number
+  salesPricePerM: number | null
+  grossProfitPerM: number | null
+  grossMarginRate: number | null
+}
+
+export const YARN_PRICE_SOURCE_LABEL: Record<YarnPriceSource, { text: string; color: string }> = {
+  latest_purchase: { text: '最新采购', color: 'green' },
+  standard_price: { text: '参考价', color: 'blue' },
+  none: { text: '无价格', color: 'red' },
 }

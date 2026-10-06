@@ -156,6 +156,10 @@ class CreateSpecDto extends TechParamsDto {
   @IsOptional() @IsString()
   weftMaterialId?: string | null
 
+  /** 加工费（元/米），制造成本 = 纱线成本 + 加工费 */
+  @IsOptional() @IsNumber() @Min(0)
+  overheadCostPerMeter?: number
+
   /** 出厂实测克重，仅用于校准，不影响计算值 */
   @IsOptional() @IsNumber()
   measuredGsm?: number | null
@@ -209,6 +213,10 @@ class UpdateSpecDto {
 
   @IsOptional() @IsNumber() @Min(0) @Max(1)
   machineRunRate?: number
+
+  /** 加工费（元/米） */
+  @IsOptional() @IsNumber() @Min(0)
+  overheadCostPerMeter?: number
 
   @IsOptional() @IsNumber()
   measuredGsm?: number | null

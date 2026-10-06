@@ -326,6 +326,17 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 接口：`POST /inventory/{purchase-inbound,production-issue,sales-outbound}`、
 `GET /inventory/{batches,documents,transactions,reconcile}`。
 
+### 成本报表（阶段六 · 成本核算）
+
+**制造成本 = 纱线成本 + 加工费**。纱线用量（每百米经/纬纱 kg）由工艺内核快照给出，成本只做「用量 × 单价」的确定性乘法——数字不会错。
+
+- **成本引擎** `packages/shared/src/cost.ts` 的 `computeSpecCost`：纯函数、无 IO、可单测，输入规格快照 + 经纬纱单价 + 加工费，输出物成本/加工费/制造成本（每米·每kg·每m²）+ 售价对比的毛利与毛利率。用量全部取自 `SpecCalculationSnapshot`，规格改了历史成本仍可还原。
+- **加工费**（元/米）按规格配置：迁移 `1730900000000-AddSpecOverhead` 给 `greige_specs` 加 `overhead_cost_per_meter`，在坯布规格表单里按电费/人工/机台折旧核定。是成本项、非工艺参数，不影响克重计算。
+- **取价规则**：经/纬纱单价取该物料**最近一次采购入库**的 `unitCost` → 回落**物料参考价** `standardPrice` → 0（页面标注来源）；售价取该规格**最近一次销售出库**单价算毛利，无售价则毛利留空不臆造。
+- 接口 `GET /cost/analysis`（权限 `cost.view`），按规格列成本构成与毛利；前端 `/cost` 成本报表页，菜单按 `cost.view` 门控。
+
+> 成本是否可信取决于**规格有没有配经/纬纱物料与加工费**——未配置的规格成本为 0、毛利率会显示 100%，属数据未录而非引擎错误。
+
 ### 往来单位（供应商 / 客户）
 
 采购与销售单据的 `counterparty` 指向此主数据。隔离维度与物料一致（`tenant_id` + `company_id`），编码在公司内唯一。
@@ -397,7 +408,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `cost.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
@@ -405,6 +416,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 | 往来单位 | `/partners` | 供应商/客户档案：列表（关键字/类型/状态筛选）、新建、编辑、停用；编码 `P+流水` 自动生成 |
 | 采购/销售订单 | `/orders` | 计划层：类型/状态/关键字筛选、新建、编辑(草稿)、确认/完成/取消、详情看三视图 |
 | 生产管理 | `/production` | 生产工单（指派机台/排产/开工/报工/进度/报工记录）+ 机台主数据 |
+| 成本报表 | `/cost` | 按规格列成本构成（经纬纱成本/物成本/加工费/制造成本 每米每kg每m²）+ 售价/毛利/毛利率 |
 | 用户管理 | `/users` | 列表（含公司/角色名）、新建、编辑资料/状态/公司/角色、重置密码 |
 | 角色管理 | `/roles` | 角色列表（内置/自定义）、新建自定义角色、编辑权限、删除（内置/被引用不可删） |
 | 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |

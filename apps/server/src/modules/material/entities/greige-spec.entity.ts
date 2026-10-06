@@ -96,6 +96,14 @@ export class GreigeSpecEntity {
   @Column({ type: 'decimal', precision: 5, scale: 4, default: 0.85 })
   machineRunRate!: string
 
+  /**
+   * 加工费（元/米），制造成本 = 纱线成本 + 加工费。
+   * 织造加工费按规格配置（不同织物工序/工时不同），是可核算成本项，非工艺参数。
+   * 默认 0，管理员按实际电费/人工/机台折旧核定后填写。
+   */
+  @Column({ type: 'decimal', precision: 10, scale: 4, default: 0 })
+  overheadCostPerMeter!: string
+
   /** 内核算出的坯布克重 g/m²（只读，业务代码不得写） */
   @Column({ type: 'decimal', precision: 8, scale: 2 })
   calculatedGsm!: string

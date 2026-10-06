@@ -13,6 +13,7 @@ import { InventoryModule } from './modules/inventory/inventory.module'
 import { PartnerModule } from './modules/partner/partner.module'
 import { OrderModule } from './modules/order/order.module'
 import { ProductionModule } from './modules/production/production.module'
+import { CostModule } from './modules/cost/cost.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -48,6 +49,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     PartnerModule,
     OrderModule,
     ProductionModule,
+    CostModule,
   ],
   controllers: [HealthController],
   providers: [
