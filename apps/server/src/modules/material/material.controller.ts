@@ -240,7 +240,7 @@ export class MaterialController {
 
   @Post()
   @RequirePermission(Permission.MATERIAL_EDIT)
-  @Audit({ action: 'create', module: 'material' })
+  @Audit({ action: 'create', module: 'material', targetType: 'material' })
   @ApiOperation({ summary: '新建物料' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateMaterialDto): Promise<MaterialEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)
@@ -271,7 +271,7 @@ export class MaterialController {
 
   @Patch(':id')
   @RequirePermission(Permission.MATERIAL_EDIT)
-  @Audit({ action: 'update', module: 'material', targetIdParam: 'id' })
+  @Audit({ action: 'update', module: 'material', targetType: 'material', targetIdParam: 'id' })
   @ApiOperation({ summary: '更新物料' })
   update(
     @CurrentUser() ctx: RequestContext,
@@ -283,7 +283,7 @@ export class MaterialController {
 
   @Post(':id/discontinue')
   @RequirePermission(Permission.MATERIAL_EDIT)
-  @Audit({ action: 'update', module: 'material', targetIdParam: 'id' })
+  @Audit({ action: 'update', module: 'material', targetType: 'material', targetIdParam: 'id' })
   @ApiOperation({ summary: '停用物料' })
   discontinue(
     @CurrentUser() ctx: RequestContext,
@@ -302,7 +302,7 @@ export class GreigeSpecController {
 
   @Post()
   @RequirePermission(Permission.MATERIAL_EDIT)
-  @Audit({ action: 'create', module: 'greige-spec' })
+  @Audit({ action: 'create', module: 'greige-spec', targetType: 'greige_spec' })
   @ApiOperation({ summary: '新建坯布规格（克重由工艺内核自动计算）' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateSpecDto): Promise<GreigeSpecEntity> {
     return this.svc.createSpec(ctx.tenantId, ctx.companyId, dto)
@@ -346,7 +346,7 @@ export class GreigeSpecController {
 
   @Patch(':id')
   @RequirePermission(Permission.MATERIAL_EDIT)
-  @Audit({ action: 'update', module: 'greige-spec', targetIdParam: 'id' })
+  @Audit({ action: 'update', module: 'greige-spec', targetType: 'greige_spec', targetIdParam: 'id' })
   @ApiOperation({ summary: '更新规格（影响计算的字段变更会重算克重）' })
   update(
     @CurrentUser() ctx: RequestContext,

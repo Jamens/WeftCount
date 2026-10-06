@@ -25,7 +25,7 @@ export class OrderController {
 
   @Post()
   @RequirePermission(Permission.PURCHASE_MANAGE, Permission.SALES_MANAGE)
-  @Audit({ action: 'create', module: 'order' })
+  @Audit({ action: 'create', module: 'order', targetType: 'order' })
   @ApiOperation({ summary: '新建采购/销售订单（草稿）' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateOrderDto): Promise<TradeOrderEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)

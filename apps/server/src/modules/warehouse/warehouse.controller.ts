@@ -58,7 +58,7 @@ export class WarehouseController {
 
   @Post()
   @RequirePermission(Permission.WAREHOUSE_MANAGE)
-  @Audit({ action: 'create', module: 'warehouse' })
+  @Audit({ action: 'create', module: 'warehouse', targetType: 'warehouse' })
   @ApiOperation({ summary: '新建仓库' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateWarehouseDto): Promise<WarehouseEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)

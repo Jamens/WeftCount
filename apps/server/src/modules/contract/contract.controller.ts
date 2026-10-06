@@ -18,7 +18,7 @@ export class ContractController {
 
   @Post()
   @RequirePermission(Permission.CONTRACT_MANAGE)
-  @Audit({ action: 'create', module: 'contract' })
+  @Audit({ action: 'create', module: 'contract', targetType: 'contract' })
   @ApiOperation({ summary: '新建合同（带多行明细与协议价）' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateContractDto): Promise<ContractEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)

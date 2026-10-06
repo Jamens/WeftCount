@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   Button,
   Card,
+  Collapse,
   Col,
   DatePicker,
   Input,
@@ -19,6 +20,7 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { api } from '../lib/api'
 import type { AuditActionType } from '@weftcount/shared'
+import AuditTimeline from './AuditTimeline'
 
 const { Title, Text, Paragraph } = Typography
 const { RangePicker } = DatePicker
@@ -48,7 +50,7 @@ interface AuditPage {
   pageSize: number
 }
 
-const ACTION_LABELS: Record<AuditActionType, { text: string; color: string }> = {
+export const ACTION_LABELS: Record<AuditActionType, { text: string; color: string }> = {
   create: { text: '新建', color: 'green' },
   update: { text: '修改', color: 'blue' },
   delete: { text: '删除', color: 'red' },
@@ -116,6 +118,13 @@ export default function AuditLogPage() {
           </Button>
         </Col>
       </Row>
+
+      {/* 对象时间线：折叠收纳，不干扰上面的日志列表 */}
+      <Collapse
+        size="small"
+        style={{ marginBottom: 12 }}
+        items={[{ key: 'tl', label: '对象操作时间线（按对象查完整变更史）', children: <AuditTimeline /> }]}
+      />
 
       <Card size="small" style={{ marginBottom: 12 }}>
         <Space wrap>

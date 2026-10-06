@@ -148,7 +148,7 @@ export class InventoryController {
 
   @Post('purchase-inbound')
   @RequirePermission(Permission.INVENTORY_MANAGE)
-  @Audit({ action: 'create', module: 'inventory.purchase' })
+  @Audit({ action: 'create', module: 'inventory.purchase', targetType: 'inventory_document' })
   @ApiOperation({ summary: '采购入库（按重量录入，kg/t/g）' })
   purchaseInbound(@CurrentUser() ctx: RequestContext, @Body() dto: CreateDocDto) {
     return this.inventory.createPurchaseInbound(ctx, dto)
@@ -156,7 +156,7 @@ export class InventoryController {
 
   @Post('production-issue')
   @RequirePermission(Permission.INVENTORY_MANAGE)
-  @Audit({ action: 'create', module: 'inventory.issue' })
+  @Audit({ action: 'create', module: 'inventory.issue', targetType: 'inventory_document' })
   @ApiOperation({ summary: '生产领用（按长度录入，m/yd/...）' })
   productionIssue(@CurrentUser() ctx: RequestContext, @Body() dto: CreateDocDto) {
     return this.inventory.createProductionIssue(ctx, dto)
@@ -164,7 +164,7 @@ export class InventoryController {
 
   @Post('sales-outbound')
   @RequirePermission(Permission.INVENTORY_MANAGE)
-  @Audit({ action: 'create', module: 'inventory.sales' })
+  @Audit({ action: 'create', module: 'inventory.sales', targetType: 'inventory_document' })
   @ApiOperation({ summary: '销售出库（按面积录入，m2/ft2/...）' })
   salesOutbound(@CurrentUser() ctx: RequestContext, @Body() dto: CreateDocDto) {
     return this.inventory.createSalesOutbound(ctx, dto)
@@ -254,7 +254,7 @@ export class InventoryController {
   @Post('transfer')
   @UseGuards(AuthGuard)
   @RequirePermission(Permission.INVENTORY_MANAGE)
-  @Audit({ action: 'update', module: 'inventory.transfer' })
+  @Audit({ action: 'update', module: 'inventory.transfer', targetType: 'inventory_document' })
   @ApiOperation({ summary: '仓间调拨：把源批次一部分数量移到目标仓（总量守恒）' })
   transfer(@CurrentUser() ctx: RequestContext, @Body() dto: TransferDto) {
     return this.inventory.transfer(ctx, {

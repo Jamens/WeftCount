@@ -26,7 +26,7 @@ export class MachineController {
 
   @Post()
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'create', module: 'machine' })
+  @Audit({ action: 'create', module: 'machine', targetType: 'machine' })
   @ApiOperation({ summary: '新建机台' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateMachineDto): Promise<MachineEntity> {
     return this.svc.createMachine(ctx.tenantId, ctx.companyId, dto)
@@ -41,7 +41,7 @@ export class MachineController {
 
   @Patch(':id')
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'update', module: 'machine', targetIdParam: 'id' })
+  @Audit({ action: 'update', module: 'machine', targetType: 'machine', targetIdParam: 'id' })
   @ApiOperation({ summary: '更新机台' })
   update(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateMachineDto): Promise<MachineEntity> {
     return this.svc.updateMachine(ctx.tenantId, ctx.companyId, id, dto)
@@ -57,7 +57,7 @@ export class ProductionOrderController {
 
   @Post()
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'create', module: 'production' })
+  @Audit({ action: 'create', module: 'production', targetType: 'production_order' })
   @ApiOperation({ summary: '新建生产工单' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateProductionOrderDto): Promise<ProductionOrderEntity> {
     return this.svc.createOrder(ctx.tenantId, ctx.companyId, dto)
@@ -86,7 +86,7 @@ export class ProductionOrderController {
 
   @Patch(':id')
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'update', module: 'production', targetIdParam: 'id' })
+  @Audit({ action: 'update', module: 'production', targetType: 'production_order', targetIdParam: 'id' })
   @ApiOperation({ summary: '更新生产工单（仅草稿/已排产）' })
   update(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateProductionOrderDto): Promise<ProductionOrderEntity> {
     return this.svc.updateOrder(ctx.tenantId, ctx.companyId, id, dto)
@@ -94,7 +94,7 @@ export class ProductionOrderController {
 
   @Post(':id/schedule')
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'submit', module: 'production', targetIdParam: 'id' })
+  @Audit({ action: 'submit', module: 'production', targetType: 'production_order', targetIdParam: 'id' })
   @ApiOperation({ summary: '排产（草稿→已排产，需已指派机台）' })
   schedule(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<ProductionOrderEntity> {
     return this.svc.transition(ctx.tenantId, ctx.companyId, id, 'scheduled')
@@ -102,7 +102,7 @@ export class ProductionOrderController {
 
   @Post(':id/start')
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'submit', module: 'production', targetIdParam: 'id' })
+  @Audit({ action: 'submit', module: 'production', targetType: 'production_order', targetIdParam: 'id' })
   @ApiOperation({ summary: '开工（已排产→生产中）' })
   start(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<ProductionOrderEntity> {
     return this.svc.transition(ctx.tenantId, ctx.companyId, id, 'in_progress')
@@ -110,7 +110,7 @@ export class ProductionOrderController {
 
   @Post(':id/complete')
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'update', module: 'production', targetIdParam: 'id' })
+  @Audit({ action: 'update', module: 'production', targetType: 'production_order', targetIdParam: 'id' })
   @ApiOperation({ summary: '完成工单' })
   complete(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<ProductionOrderEntity> {
     return this.svc.transition(ctx.tenantId, ctx.companyId, id, 'completed')
@@ -118,7 +118,7 @@ export class ProductionOrderController {
 
   @Post(':id/cancel')
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
-  @Audit({ action: 'cancel', module: 'production', targetIdParam: 'id' })
+  @Audit({ action: 'cancel', module: 'production', targetType: 'production_order', targetIdParam: 'id' })
   @ApiOperation({ summary: '取消工单' })
   cancel(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<ProductionOrderEntity> {
     return this.svc.transition(ctx.tenantId, ctx.companyId, id, 'cancelled')

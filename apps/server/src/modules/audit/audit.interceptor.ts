@@ -23,6 +23,13 @@ export interface AuditMeta {
   targetIdParam?: string
   /** 从请求体中取目标类型的字段名 */
   targetTypeField?: string
+  /**
+   * 目标对象类型（**字面量**，推荐直接写）
+   *
+   * 不填则targetType 恒为 null，`/audit-logs/target`（按对象查变更史）**永远查不到**——
+   * 该端点依赖 `targetType + targetId` 组合匹配。只有 targetId 没用，类型缺失就匹配不上。
+   */
+  targetType?: string
 }
 
 /** 声明接口的审计属性 */
@@ -99,7 +106,7 @@ export class AuditInterceptor implements NestInterceptor {
               meta.action === 'login'
                 ? `登录账号 ${identity.username}`
                 : this.buildSummary(meta, req, data),
-            targetType: this.pick(req, meta.targetTypeField),
+            targetType: meta.targetType ?? this.pick(req, meta.targetTypeField),
             targetId: this.pick(req, meta.targetIdParam) ?? this.pickFromResponse(data),
             httpMethod: method,
             path: req.originalUrl ?? req.url,

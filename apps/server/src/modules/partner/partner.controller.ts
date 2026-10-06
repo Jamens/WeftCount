@@ -19,7 +19,7 @@ export class PartnerController {
 
   @Post()
   @RequirePermission(Permission.PARTNER_EDIT)
-  @Audit({ action: 'create', module: 'partner' })
+  @Audit({ action: 'create', module: 'partner', targetType: 'partner' })
   @ApiOperation({ summary: '新建往来单位（供应商/客户）' })
   create(
     @CurrentUser() ctx: RequestContext,
@@ -109,7 +109,7 @@ export class SupplierCodeController {
 
   @Post()
   @RequirePermission(Permission.PARTNER_EDIT)
-  @Audit({ action: 'create', module: 'partner.code' })
+  @Audit({ action: 'create', module: 'partner.code', targetType: 'partner' })
   @ApiOperation({ summary: '新增供应商条码映射' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateCodeMappingDto) {
     return this.svc.createCodeMapping(ctx.tenantId, ctx.companyId, dto)

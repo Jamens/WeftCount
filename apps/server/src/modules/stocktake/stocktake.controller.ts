@@ -53,7 +53,7 @@ export class StocktakeController {
 
   @Post()
   @RequirePermission(Permission.INVENTORY_MANAGE)
-  @Audit({ action: 'create', module: 'stocktake' })
+  @Audit({ action: 'create', module: 'stocktake', targetType: 'stocktake' })
   @ApiOperation({ summary: '建盘点单（快照仓内批次账面量）' })
   create(
     @CurrentUser() ctx: RequestContext,
