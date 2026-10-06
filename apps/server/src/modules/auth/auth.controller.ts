@@ -6,6 +6,7 @@ import { AuthGuard } from './guards/auth.guard'
 import { CurrentUser, type RequestContext } from './auth-context'
 import { Permission } from './permissions'
 import { RequirePermission } from './decorators/require-permission.decorator'
+import { Audit, NoAudit } from '../audit/audit.interceptor'
 import type { ChangePasswordDto, LoginResult } from './types'
 
 class LoginDto {
@@ -33,6 +34,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @Audit({ action: 'login', module: 'auth' })
   @ApiOperation({ summary: '账号密码登录' })
   login(@Body() dto: LoginDto): Promise<LoginResult> {
     return this.auth.login(dto.username, dto.password)
@@ -41,6 +43,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   @UseGuards(AuthGuard)
+  @Audit({ action: 'logout', module: 'auth' })
   @ApiBearerAuth()
   @ApiOperation({ summary: '登出（令牌由前端清除，服务端记录审计）' })
   logout(): { ok: true } {
@@ -50,6 +53,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
+  @NoAudit()
   @ApiBearerAuth()
   @ApiOperation({ summary: '获取当前登录用户的上下文与权限' })
   me(@CurrentUser() ctx: RequestContext): {
@@ -75,6 +79,7 @@ export class AuthController {
   @Post('switch-company')
   @HttpCode(200)
   @UseGuards(AuthGuard)
+  @NoAudit()
   @ApiBearerAuth()
   @ApiOperation({ summary: '切换当前操作公司' })
   switchCompany(
@@ -87,6 +92,7 @@ export class AuthController {
   @Post('change-password')
   @HttpCode(200)
   @UseGuards(AuthGuard)
+  @Audit({ action: 'update', module: 'auth.password' })
   @ApiBearerAuth()
   @ApiOperation({ summary: '修改密码' })
   changePassword(
@@ -98,6 +104,7 @@ export class AuthController {
 
   @Get('permissions')
   @UseGuards(AuthGuard)
+  @NoAudit()
   @RequirePermission(Permission.USER_VIEW)
   @ApiBearerAuth()
   @ApiOperation({ summary: '列出当前用户的全部权限码' })

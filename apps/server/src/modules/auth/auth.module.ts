@@ -26,6 +26,7 @@ import { TenantEntity } from '../tenant/entities/tenant.entity'
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard],
-  exports: [AuthService, AuthGuard, JwtModule],
+  // 导出实体仓库：AuthGuard 被审计模块复用时需要直接查库复核用户/租户状态
+  exports: [AuthService, AuthGuard, JwtModule, TypeOrmModule],
 })
 export class AuthModule {}
