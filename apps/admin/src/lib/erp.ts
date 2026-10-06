@@ -350,6 +350,15 @@ export interface CoefficientData {
   rows: SpecCoefficientRow[]
 }
 
+export interface SupplierCodeMappingWire {
+  id: string
+  supplierId: string
+  supplierCode: string
+  materialId: string
+  specId: string
+  remark: string | null
+}
+
 // ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------

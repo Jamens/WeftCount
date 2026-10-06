@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { PartnerEntity } from './entities/partner.entity'
+import { SupplierCodeMappingEntity } from './entities/supplier-code-mapping.entity'
 import type { CreatePartnerDto, PartnerFilterDto, UpdatePartnerDto } from './partner.dto'
 
 export interface CreatePartnerInput extends CreatePartnerDto {}
@@ -13,7 +14,69 @@ export class PartnerService {
   constructor(
     @InjectRepository(PartnerEntity)
     private readonly partners: Repository<PartnerEntity>,
+    @InjectRepository(SupplierCodeMappingEntity)
+    private readonly codeMappings: Repository<SupplierCodeMappingEntity>,
   ) {}
+
+  // -------------------------------------------------------------------------
+  // 供应商条码映射（扫码入库用）
+  // -------------------------------------------------------------------------
+
+  async listCodeMappings(companyId: string, supplierId?: string): Promise<SupplierCodeMappingEntity[]> {
+    return this.codeMappings.find({
+      where: supplierId ? { companyId, supplierId } : { companyId },
+      order: { createdAt: 'DESC' },
+    })
+  }
+
+  async createCodeMapping(
+    tenantId: string,
+    companyId: string,
+    input: { supplierId: string; supplierCode: string; materialId: string; specId: string; remark?: string | null },
+  ): Promise<SupplierCodeMappingEntity> {
+    const code = input.supplierCode.trim()
+    if (!code) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '供应商条码不能为空' })
+    const exists = await this.codeMappings.findOne({ where: { companyId, supplierId: input.supplierId, supplierCode: code } })
+    if (exists) {
+      throw new ConflictException({ code: ErrorCode.VALIDATION_FAILED, message: '该供应商下此条码已存在映射' })
+    }
+    return this.codeMappings.save(
+      this.codeMappings.create({
+        tenantId, companyId,
+        supplierId: input.supplierId,
+        supplierCode: code,
+        materialId: input.materialId,
+        specId: input.specId,
+        remark: input.remark ?? null,
+      }),
+    )
+  }
+
+  async removeCodeMapping(companyId: string, id: string): Promise<void> {
+    await this.codeMappings.delete({ id, companyId })
+  }
+
+  /**
+   * 扫码解析：按「供应商 + 条码」查映射（不带供应商则全局查，命中多条视为歧义）。
+   * 只返回 ID（supplierId/materialId/specId），名称由调用方用自己的列表解析，避免跨模块耦合。
+   */
+  async lookupCode(
+    companyId: string,
+    supplierCode: string,
+    supplierId?: string,
+  ): Promise<
+    | { ambiguous: false; supplierId: string; materialId: string; specId: string; supplierCode: string }
+    | { ambiguous: true }
+    | null
+  > {
+    const code = supplierCode.trim()
+    if (!code) return null
+    const rows = await this.codeMappings.find({ where: supplierId ? { companyId, supplierId, supplierCode: code } : { companyId, supplierCode: code } })
+    if (rows.length === 0) return null
+    if (rows.length > 1) return { ambiguous: true }
+    const m = rows[0]
+    return { ambiguous: false, supplierId: m.supplierId, materialId: m.materialId, specId: m.specId, supplierCode: m.supplierCode }
+  }
 
   /**
    * 生成往来单位编码

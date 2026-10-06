@@ -28,6 +28,8 @@ interface Template {
   batchNo: string
   materialId: string
   specId: string
+  /** 模板来源：supplier_code=扫供应商条码识别；batch=扫上批批次码 */
+  source: 'supplier_code' | 'batch'
   supplierId?: string
   supplierName?: string
   lastPrice?: number
@@ -93,16 +95,45 @@ export default function PickInPage() {
   const materialName = useCallback((id: string) => materials.find((m) => m.id === id)?.name ?? id, [materials])
 
   const onScan = async () => {
-    const c = code.trim().toUpperCase()
+    const c = code.trim()
     if (!c) return
-    const b = batches.find((x) => x.batchNo.toUpperCase() === c)
+
+    // 1) 优先按「供应商条码」查映射（选了供应商则在该供应商内精确匹配）
+    try {
+      const q = new URLSearchParams({ code: c })
+      if (supplierId) q.set('supplierId', supplierId)
+      const hit = await api.get<
+        | { ambiguous: false; supplierId: string; materialId: string; specId: string; supplierCode: string }
+        | { ambiguous: true }
+        | null
+      >(`/supplier-codes/lookup?${q.toString()}`)
+      if (hit && 'ambiguous' in hit && hit.ambiguous) {
+        message.warning(`条码「${c}」在多个供应商下都有映射，请先选择供应商再扫`)
+        setCode('')
+        return
+      }
+      if (hit && 'ambiguous' in hit && !hit.ambiguous) {
+        setSupplierId(hit.supplierId)
+        setMaterialId(hit.materialId)
+        setSpecId(hit.specId)
+        setTemplate({ batchNo: hit.supplierCode, materialId: hit.materialId, specId: hit.specId, source: 'supplier_code' })
+        setCode('')
+        message.success(`供应商条码「${hit.supplierCode}」已识别：${materialName(hit.materialId)} / ${specName(hit.specId)}`)
+        inputRef.current?.focus()
+        return
+      }
+    } catch {
+      /* 映射接口失败则回退批次模板 */
+    }
+
+    // 2) 回退：按批次码当模板（上批同款）
+    const b = batches.find((x) => x.batchNo.toUpperCase() === c.toUpperCase())
     if (!b) {
-      message.warning(`未找到批次「${c}」`)
+      message.warning(`未识别「${c}」：既非已映射的供应商条码，也非已有批次号`)
       setCode('')
       return
     }
-    // 带出模板：物料/规格/仓库；采购批次再查来源带出供应商与上次价
-    setTemplate({ batchNo: b.batchNo, materialId: b.materialId, specId: b.specId })
+    setTemplate({ batchNo: b.batchNo, materialId: b.materialId, specId: b.specId, source: 'batch' })
     setMaterialId(b.materialId)
     setSpecId(b.specId)
     setWarehouseId(b.warehouseId ?? warehouseId)
@@ -205,9 +236,12 @@ export default function PickInPage() {
             <Alert
               type="success"
               showIcon
-              message={`已以批次 ${template.batchNo} 为模板`}
+              message={template.source === 'supplier_code' ? `已识别供应商条码「${template.batchNo}」` : `已以批次 ${template.batchNo} 为模板`}
               description={
                 <Space wrap>
+                  <Tag color={template.source === 'supplier_code' ? 'purple' : 'default'}>
+                    {template.source === 'supplier_code' ? '供应商码' : '批次模板'}
+                  </Tag>
                   <Tag>物料 {materialName(template.materialId)}</Tag>
                   <Tag>规格 {specName(template.specId)}</Tag>
                   {template.supplierName && <Tag color="blue">供应商 {template.supplierName}</Tag>}

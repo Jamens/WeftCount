@@ -354,6 +354,16 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - `GET /traceability/batch/:batchId`：批次双向追溯——来源链 + 被哪些单据消耗（正向）。
 - 权限 `report.view`；前端 `/traceability` 追溯页（销售单倒查 / 批次追溯双模式，来源链树状展示，规格工艺卡片），菜单按 `report.view` 门控。
 
+### 供应商条码映射（扫码入库的正宗做法）
+
+到货商品带的是**供应商自己的条码**，系统不认识。建立「供应商条码 → 我方物料+规格」映射，收货时扫供应商条码即可查映射识别、自动带出建批次信息。
+
+- 迁移 `1731600000000-SupplierCodeMappings`：`supplier_code_mappings`（供应商 + 供应商条码 → 物料+规格，唯一约束 company+supplier+code）。
+- 端点（挂 partner 模块，`/supplier-codes`）：`GET/POST`、`DELETE /:id`、`GET /lookup?code=&supplierId=`（扫码解析，**只返回 ID**、名称由调用方自己的列表解析，避免跨模块耦合）。
+- 扫码解析：带 `supplierId` 精确匹配该供应商；不带则全局查，**命中多条报歧义**（提示先选供应商）——不同供应商可能有相同条码。
+- 前端 `/supplier-codes` 映射管理页（增删，partner.view/edit 门控）。
+- 桌面「扫码入库」扫供应商条码查映射识别；未命中则回退「扫上批批次码作模板」。
+
 ### 桌面端 · 车间工作台（阶段七八）
 
 Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把已有能力搬到车间场景：
