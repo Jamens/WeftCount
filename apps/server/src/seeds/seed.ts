@@ -68,10 +68,17 @@ export async function seed(ds: DataSource): Promise<void> {
     console.log(`[seed] 公司已存在: ${company.name}`)
   }
 
-  // 九个内置角色按租户复制，租户可改权限但不可删除
+  // 九个内置角色按租户复制。内置角色的定义（名称/描述/权限）归系统所有，
+  // 每次 seed 同步为最新源码定义，便于权限模型演进；租户如需自定义应创建自定义角色。
   for (const role of BUILTIN_ROLES) {
     const exists = await roles.findOne({ where: { tenantId: tenant.id, code: role.code } })
-    if (exists) continue
+    if (exists) {
+      exists.name = role.name
+      exists.description = role.description
+      exists.permissions = [...role.permissions]
+      await roles.save(exists)
+      continue
+    }
     await roles.save(
       roles.create({
         id: randomUUID(),
@@ -84,7 +91,7 @@ export async function seed(ds: DataSource): Promise<void> {
       }),
     )
   }
-  console.log(`[seed] 内置角色就绪（共 ${BUILTIN_ROLES.length} 个）`)
+  console.log(`[seed] 内置角色就绪（共 ${BUILTIN_ROLES.length} 个，已同步最新权限定义）`)
 
   // 演示账号：密码统一 weft2026，提示部署后立即修改
   const demoPassword = 'weft2026'

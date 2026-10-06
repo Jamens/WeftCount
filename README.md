@@ -333,14 +333,29 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - 权限门控：`partner.view`（读）/ `partner.edit`（写），内置角色 `company_admin`、`tenant_owner` 已含
 - 种子数据：演示租户下预置 3 个往来单位（绍兴金辉棉纺 / 杭州天成服装 / 宁波华联供应链）
 
+### 用户 / 角色管理
+
+`users` / `roles` 两表早已存在，但此前只有 `login / me / switch-company / change-password / permissions` 端点，缺管理接口。本次补齐。
+
+- 角色：内置 9 个按租户复制（`builtin=true`，系统所有、可改权限、不可删）；可新建 `builtin=false` 自定义角色，删除前校验「仍被用户引用」
+- 用户：新建/编辑（资料、状态、所属公司 `companyIds`、角色 `roleCodes`）、重置密码；列表回传公司名与角色名，**绝不返回 `passwordHash`**
+- 公司与角色都做**归属校验**：只能关联本租户的公司与角色
+- 密码统一走强度校验（≥8 位且含字母+数字），改密/重置均不可与原密码相同
+- 权限门控：`user.view` / `user.manage` / `role.view` / `role.manage`；已授予内置角色 `company_admin`（演示 `factory` 账号）与 `tenant_owner`
+- 接口：`GET/POST /users`、`PATCH /users/:id`、`POST /users/:id/reset-password`；`GET/POST /roles`、`PATCH /roles/:id`、`DELETE /roles/:id`
+
+> **NestJS DTO 必须「值导入」**：控制器里 `@Body() dto: XxxDto` 的 DTO 要用普通 `import`，用 `import type` 会在编译期把 `design:paramtypes` 塌成 `Function`，导致 `ValidationPipe` 的 `whitelist/forbidNonWhitelisted` 把正常字段判为「should not exist」。
+
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `inventory.view` / `inventory.manage`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
 | 物料主数据 | `/materials` | 列表（关键字/大类/状态筛选）、抽屉新建、停用 |
 | 往来单位 | `/partners` | 供应商/客户档案：列表（关键字/类型/状态筛选）、新建、编辑、停用；编码 `P+流水` 自动生成 |
+| 用户管理 | `/users` | 列表（含公司/角色名）、新建、编辑资料/状态/公司/角色、重置密码 |
+| 角色管理 | `/roles` | 角色列表（内置/自定义）、新建自定义角色、编辑权限、删除（内置/被引用不可删） |
 | 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |
 | 库存批次 | `/inventory/batches` | 列表（规格/状态筛选），米 + 公斤 + 平方米三视图 |
 | 三算单据 | `/inventory/documents` | 采购入库 / 生产领用 / 销售出库 三种单据新建 + 详情（折算三视图与关联交易流水） |

@@ -178,10 +178,136 @@ export const PERM = {
   MATERIAL_EDIT: 'material.edit',
   PARTNER_VIEW: 'partner.view',
   PARTNER_EDIT: 'partner.edit',
+  USER_VIEW: 'user.view',
+  USER_MANAGE: 'user.manage',
+  ROLE_VIEW: 'role.view',
+  ROLE_MANAGE: 'role.manage',
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_MANAGE: 'inventory.manage',
   AUDIT_VIEW: 'audit.view',
 } as const
+
+// ---------------------------------------------------------------------------
+// 用户 / 角色（系统设置）
+// ---------------------------------------------------------------------------
+
+export type UserStatusValue = 'active' | 'disabled' | 'locked'
+
+export interface RoleWire {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  permissions: string[]
+  builtin: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserWire {
+  id: string
+  username: string
+  realName: string
+  phone: string | null
+  email: string | null
+  status: UserStatusValue
+  companyIds: string[]
+  companyNames: string[]
+  roleCodes: string[]
+  roleNames: string[]
+  lastLoginAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CompanyOption {
+  id: string
+  code: string
+  name: string
+}
+
+export const USER_STATUS_LABEL: Record<UserStatusValue, { text: string; color: string }> = {
+  active: { text: '启用', color: 'green' },
+  disabled: { text: '停用', color: 'default' },
+  locked: { text: '锁定', color: 'red' },
+}
+
+/**
+ * 权限目录（与后端 Permission 对应的可选清单）
+ * 用于角色编辑器的多选项。后端角色权限可能含通配（如 material.*、*），
+ * 这些不在目录里，前端仍以原始码展示，不丢信息。
+ */
+export const PERMISSION_CATALOG: { group: string; options: { value: string; label: string }[] }[] = [
+  {
+    group: '基础资料',
+    options: [
+      { value: 'material.view', label: '物料查看' },
+      { value: 'material.edit', label: '物料编辑' },
+      { value: 'partner.view', label: '往来单位查看' },
+      { value: 'partner.edit', label: '往来单位编辑' },
+      { value: 'warehouse.view', label: '仓库查看' },
+      { value: 'warehouse.manage', label: '仓库管理' },
+    ],
+  },
+  {
+    group: '库存',
+    options: [
+      { value: 'inventory.view', label: '库存查看' },
+      { value: 'inventory.manage', label: '库存管理' },
+    ],
+  },
+  {
+    group: '采购 / 销售',
+    options: [
+      { value: 'purchase.view', label: '采购查看' },
+      { value: 'purchase.manage', label: '采购管理' },
+      { value: 'sales.view', label: '销售查看' },
+      { value: 'sales.manage', label: '销售管理' },
+    ],
+  },
+  {
+    group: '生产',
+    options: [
+      { value: 'production.view', label: '生产查看' },
+      { value: 'production.order.edit', label: '工单编辑' },
+      { value: 'production.report', label: '生产报工' },
+      { value: 'production.self.view', label: '本机产量' },
+    ],
+  },
+  {
+    group: '成本 / 报表',
+    options: [
+      { value: 'cost.view', label: '成本查看' },
+      { value: 'cost.manage', label: '成本管理' },
+      { value: 'report.view', label: '报表查看' },
+      { value: 'report.sales', label: '销售报表' },
+    ],
+  },
+  {
+    group: '工艺系数',
+    options: [
+      { value: 'coefficient.view', label: '系数查看' },
+      { value: 'coefficient.edit', label: '系数编辑' },
+      { value: 'tech.calc', label: '工艺试算' },
+    ],
+  },
+  {
+    group: '用户 / 角色',
+    options: [
+      { value: 'user.view', label: '用户查看' },
+      { value: 'user.manage', label: '用户管理' },
+      { value: 'role.view', label: '角色查看' },
+      { value: 'role.manage', label: '角色管理' },
+    ],
+  },
+  {
+    group: '审计 / AI',
+    options: [
+      { value: 'audit.view', label: '审计查看' },
+      { value: 'ai.use', label: 'AI 使用' },
+    ],
+  },
+]
 
 /** decimal 字符串 → number，null/空按 0 处理 */
 export function dec(v: string | number | null | undefined): number {

@@ -11,6 +11,7 @@ import {
   UserOutlined,
   AppstoreOutlined,
   TeamOutlined,
+  KeyOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -20,6 +21,8 @@ import DashboardPage from './pages/DashboardPage'
 import AuditLogPage from './pages/AuditLogPage'
 import MaterialPage from './pages/MaterialPage'
 import PartnerPage from './pages/PartnerPage'
+import UserPage from './pages/UserPage'
+import RolePage from './pages/RolePage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -74,7 +77,13 @@ function Shell({ children }: { children: React.ReactNode }) {
     ...(hasPermission(PERM.PARTNER_VIEW)
       ? [{ key: '/partners', icon: <TeamOutlined />, label: '往来单位' }]
       : []),
-    { key: 'placeholder-m2', icon: <SettingOutlined />, label: '系统设置（建设中）', disabled: true },
+    ...(hasPermission(PERM.USER_VIEW)
+      ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }]
+      : []),
+    ...(hasPermission(PERM.ROLE_VIEW)
+      ? [{ key: '/roles', icon: <KeyOutlined />, label: '角色管理' }]
+      : []),
+    { key: 'placeholder-m2', icon: <SettingOutlined />, label: '系统设置（更多建设中）', disabled: true },
   ]
 
   const onLogout = () => {
@@ -230,6 +239,26 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <PartnerPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <RequireAuth>
+              <Shell>
+                <UserPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/roles"
+          element={
+            <RequireAuth>
+              <Shell>
+                <RolePage />
               </Shell>
             </RequireAuth>
           }

@@ -111,7 +111,7 @@ export const BUILTIN_ROLES = [
     permissions: [
       'material.*', 'partner.*', 'warehouse.*', 'inventory.*',
       'purchase.*', 'sales.*', 'production.*', 'cost.*',
-      'report.*', 'coefficient.*', 'user.view', 'audit.view',
+      'report.*', 'coefficient.*', 'user.view', 'user.manage', 'role.view', 'role.manage', 'audit.view',
     ],
   },
   {

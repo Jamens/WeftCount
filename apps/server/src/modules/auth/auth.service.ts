@@ -1,9 +1,19 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common'
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
+import { randomUUID } from 'node:crypto'
 import * as bcrypt from 'bcryptjs'
-import { ErrorCode, PLAN_LIMITS } from '@weftcount/shared'
+import { ErrorCode, PLAN_LIMITS, type UserStatus } from '@weftcount/shared'
+import {
+  type CompanyOption,
+  type CreateRoleDto,
+  type CreateUserDto,
+  type ResetPasswordDto,
+  type SafeUser,
+  type UpdateRoleDto,
+  type UpdateUserDto,
+} from './dtos/admin.dto'
 import { UserEntity } from './entities/user.entity'
 import { RoleEntity } from './entities/role.entity'
 import { CompanyEntity } from '../tenant/entities/company.entity'
@@ -209,6 +219,184 @@ export class AuthService {
         message: '密码必须同时包含字母和数字',
       })
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // 角色管理（内置角色系统所有；租户可查看 / 编辑权限，不可删除内置角色）
+  // -------------------------------------------------------------------------
+
+  async listRoles(tenantId: string): Promise<RoleEntity[]> {
+    return this.roles.find({ where: { tenantId }, order: { builtin: 'DESC', code: 'ASC' } })
+  }
+
+  async createRole(tenantId: string, dto: CreateRoleDto): Promise<RoleEntity> {
+    const exists = await this.roles.findOne({ where: { tenantId, code: dto.code } })
+    if (exists) {
+      throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `角色编码 ${dto.code} 已存在` })
+    }
+    return this.roles.save(
+      this.roles.create({
+        id: randomUUID(),
+        tenantId,
+        code: dto.code,
+        name: dto.name,
+        description: dto.description ?? null,
+        permissions: dto.permissions,
+        builtin: false,
+      }),
+    )
+  }
+
+  async updateRole(tenantId: string, id: string, dto: UpdateRoleDto): Promise<RoleEntity> {
+    const role = await this.roles.findOne({ where: { id, tenantId } })
+    if (!role) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '角色不存在' })
+    if (dto.name !== undefined) role.name = dto.name
+    if (dto.description !== undefined) role.description = dto.description
+    if (dto.permissions !== undefined) role.permissions = dto.permissions
+    return this.roles.save(role)
+  }
+
+  async deleteRole(tenantId: string, id: string): Promise<void> {
+    const role = await this.roles.findOne({ where: { id, tenantId } })
+    if (!role) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '角色不存在' })
+    if (role.builtin) {
+      throw new ForbiddenException({ code: ErrorCode.FORBIDDEN, message: '内置角色不可删除' })
+    }
+    const users = await this.users.find({ where: { tenantId }, select: ['id', 'roleCodes'] })
+    if (users.some((u) => u.roleCodes.includes(role.code))) {
+      throw new ConflictException({
+        code: ErrorCode.CONFLICT,
+        message: `角色「${role.name}」仍被用户使用，无法删除`,
+      })
+    }
+    await this.roles.remove(role)
+  }
+
+  // -------------------------------------------------------------------------
+  // 用户管理
+  // -------------------------------------------------------------------------
+
+  private async toSafeUser(
+    user: UserEntity,
+    companies: CompanyEntity[],
+    roles: RoleEntity[],
+  ): Promise<SafeUser> {
+    const companyNames = user.companyIds
+      .map((cid) => companies.find((c) => c.id === cid)?.name)
+      .filter((n): n is string => !!n)
+    const roleNames = user.roleCodes
+      .map((rc) => roles.find((r) => r.code === rc)?.name)
+      .filter((n): n is string => !!n)
+    return {
+      id: user.id,
+      username: user.username,
+      realName: user.realName,
+      phone: user.phone,
+      email: user.email,
+      status: user.status,
+      companyIds: user.companyIds,
+      companyNames,
+      roleCodes: user.roleCodes,
+      roleNames,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }
+  }
+
+  async listUsers(tenantId: string): Promise<{ users: SafeUser[]; companies: CompanyOption[] }> {
+    const [users, companies, roles] = await Promise.all([
+      this.users.find({ where: { tenantId }, order: { createdAt: 'ASC' } }),
+      this.companies.find({ where: { tenantId }, order: { code: 'ASC' } }),
+      this.roles.find({ where: { tenantId } }),
+    ])
+    return {
+      users: await Promise.all(users.map((u) => this.toSafeUser(u, companies, roles))),
+      companies: companies.map((c) => ({ id: c.id, code: c.code, name: c.name })),
+    }
+  }
+
+  async createUser(tenantId: string, dto: CreateUserDto): Promise<SafeUser> {
+    const existing = await this.users.findOne({ where: { username: dto.username } })
+    if (existing) {
+      throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `账号 ${dto.username} 已存在` })
+    }
+    const companies = await this.companies.find({ where: { id: In(dto.companyIds) } })
+    if (companies.length !== dto.companyIds.length || !companies.every((c) => c.tenantId === tenantId)) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '关联公司非法' })
+    }
+    const roles = await this.roles.find({ where: dto.roleCodes.map((code) => ({ tenantId, code })) })
+    if (roles.length !== dto.roleCodes.length) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '分配了不存在的角色' })
+    }
+    this.validatePasswordStrength(dto.password)
+    const user = await this.users.save(
+      this.users.create({
+        id: randomUUID(),
+        tenantId,
+        username: dto.username,
+        passwordHash: await bcrypt.hash(dto.password, 10),
+        realName: dto.realName,
+        phone: dto.phone ?? null,
+        email: dto.email ?? null,
+        status: 'active',
+        companyIds: dto.companyIds,
+        roleCodes: dto.roleCodes,
+        failedAttempts: 0,
+        passwordChangedAt: new Date(),
+      }),
+    )
+    return this.toSafeUser(user, companies, roles)
+  }
+
+  async updateUser(tenantId: string, id: string, dto: UpdateUserDto): Promise<SafeUser> {
+    const user = await this.users.findOne({ where: { id, tenantId } })
+    if (!user) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '用户不存在' })
+    if (dto.realName !== undefined) user.realName = dto.realName
+    if (dto.phone !== undefined) user.phone = dto.phone
+    if (dto.email !== undefined) user.email = dto.email
+    if (dto.status !== undefined) user.status = dto.status
+    if (dto.companyIds !== undefined) {
+      const companies = await this.companies.find({ where: { id: In(dto.companyIds) } })
+      if (companies.length !== dto.companyIds.length || !companies.every((c) => c.tenantId === tenantId)) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '关联公司非法' })
+      }
+      user.companyIds = dto.companyIds
+    }
+    if (dto.roleCodes !== undefined) {
+      const roles = await this.roles.find({ where: dto.roleCodes.map((code) => ({ tenantId, code })) })
+      if (roles.length !== dto.roleCodes.length) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '分配了不存在的角色' })
+      }
+      user.roleCodes = dto.roleCodes
+    }
+    if (dto.password !== undefined) {
+      this.validatePasswordStrength(dto.password)
+      if (await bcrypt.compare(dto.password, user.passwordHash)) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '新密码不能与原密码相同' })
+      }
+      user.passwordHash = await bcrypt.hash(dto.password, 10)
+      user.passwordChangedAt = new Date()
+    }
+    const [companies, roles] = await Promise.all([
+      this.companies.find({ where: { tenantId } }),
+      this.roles.find({ where: { tenantId } }),
+    ])
+    return this.toSafeUser(await this.users.save(user), companies, roles)
+  }
+
+  async resetPassword(tenantId: string, id: string, dto: ResetPasswordDto): Promise<void> {
+    const user = await this.users.findOne({ where: { id, tenantId } })
+    if (!user) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '用户不存在' })
+    this.validatePasswordStrength(dto.newPassword)
+    if (await bcrypt.compare(dto.newPassword, user.passwordHash)) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '新密码不能与原密码相同' })
+    }
+    user.passwordHash = await bcrypt.hash(dto.newPassword, 10)
+    user.passwordChangedAt = new Date()
+    user.failedAttempts = 0
+    if (user.status === 'locked') user.status = 'active'
+    await this.users.save(user)
   }
 
   /** 根据 id 取用户（供守卫用） */

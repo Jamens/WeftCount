@@ -5,6 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
 import { AuthGuard } from './guards/auth.guard'
+import { UserController } from './user.controller'
+import { RoleController } from './role.controller'
 import { UserEntity } from './entities/user.entity'
 import { RoleEntity } from './entities/role.entity'
 import { CompanyEntity } from '../tenant/entities/company.entity'
@@ -24,7 +26,7 @@ import { TenantEntity } from '../tenant/entities/tenant.entity'
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, UserController, RoleController],
   providers: [AuthService, AuthGuard],
   // 导出实体仓库：AuthGuard 被审计模块复用时需要直接查库复核用户/租户状态
   exports: [AuthService, AuthGuard, JwtModule, TypeOrmModule],
