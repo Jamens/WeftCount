@@ -110,7 +110,7 @@ export const BUILTIN_ROLES = [
     description: '单公司全部经营操作，含工艺系数配置与授权',
     permissions: [
       'material.*', 'partner.*', 'warehouse.*', 'inventory.*',
-      'purchase.*', 'sales.*', 'production.*', 'cost.*',
+      'purchase.*', 'sales.*', 'production.*', 'cost.*', 'contract.*',
       'report.*', 'coefficient.*', 'user.view', 'user.manage', 'role.view', 'role.manage', 'audit.view',
     ],
   },
@@ -127,7 +127,7 @@ export const BUILTIN_ROLES = [
     code: 'purchaser',
     name: '采购员',
     description: '供应商、比价、采购订单与到货跟踪',
-    permissions: ['material.view', 'partner.view', 'partner.edit', 'purchase.*', 'inventory.view'],
+    permissions: ['material.view', 'partner.view', 'partner.edit', 'purchase.*', 'contract.*', 'inventory.view'],
   },
   {
     code: 'warehouse_keeper',
@@ -139,7 +139,7 @@ export const BUILTIN_ROLES = [
     code: 'sales_clerk',
     name: '业务员',
     description: '报价、客户订单、出库送货与对账收款',
-    permissions: ['material.view', 'partner.view', 'partner.edit', 'sales.*', 'inventory.view', 'report.sales'],
+    permissions: ['material.view', 'partner.view', 'partner.edit', 'sales.*', 'contract.*', 'inventory.view', 'report.sales'],
   },
   {
     code: 'loom_operator',
@@ -151,7 +151,7 @@ export const BUILTIN_ROLES = [
     code: 'accountant',
     name: '会计',
     description: '成本核算、对账、报表与账务导出',
-    permissions: ['cost.*', 'report.*', 'sales.view', 'purchase.view', 'inventory.view', 'partner.view'],
+    permissions: ['cost.*', 'report.*', 'contract.view', 'sales.view', 'purchase.view', 'inventory.view', 'partner.view'],
   },
   {
     code: 'viewer',

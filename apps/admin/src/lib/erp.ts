@@ -229,6 +229,46 @@ export const ORDER_SUGGESTED_UNITS: Record<TradeOrderTypeValue, string[]> = {
 }
 
 // ---------------------------------------------------------------------------
+// 合同 / 价格
+// ---------------------------------------------------------------------------
+
+export type ContractStatusValue = 'draft' | 'active' | 'completed' | 'cancelled'
+
+export interface ContractWire {
+  id: string
+  contractNo: string
+  contractType: 'purchase' | 'sales'
+  partnerId: string
+  partnerName: string
+  status: ContractStatusValue
+  totalQuantityM: string
+  totalAmount: string
+  startDate: string | null
+  endDate: string | null
+  remark: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ContractItemWire {
+  id: string
+  contractId: string
+  materialId: string
+  specId: string
+  agreedPrice: string
+  agreedQuantityM: string
+  amount: string
+  remark: string | null
+}
+
+export const CONTRACT_STATUS_LABEL: Record<ContractStatusValue, { text: string; color: string }> = {
+  draft: { text: '草稿', color: 'default' },
+  active: { text: '生效', color: 'green' },
+  completed: { text: '已完成', color: 'blue' },
+  cancelled: { text: '已取消', color: 'red' },
+}
+
+// ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------
 
@@ -336,6 +376,8 @@ export const PERM = {
   PURCHASE_MANAGE: 'purchase.manage',
   SALES_VIEW: 'sales.view',
   SALES_MANAGE: 'sales.manage',
+  CONTRACT_VIEW: 'contract.view',
+  CONTRACT_MANAGE: 'contract.manage',
   COST_VIEW: 'cost.view',
   PRODUCTION_VIEW: 'production.view',
   PRODUCTION_ORDER_EDIT: 'production.order.edit',

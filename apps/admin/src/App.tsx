@@ -18,6 +18,7 @@ import {
   BankOutlined,
   FileDoneOutlined,
   NodeIndexOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -35,6 +36,7 @@ import CostPage from './pages/CostPage'
 import WarehousePage from './pages/WarehousePage'
 import StocktakePage from './pages/StocktakePage'
 import TracePage from './pages/TracePage'
+import ContractPage from './pages/ContractPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -96,7 +98,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       ? [{ key: '/partners', icon: <TeamOutlined />, label: '往来单位' }]
       : []),
     ...(hasPermission(PERM.PURCHASE_VIEW) || hasPermission(PERM.SALES_VIEW)
-      ? [{ key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' }]
+      ? [
+          { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
+          { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
+        ]
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
       ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
@@ -279,6 +284,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <OrderPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/contracts"
+          element={
+            <RequireAuth>
+              <Shell>
+                <ContractPage />
               </Shell>
             </RequireAuth>
           }

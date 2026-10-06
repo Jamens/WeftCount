@@ -96,6 +96,10 @@ export const Permission = {
   SALES_VIEW: 'sales.view',
   SALES_MANAGE: 'sales.manage',
 
+  // 合同 / 价格
+  CONTRACT_VIEW: 'contract.view',
+  CONTRACT_MANAGE: 'contract.manage',
+
   // 生产
   PRODUCTION_VIEW: 'production.view',
   PRODUCTION_ORDER_EDIT: 'production.order.edit',
