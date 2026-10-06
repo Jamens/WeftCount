@@ -16,6 +16,17 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('api', { exclude: [] })
 
+  /**
+   * 桌面端(Electron)渲染进程请求本机 API 时，Chromium 会走 Private Network Access：
+   * 预检带 `Access-Control-Request-Private-Network`，服务端必须回
+   * `Access-Control-Allow-Private-Network: true`，否则请求被浏览器判违规拦掉，
+   * 渲染进程只看到「网络错误」。这里统一给所有响应补上该头（含 OPTIONS 预检）。
+   */
+  app.use((_req, res, next) => {
+    res.setHeader('Access-Control-Allow-Private-Network', 'true')
+    next()
+  })
+
   app.enableCors({
     origin: true,
     credentials: true,
