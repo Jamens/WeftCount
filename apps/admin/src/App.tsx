@@ -21,6 +21,7 @@ import {
   FileProtectOutlined,
   RobotOutlined,
   ExperimentOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -41,6 +42,7 @@ import TracePage from './pages/TracePage'
 import ContractPage from './pages/ContractPage'
 import AiQuotePage from './pages/AiQuotePage'
 import AiLossPage from './pages/AiLossPage'
+import AiCoefficientPage from './pages/AiCoefficientPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -112,6 +114,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.COST_VIEW)
       ? [{ key: '/ai-loss', icon: <ExperimentOutlined />, label: '损耗归因(AI)' }]
+      : []),
+    ...(hasPermission(PERM.PRODUCTION_VIEW)
+      ? [{ key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习(AI)' }]
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
       ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
@@ -332,6 +337,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <AiLossPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ai-coefficient"
+          element={
+            <RequireAuth>
+              <Shell>
+                <AiCoefficientPage />
               </Shell>
             </RequireAuth>
           }

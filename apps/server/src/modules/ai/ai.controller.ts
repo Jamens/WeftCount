@@ -4,10 +4,12 @@ import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator
 import { LlmClient } from './llm.client'
 import { PricingService } from './pricing.service'
 import { LossService } from './loss.service'
+import { CoefficientService } from './coefficient.service'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'
 import { RequirePermission } from '../auth/decorators/require-permission.decorator'
+import { Audit } from '../audit/audit.interceptor'
 
 class QuoteDto {
   @IsString() @IsNotEmpty({ message: '请选择规格' })
@@ -22,6 +24,15 @@ class QuoteDto {
   targetMarginRate?: number
 }
 
+class ApplyCoefficientDto {
+  @IsString() @IsNotEmpty({ message: '请选择规格' })
+  specId!: string
+
+  /** 校准系数 [1, 1.6] */
+  @IsNumber() @Min(1)
+  factor!: number
+}
+
 @ApiTags('AI 智能')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
@@ -30,6 +41,7 @@ export class AiController {
   constructor(
     private readonly pricing: PricingService,
     private readonly loss: LossService,
+    private readonly coefficient: CoefficientService,
     private readonly llm: LlmClient,
   ) {}
 
@@ -52,5 +64,21 @@ export class AiController {
   @ApiOperation({ summary: '损耗归因：按规格算超额损耗（投料vs标准得布率vs产出）+ AI 解释建议' })
   lossAttribution(@CurrentUser() ctx: RequestContext) {
     return this.loss.attribute(ctx.tenantId, ctx.companyId)
+  }
+
+  @Get('coefficients')
+  @RequirePermission(Permission.PRODUCTION_VIEW)
+  @ApiOperation({ summary: '系数自学习：从领用/报工反推各规格实测多耗倍数，给建议校准系数' })
+  async coefficients(@CurrentUser() ctx: RequestContext) {
+    return this.coefficient.learn(ctx.tenantId, ctx.companyId)
+  }
+
+  @Post('coefficients/apply')
+  @RequirePermission(Permission.MATERIAL_EDIT)
+  @Audit({ action: 'update', module: 'ai.coefficient' })
+  @ApiOperation({ summary: '应用校准系数到规格（反哺确定性引擎）' })
+  async applyCoefficient(@CurrentUser() ctx: RequestContext, @Body() dto: ApplyCoefficientDto) {
+    await this.coefficient.apply(ctx.tenantId, ctx.companyId, dto)
+    return { ok: true }
   }
 }

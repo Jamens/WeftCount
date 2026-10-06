@@ -228,12 +228,18 @@ export class MaterialService {
     widthAllowance: number
     warpLossRate: number
     weftLossRate: number
+    /** 实测校准系数（系数自学习），按 (1+设计损耗)×factor−1 折成有效损耗率 */
+    learnedLossFactor?: number | null
     picksPerMinute?: number | null
     machineRunRate: number
   }): SpecCalculationSnapshot {
+    // 应用实测校准系数：有效损耗 = (1+设计损耗)×实测系数 − 1（不改设计基准，避免反复学习漂移）
+    const f = spec.learnedLossFactor && spec.learnedLossFactor > 0 ? spec.learnedLossFactor : 1
+    const effWarpLoss = (1 + spec.warpLossRate) * f - 1
+    const effWeftLoss = (1 + spec.weftLossRate) * f - 1
     const coeffs: WeaveCoefficients = {
-      warpLossRate: spec.warpLossRate,
-      weftLossRate: spec.weftLossRate,
+      warpLossRate: effWarpLoss,
+      weftLossRate: effWeftLoss,
       widthAllowance: spec.widthAllowance,
       warpShrinkage: 0.05,
       weftShrinkage: 0.04,
@@ -526,6 +532,7 @@ export class MaterialService {
       widthAllowance: Number(spec.widthAllowance),
       warpLossRate: Number(spec.warpLossRate),
       weftLossRate: Number(spec.weftLossRate),
+      learnedLossFactor: spec.learnedLossFactor == null ? null : Number(spec.learnedLossFactor),
       picksPerMinute: spec.picksPerMinute,
       machineRunRate: Number(spec.machineRunRate),
     })

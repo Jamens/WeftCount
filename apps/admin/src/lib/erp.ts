@@ -332,6 +332,24 @@ export interface LossData {
   specCount: number
 }
 
+export interface SpecCoefficientRow {
+  specId: string
+  specName: string
+  inputM: number
+  outputM: number
+  sampleSize: number
+  /** 实测多耗倍数 = 领用/报工（>1 实际比设计多耗） */
+  observedFactor: number
+  suggestedFactor: number
+  currentFactor: number | null
+  sufficient: boolean
+  confidence: number
+}
+
+export interface CoefficientData {
+  rows: SpecCoefficientRow[]
+}
+
 // ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------

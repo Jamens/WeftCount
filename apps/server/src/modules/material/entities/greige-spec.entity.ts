@@ -89,6 +89,24 @@ export class GreigeSpecEntity {
   @Column({ type: 'decimal', precision: 6, scale: 4, default: 0.05 })
   weftLossRate!: string
 
+  /**
+   * 实测校准系数（系数自学习写入，可空=未学习，用设计基准损耗）
+   *
+   * = 领用当量米数 / 报工产出米数，即该规格**实际耗纱比设计多出的倍数**。
+   * 算快照时按 (1+设计损耗)×本系数−1 得到有效损耗率，**不改设计基准**——
+   * 反复学习不会累积漂移。null/1 表示仅用设计值。
+   */
+  @Column({ type: 'decimal', precision: 6, scale: 4, nullable: true })
+  learnedLossFactor!: string | null
+
+  /** 系数最近一次学习时间 */
+  @Column({ type: 'datetime', nullable: true })
+  learnedAt!: Date | null
+
+  /** 学习时的报工样本笔数（数据充分性依据） */
+  @Column({ type: 'int', nullable: true })
+  learnedSampleSize!: number | null
+
   /** 织机转速（纬/分钟），null 表示未录入 */
   @Column({ type: 'int', nullable: true })
   picksPerMinute!: number | null
