@@ -247,7 +247,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         </Space>
       </Layout.Header>
 
-      <Layout>
+      {/* body 行：必须有 flex:1 + minHeight:0 才有确定高度(外层是 100vh 的 column flex)，
+          否则本层按内容高度撑开，Sider 拿不到有界高度，左侧菜单无法滚动、底部被裁 */}
+      <Layout style={{ flex: 1, minHeight: 0 }}>
         <Layout.Sider
           width={200}
           theme={mode}
@@ -259,7 +261,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             overflow: 'hidden',
           }}
         >
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
             <Menu
               mode="inline"
               selectedKeys={[location.pathname]}
