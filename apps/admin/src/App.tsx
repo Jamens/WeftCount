@@ -19,6 +19,9 @@ import DashboardPage from './pages/DashboardPage'
 import AuditLogPage from './pages/AuditLogPage'
 import MaterialPage from './pages/MaterialPage'
 import SpecPage from './pages/SpecPage'
+import BatchPage from './pages/BatchPage'
+import TransactionPage from './pages/TransactionPage'
+import ReconcilePage from './pages/ReconcilePage'
 import { PERM } from './lib/erp'
 
 const { Text } = Typography
@@ -53,10 +56,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.INVENTORY_VIEW)
       ? [
-          { key: 'placeholder-batch', icon: <AppstoreOutlined />, label: '库存批次（建设中）', disabled: true },
+          { key: '/inventory/batches', icon: <AppstoreOutlined />, label: '库存批次' },
           { key: 'placeholder-doc', icon: <AppstoreOutlined />, label: '三算单据（建设中）', disabled: true },
-          { key: 'placeholder-txn', icon: <AppstoreOutlined />, label: '事务流水（建设中）', disabled: true },
-          { key: 'placeholder-recon', icon: <AppstoreOutlined />, label: '三算对账（建设中）', disabled: true },
+          { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
+          { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
         ]
       : []),
     ...(hasPermission(PERM.AUDIT_VIEW)
@@ -194,6 +197,36 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <SpecPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/inventory/batches"
+          element={
+            <RequireAuth>
+              <Shell>
+                <BatchPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/inventory/transactions"
+          element={
+            <RequireAuth>
+              <Shell>
+                <TransactionPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/inventory/reconcile"
+          element={
+            <RequireAuth>
+              <Shell>
+                <ReconcilePage />
               </Shell>
             </RequireAuth>
           }
