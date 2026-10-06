@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Alert, Card, Space, Spin, Tag, Typography } from 'antd'
+import { Alert, Card, Space, Spin, Tag, Typography, theme } from 'antd'
 import { api } from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Text, Paragraph } = Typography
+const { token } = theme.useToken()
 
 interface HealthPayload {
   status: string
@@ -88,7 +89,7 @@ export default function DashboardPage() {
             {Object.entries(DEMO_SPEC).map(([k, v]) => (
               <div
                 key={k}
-                style={{ display: 'flex', padding: '4px 0', borderBottom: '1px solid #fafafa' }}
+                style={{ display: 'flex', padding: '4px 0', borderBottom: `1px solid ${token.colorBorderSecondary}` }}
               >
                 <Text type="secondary" style={{ width: 120 }}>
                   {k}

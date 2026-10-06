@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>纬数 WeftCount · 纺织行业 AI 进销存</title>
+    <script>
+      // 防止暗色主题刷新时白屏闪烁：在首屏渲染前同步 body 背景
+      try {
+        if (localStorage.getItem('weft-theme') === 'dark') {
+          document.documentElement.style.colorScheme = 'dark'
+          document.body.style.background = '#000'
+          document.body.style.color = 'rgba(255,255,255,0.88)'
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

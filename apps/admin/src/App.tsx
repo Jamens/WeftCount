@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { App as AntdApp, Layout, Menu, Typography, Dropdown, Space, Tag, Avatar } from 'antd'
+import { App as AntdApp, Layout, Menu, Typography, Dropdown, Space, Tag, Avatar, Switch } from 'antd'
 import {
   DashboardOutlined,
   FileSearchOutlined,
@@ -24,6 +24,7 @@ import TransactionPage from './pages/TransactionPage'
 import ReconcilePage from './pages/ReconcilePage'
 import DocPage from './pages/DocPage'
 import { PERM } from './lib/erp'
+import { useThemeStore } from './stores/theme.store'
 
 const { Text } = Typography
 
@@ -46,6 +47,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const logout = useAuthStore((s) => s.logout)
   const switchCompany = useAuthStore((s) => s.switchCompany)
+  const mode = useThemeStore((s) => s.mode)
+  const toggleTheme = useThemeStore((s) => s.toggle)
 
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: '工作台' },
@@ -79,12 +82,12 @@ function Shell({ children }: { children: React.ReactNode }) {
     <Layout style={{ minHeight: '100vh' }}>
       <Layout.Header
         style={{
-          background: '#fff',
+          background: mode === 'dark' ? '#141414' : '#fff',
           padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.12)' : '#f0f0f0'}`,
         }}
       >
         <Text strong style={{ fontSize: 16 }}>
@@ -111,6 +114,14 @@ function Shell({ children }: { children: React.ReactNode }) {
             <Tag color={tenant.aiEnabled ? 'gold' : 'default'}>{tenant.planLabel}</Tag>
           )}
 
+          <Switch
+            checkedChildren="暗"
+            unCheckedChildren="亮"
+            checked={mode === 'dark'}
+            onChange={() => toggleTheme()}
+            title="切换亮/暗主题"
+          />
+
           <Dropdown
             menu={{
               items: [
@@ -132,7 +143,11 @@ function Shell({ children }: { children: React.ReactNode }) {
       </Layout.Header>
 
       <Layout>
-        <Layout.Sider width={200} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
+        <Layout.Sider
+          width={200}
+          theme={mode}
+          style={{ borderRight: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.12)' : '#f0f0f0'}` }}
+        >
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
@@ -143,7 +158,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             }}
           />
         </Layout.Sider>
-        <Layout.Content style={{ padding: 24, background: '#f5f5f5' }}>{children}</Layout.Content>
+        <Layout.Content style={{ padding: 24, background: mode === 'dark' ? '#000' : '#f5f5f5' }}>
+          {children}
+        </Layout.Content>
       </Layout>
     </Layout>
   )
