@@ -17,6 +17,7 @@ import { OrderService } from '../order/order.service'
 import { WarehouseService } from '../warehouse/warehouse.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { RollEntity } from './entities/roll.entity'
+import { RollOutboundEntity } from './entities/roll-outbound.entity'
 import { ProductionReportEntity } from '../production/entities/production-report.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { MachineEntity } from '../production/entities/machine.entity'
@@ -61,7 +62,8 @@ export interface CreateDocInput {
    * 逐匹出库（销售/领用）：扫件卡发货，发什么扫什么。件卡整匹出库，
    * 出库量 = 各件卡米数之和（不依赖 enteredValue）。件卡状态置 sold/consumed。
    */
-  pickedRolls?: { rollNo: string }[] | null
+  /** pickedRolls[].meters 可选：不传=整匹发(remaining_m)；传了=拆匹发该米数 */
+  pickedRolls?: { rollNo: string; meters?: number | null }[] | null
   /**
    * 逐匹入库（仅采购入库）：扫件卡逐匹登记，rollNo 公司内唯一防重扫。
    * 传了则按各匹米数校验总量并生成件卡记录（批次米数应 = 各匹之和）。
@@ -77,8 +79,8 @@ interface ConsumptionPlan {
   totalM: number
   totalKg: number
   totalM2: number
-  /** 件卡逐匹发货时，待置为已出库的件卡 id */
-  rollIds?: string[]
+  /** 件卡发货明细：件卡 id + 本次出库米数（整匹发=remaining_m，拆匹=指定米数） */
+  rollTakes?: Array<{ rollId: string; meters: number; kg: number; m2: number }>
 }
 
 @Injectable()
@@ -88,6 +90,8 @@ export class InventoryService {
     private readonly batches: Repository<InventoryBatchEntity>,
     @InjectRepository(RollEntity)
     private readonly rolls: Repository<RollEntity>,
+    @InjectRepository(RollOutboundEntity)
+    private readonly rollOutbounds: Repository<RollOutboundEntity>,
     @InjectRepository(ProductionReportEntity)
     private readonly reports: Repository<ProductionReportEntity>,
     @InjectRepository(ProductionOrderEntity)
@@ -535,6 +539,9 @@ export class InventoryService {
         rollNo,
         meters: num(meters, 3),
         weightKg: num(kgPerM * meters, 3),
+        // 拆匹发货：初始剩余量 = 全部米数/重量，后续发货递减
+        remainingM: num(meters, 3),
+        remainingKg: num(kgPerM * meters, 3),
         status: 'in_stock',
         sourceDocId,
       })
@@ -788,10 +795,14 @@ export class InventoryService {
   }
 
   /**
-   * 件卡逐匹发货规划：按扫到的件卡整匹出库（发什么扫什么）。
+   * 件卡发货规划（支持**拆匹**）：扫件卡 → 整匹发或发指定米数
    *
-   * 校验：件卡存在、属本公司、**状态 in_stock**（防重发）、所属批次规格与单据一致、
-   * 批次剩余足够。出库量 = 各件卡米数之和（不依赖 enteredValue）。
+   * 校验：件卡存在、属本公司、**状态 in_stock**(防重发)、规格与单据一致、
+   * **发货米数 ≤ 该匹剩余米数**(拆匹核心约束)、批次剩余足够。
+   * 出库量 = 各件卡本次发货米数之和（不依赖 enteredValue）。
+   *
+   * 拆匹语义：`meters` 不传 → 整匹发(取 remaining_m)；传了 → 发该米数，残匹留在库
+   * (remaining_m 递减，为 0 时 status 才置 sold)。
    */
   private async planRollConsumption(
     manager: EntityManager,
@@ -802,7 +813,7 @@ export class InventoryService {
   ): Promise<ConsumptionPlan> {
     const c = this.ctxOf(snapshot, widthCm)
     const portions: ConsumptionPlan['portions'] = []
-    const rollIds: string[] = []
+    const rollTakes: NonNullable<ConsumptionPlan['rollTakes']> = []
     const seen = new Set<string>()
     let totalM = 0
     let totalKg = 0
@@ -824,7 +835,22 @@ export class InventoryService {
       if (batch.specId !== input.specId) {
         throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 规格与单据规格不一致` })
       }
-      const take = Number(roll.meters)
+      // remaining_m 是权威剩余量；历史数据回填为 meters
+      const rollRemain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
+      if (rollRemain <= 1e-9) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 剩余量为 0` })
+      }
+      // 不传 meters = 整匹发；传了 = 拆匹发该米数
+      const take = pick.meters == null ? rollRemain : Number(pick.meters)
+      if (!Number.isFinite(take) || take <= 0) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 发货米数必须大于 0` })
+      }
+      if (take > rollRemain + 1e-6) {
+        throw new BadRequestException({
+          code: ErrorCode.INSUFFICIENT_QUANTITY,
+          message: `件卡 ${rollNo} 发货 ${take.toFixed(2)}m 超出该匹剩余 ${rollRemain.toFixed(2)}m`,
+        })
+      }
       const rem = Number(batch.remainingQuantity)
       if (take > rem + 1e-6) {
         throw new BadRequestException({
@@ -835,7 +861,7 @@ export class InventoryService {
       const kg = this.metersToWeight(take, c)
       const m2 = this.metersToArea(take, c)
       portions.push({ batchId: batch.id, take, kg, m2 })
-      rollIds.push(roll.id)
+      rollTakes.push({ rollId: roll.id, meters: take, kg, m2 })
       totalM += take
       totalKg += kg
       totalM2 += m2
@@ -843,7 +869,7 @@ export class InventoryService {
     if (totalM <= 0) {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡发货合计必须大于 0' })
     }
-    return { need: totalM, portions, totalM, totalKg, totalM2, rollIds }
+    return { need: totalM, portions, totalM, totalKg, totalM2, rollTakes }
   }
 
   private async executeConsumption(
@@ -886,13 +912,40 @@ export class InventoryService {
         }),
       )
     }
-    // 件卡逐匹发货：把扫到的件卡置为已出库（销售=sold，售出；领用=consumed），记录出库单
-    if (plan.rollIds && plan.rollIds.length > 0) {
-      await manager.update(
-        RollEntity,
-        { id: In(plan.rollIds) },
-        { status: txnType === 'sales_out' ? 'sold' : 'consumed', outboundDocId: docId },
-      )
+    // 件卡发货（整匹或拆匹）：扣减 remaining_m/remaining_kg + 记 roll_outbounds 关联行。
+    // remaining 归零才置 sold/consumed——残匹留在库继续可用。
+    if (plan.rollTakes && plan.rollTakes.length > 0) {
+      for (const rt of plan.rollTakes) {
+        const roll = await manager.findOne(RollEntity, { where: { id: rt.rollId } })
+        if (!roll) continue
+        const remain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
+        const remainKg = roll.remainingKg == null ? Number(roll.weightKg ?? 0) : Number(roll.remainingKg)
+        // 按剩余比例折算本次出库重量，避免逐匹累计误差
+        const kgOut = remain > 1e-9 ? (remainKg * rt.meters) / remain : rt.kg
+        const newRemain = remain - rt.meters
+        roll.remainingM = num(newRemain, 3)
+        roll.remainingKg = num(remainKg - kgOut, 3)
+        // 发完才置终态；未发完保持 in_stock（残匹可再发）
+        if (newRemain <= 1e-6) {
+          roll.remainingM = num(0, 3)
+          roll.remainingKg = num(0, 3)
+          roll.status = txnType === 'sales_out' ? 'sold' : 'consumed'
+        }
+        roll.outboundDocId = docId // 保留：记最后一次出库单（完整去向见 roll_outbounds）
+        await manager.save(roll)
+
+        await manager.save(
+          manager.create(RollOutboundEntity, {
+            tenantId: ctx.tenantId,
+            companyId: ctx.companyId,
+            rollId: roll.id,
+            docId,
+            meters: num(rt.meters, 3),
+            weightKg: num(kgOut, 3),
+            areaM2: num(rt.m2, 4),
+          }),
+        )
+      }
     }
   }
 
@@ -990,6 +1043,9 @@ export class InventoryService {
           id: r.id,
           rollNo: r.rollNo,
           meters: r.meters,
+          // 拆匹：剩余米数/重量（标签与发货清单要显示「还剩多少」）
+          remainingM: r.remainingM ?? r.meters,
+          remainingKg: r.remainingKg,
           status: r.status,
           batchId: r.batchId,
           batchNo: b?.batchNo ?? '-',
@@ -1013,6 +1069,9 @@ export class InventoryService {
     return {
       rollNo: roll.rollNo,
       meters: roll.meters,
+      // 拆匹：扫码后前端要显示剩余量，供操作员决定发多少
+      remainingM: roll.remainingM ?? roll.meters,
+      remainingKg: roll.remainingKg,
       status: roll.status,
       specId: batch?.specId ?? null,
       specName: spec?.name ?? null,
@@ -1082,10 +1141,41 @@ export class InventoryService {
       }
     }
 
-    // 去向：出库单（客户 + 销售订单）
-    const outDoc = roll.outboundDocId
-      ? await this.docs.findOne({ where: { id: roll.outboundDocId, companyId } })
-      : null
+    // 去向：出库单（客户 + 销售订单）。拆匹后**一匹可多次出库**，
+    // 故以 roll_outbounds 关联表为准（按时间升序），outbound_doc_id 只作旧数据兜底。
+    const outLinks = await this.rollOutbounds.find({
+      where: { rollId: roll.id, companyId },
+      order: { createdAt: 'ASC' },
+    })
+    const outDocs = await this.docs.find({
+      where: { id: In(outLinks.map((l) => l.docId)), companyId },
+    })
+    const docById = new Map(outDocs.map((d) => [d.id, d]))
+    const destinations = outLinks
+      .map((l) => {
+        const d = docById.get(l.docId)
+        if (!d) return null
+        return {
+          docNo: d.docNo,
+          docType: d.docType,
+          partnerName: d.partnerName,
+          orderId: d.orderId,
+          date: d.createdAt,
+          meters: l.meters,
+          weightKg: l.weightKg,
+        }
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+    // 旧数据兜底：有关联行就用关联行，否则退回 outbound_doc_id
+    if (destinations.length === 0 && roll.outboundDocId) {
+      const d = await this.docs.findOne({ where: { id: roll.outboundDocId, companyId } })
+      if (d) {
+        destinations.push({
+          docNo: d.docNo, docType: d.docType, partnerName: d.partnerName,
+          orderId: d.orderId, date: d.createdAt, meters: roll.meters, weightKg: roll.weightKg,
+        })
+      }
+    }
 
     return {
       roll: {
@@ -1093,6 +1183,9 @@ export class InventoryService {
         rollNo: roll.rollNo,
         meters: roll.meters,
         weightKg: roll.weightKg,
+        // 拆匹：剩余量与已发量（原始米数不变，remainingM 递减）
+        remainingM: roll.remainingM,
+        remainingKg: roll.remainingKg,
         status: roll.status,
         inboundAt: roll.createdAt,
       },
@@ -1106,15 +1199,10 @@ export class InventoryService {
       material: material ? { id: material.id, name: material.name, code: material.code } : null,
       batch: { id: batch.id, batchNo: batch.batchNo, remainingM: batch.remainingQuantity },
       source,
-      destination: outDoc
-        ? {
-            docNo: outDoc.docNo,
-            docType: outDoc.docType,
-            partnerName: outDoc.partnerName,
-            orderId: outDoc.orderId,
-            date: outDoc.createdAt,
-          }
-        : null,
+      /** 全部出库去向（拆匹后可能多张单，按时间升序） */
+      destinations,
+      /** 首个去向（兼容旧调用方；等价于 destinations[0]） */
+      destination: destinations[0] ?? null,
     }
   }
 

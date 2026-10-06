@@ -29,7 +29,22 @@ test('AI 状态端点可访问', async () => {
 
 test('智能核价：返回建议价+成本+依据', async () => {
   const c = await login('factory')
-  const spec = await activeSpec(c)
+  // 选**有关联纱线**的规格：其它用例可能新建无纱线关联的规格，activeSpec 未必是它
+  const allSpecs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  const spec = allSpecs.find((s) => s.warpMaterialId) ?? allSpecs[0]
+  // 自备成本数据：核价需要「纱线进价」或「历史成交价」其一，否则它会（正确地）拒绝报价。
+  // 测试不能依赖库里的存量——干净库没有任何进价记录。
+  const yarnId = spec.warpMaterialId
+  if (yarnId) {
+    const yarn = (await get(c, '/materials')).find((m) => m.id === yarnId)
+    const sup = await supplierOf(c)
+    if (yarn) {
+      await post(c, '/inventory/purchase-inbound', {
+        materialId: yarn.id, specId: spec.id, enteredUnit: 'kg', enteredValue: 1000,
+        unitPrice: 12.5, partnerId: sup.id,
+      })
+    }
+  }
   const r = await post(c, '/ai/quote', { specId: spec.id, quantityM: 5000 })
   assertInsight(r, '智能核价')
   assert.ok(r.data.suggestedPrice > 0, '建议价应 > 0')

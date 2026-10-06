@@ -4,6 +4,7 @@ import { InventoryController } from './inventory.controller'
 import { InventoryService } from './inventory.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { RollEntity } from './entities/roll.entity'
+import { RollOutboundEntity } from './entities/roll-outbound.entity'
 import { ProductionReportEntity } from '../production/entities/production-report.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { MachineEntity } from '../production/entities/machine.entity'
@@ -17,7 +18,7 @@ import { AuthModule } from '../auth/auth.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([InventoryBatchEntity, RollEntity, InventoryTransactionEntity, InventoryDocumentEntity, ProductionReportEntity, ProductionOrderEntity, MachineEntity]),
+    TypeOrmModule.forFeature([InventoryBatchEntity, RollEntity, RollOutboundEntity, InventoryTransactionEntity, InventoryDocumentEntity, ProductionReportEntity, ProductionOrderEntity, MachineEntity]),
     MaterialModule,
     PartnerModule,
     OrderModule,

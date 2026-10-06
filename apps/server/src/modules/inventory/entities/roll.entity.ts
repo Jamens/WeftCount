@@ -30,12 +30,25 @@ export class RollEntity {
   @Column({ type: 'varchar', length: 64 })
   rollNo!: string
 
-  /** 该匹米数 */
+  /** 该匹米数（**原始总量**，拆匹后不变） */
   @Column({ type: 'decimal', precision: 14, scale: 3 })
   meters!: string
 
   @Column({ type: 'decimal', precision: 14, scale: 3, nullable: true })
   weightKg!: string | null
+
+  /**
+   * 剩余米数（拆匹发货用）
+   *
+   * 新不变式：**Σ 批内所有件卡 remaining_m == batch.remaining_quantity**。
+   * 整匹发货时 remaining_m 一次归零（等价于旧行为）；拆匹时按实际发货量递减。
+   */
+  @Column({ type: 'decimal', precision: 14, scale: 3, nullable: true })
+  remainingM!: string | null
+
+  /** 剩余重量（kg），与 remainingM 同比例递减 */
+  @Column({ type: 'decimal', precision: 14, scale: 3, nullable: true })
+  remainingKg!: string | null
 
   @Column({ type: 'enum', enum: ['in_stock', 'consumed', 'sold'], default: 'in_stock' })
   status!: RollStatus
@@ -44,7 +57,12 @@ export class RollEntity {
   @Column({ type: 'char', length: 36, nullable: true })
   sourceDocId!: string | null
 
-  /** 出库单（发货/领用时写入，售出后可知去向） */
+  /**
+   * 出库单（发货/领用时写入，售出后可知去向）
+   *
+   * @deprecated 一匹可分多次出库，此字段只能记最后一次。完整去向见 `roll_outbounds` 关联表
+   * （`RollOutboundEntity`）与 traceRoll 的 `destinations[]`。
+   */
   @Column({ type: 'char', length: 36, nullable: true })
   outboundDocId!: string | null
 

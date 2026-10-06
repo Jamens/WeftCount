@@ -35,6 +35,17 @@ class PickRollDto {
   @IsString()
   @IsNotEmpty({ message: '件卡号不能为空' })
   rollNo!: string
+
+  /**
+   * 本次发货米数（**可选**）
+   * - 不传 → 整匹发（发该匹全部剩余量）
+   * - 传了 → 拆匹发该米数，残匹留在库（remaining_m 递减，为 0 才置已售）
+   * 上限由服务端校验（不得超过该匹剩余量）。
+   */
+  @IsOptional()
+  @IsNumber({}, { message: '发货米数必须为数字' })
+  @Min(0.001, { message: '发货米数必须大于 0' })
+  meters?: number
 }
 
 class CreateDocDto implements CreateDocInput {

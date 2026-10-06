@@ -5,7 +5,16 @@ import { login, get, post, expectReject, activeGreigeMaterial, supplierOf, asser
 
 test('创建多明细订单，表头汇总=各行之和', async () => {
   const c = await login('factory')
-  const specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  let specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  // 自建第二个规格：干净库里 seed 只有 1 个规格，若不补，两条明细会落到同一规格，
+  // 协议价查询拿到的是后一条(8.8)而非 7.7——**测试必须自备数据，不能依赖库里的存量**
+  if (specs.length < 2) {
+    await post(c, '/greige-specs', {
+      name: `合同测试规格${Date.now()}`, finishedWidth: 140, warpDensity: 100, weftDensity: 60,
+      weaveType: 'plain', warpCount: { value: 40, system: 'NeS' }, weftCount: { value: 40, system: 'NeS' },
+    })
+    specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  }
   const mat = await activeGreigeMaterial(c)
   const sup = await supplierOf(c)
   const s2 = specs[1] ?? specs[0]
@@ -27,7 +36,16 @@ test('创建多明细订单，表头汇总=各行之和', async () => {
 
 test('按行挂单：单据物料/规格须命中订单某一明细行', async () => {
   const c = await login('factory')
-  const specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  let specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  // 自建第二个规格：干净库里 seed 只有 1 个规格，若不补，两条明细会落到同一规格，
+  // 协议价查询拿到的是后一条(8.8)而非 7.7——**测试必须自备数据，不能依赖库里的存量**
+  if (specs.length < 2) {
+    await post(c, '/greige-specs', {
+      name: `合同测试规格${Date.now()}`, finishedWidth: 140, warpDensity: 100, weftDensity: 60,
+      weaveType: 'plain', warpCount: { value: 40, system: 'NeS' }, weftCount: { value: 40, system: 'NeS' },
+    })
+    specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  }
   const mat = await activeGreigeMaterial(c)
   const sup = await supplierOf(c)
 
@@ -66,7 +84,16 @@ test('按行挂单：规格不在订单内被拒', async () => {
 
 test('仅已确认订单可挂单（草稿不可）', async () => {
   const c = await login('factory')
-  const specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  let specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  // 自建第二个规格：干净库里 seed 只有 1 个规格，若不补，两条明细会落到同一规格，
+  // 协议价查询拿到的是后一条(8.8)而非 7.7——**测试必须自备数据，不能依赖库里的存量**
+  if (specs.length < 2) {
+    await post(c, '/greige-specs', {
+      name: `合同测试规格${Date.now()}`, finishedWidth: 140, warpDensity: 100, weftDensity: 60,
+      weaveType: 'plain', warpCount: { value: 40, system: 'NeS' }, weftCount: { value: 40, system: 'NeS' },
+    })
+    specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  }
   const mat = await activeGreigeMaterial(c)
   const sup = await supplierOf(c)
   const o = await post(c, '/orders', {
@@ -79,7 +106,16 @@ test('仅已确认订单可挂单（草稿不可）', async () => {
 
 test('合同多明细 + 生效 + 协议价查询', async () => {
   const c = await login('factory')
-  const specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  let specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  // 自建第二个规格：干净库里 seed 只有 1 个规格，若不补，两条明细会落到同一规格，
+  // 协议价查询拿到的是后一条(8.8)而非 7.7——**测试必须自备数据，不能依赖库里的存量**
+  if (specs.length < 2) {
+    await post(c, '/greige-specs', {
+      name: `合同测试规格${Date.now()}`, finishedWidth: 140, warpDensity: 100, weftDensity: 60,
+      weaveType: 'plain', warpCount: { value: 40, system: 'NeS' }, weftCount: { value: 40, system: 'NeS' },
+    })
+    specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  }
   const mat = await activeGreigeMaterial(c)
   const sup = await supplierOf(c)
   const ct = await post(c, '/contracts', {
@@ -104,7 +140,16 @@ test('合同多明细 + 生效 + 协议价查询', async () => {
 
 test('供应商条码映射：建映射→扫码解析', async () => {
   const c = await login('factory')
-  const specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  let specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  // 自建第二个规格：干净库里 seed 只有 1 个规格，若不补，两条明细会落到同一规格，
+  // 协议价查询拿到的是后一条(8.8)而非 7.7——**测试必须自备数据，不能依赖库里的存量**
+  if (specs.length < 2) {
+    await post(c, '/greige-specs', {
+      name: `合同测试规格${Date.now()}`, finishedWidth: 140, warpDensity: 100, weftDensity: 60,
+      weaveType: 'plain', warpCount: { value: 40, system: 'NeS' }, weftCount: { value: 40, system: 'NeS' },
+    })
+    specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  }
   const mat = await activeGreigeMaterial(c)
   const sup = await supplierOf(c)
   const code = 'SMOKE-' + Date.now()

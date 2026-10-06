@@ -280,3 +280,60 @@ test('列批次件卡(件卡打印用)：含件卡号/米数/规格/批次', asy
   assert.ok(one.specName, '应带规格名')
   assert.equal(one.status, 'in_stock', '新件卡应在库')
 })
+
+// ---- 拆匹发货（一匹分多次出库） ----
+
+test('拆匹发货：发部分米数后残匹留在库，remaining 递减', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  // 入库 1 匹 100m
+  const doc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100,
+    unitPrice: 8.2, partnerId: sup.id, rolls: [{ rollNo: `SPLIT-${tag}`, meters: 100 }],
+  })
+  const bId0 = (await get(c, '/inventory/batches')).find(b => b.sourceDocId === doc.id).id
+  const rolls = await get(c, `/inventory/rolls?batchId=${bId0}`)
+  const roll = rolls[0]
+  assert.equal(Number(roll.remainingM), 100, '入库后 remainingM 应=100(全部)')
+  // 拆匹发货：只发 30m
+  const out = await post(c, '/inventory/sales-outbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 30,
+    unitPrice: 9.5, partnerId: cus.id, pickedRolls: [{ rollNo: roll.rollNo, meters: 30 }],
+  })
+  assert.ok(out.docNo)
+  // 查件卡：remaining=70，status 仍 in_stock（未发完）
+  const after = (await get(c, `/inventory/rolls?batchId=${roll.batchId}`))[0]
+  assertNear(after.remainingM, 70, 0.01, '拆匹后 remainingM 应=70')
+  assert.equal(after.status, 'in_stock', '未发完应仍 in_stock')
+  // 守恒：批内 Σroll.remaining == batch.remaining
+  const batch = (await get(c, '/inventory/batches')).find(b => b.id === roll.batchId)
+  const all = await get(c, `/inventory/rolls?batchId=${roll.batchId}`)
+  const sumRemain = all.reduce((s, r) => s + Number(r.remainingM), 0)
+  assertNear(sumRemain, Number(batch.remainingQuantity), 0.01, 'Σroll.remaining 应==batch.remaining')
+})
+
+test('拆匹发货：超出该匹剩余量被拒', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  const doc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 50,
+    unitPrice: 8.2, partnerId: sup.id, rolls: [{ rollNo: `SPLITX-${tag}`, meters: 50 }],
+  })
+  const bIdX = (await get(c, '/inventory/batches')).find(b => b.sourceDocId === doc.id).id
+  const roll = (await get(c, `/inventory/rolls?batchId=${bIdX}`))[0]
+  // 发 80m > 该匹 50m，应被拒
+  await assert.rejects(
+    () => post(c, '/inventory/sales-outbound', {
+      materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 80,
+      unitPrice: 9.5, partnerId: cus.id, pickedRolls: [{ rollNo: roll.rollNo, meters: 80 }],
+    })
+  )
+})
