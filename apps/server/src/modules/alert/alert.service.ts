@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { In, Repository } from 'typeorm'
+import { In, IsNull, Not, Repository } from 'typeorm'
 import dayjs from 'dayjs'
 import {
   computeReorderSuggestion,
@@ -12,11 +12,14 @@ import { MaterialEntity } from '../material/entities/material.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity'
 import { InventoryTransactionEntity } from '../inventory/entities/inventory-transaction.entity'
+import { TradeOrderEntity } from '../order/entities/trade-order.entity'
 
 /** 呆滞批次阈值：入库超此天数且仍有剩余未动 */
 const STALE_DAYS = 60
 /** 低库存判定：库存 < 安全库存（仅对设了安全库存的物料生效） */
 const LOW_STOCK_RATIO = 1
+/** 确认后的静默天数：期内同一问题不再重复报，避免「点了确认像没反应」 */
+const ACK_SILENCE_DAYS = 7
 
 /** 数量展示统一 1 位小数 */
 function fmtQty(v: number): string {
@@ -53,6 +56,9 @@ export class AlertService {
     private readonly batches: Repository<InventoryBatchEntity>,
     @InjectRepository(InventoryTransactionEntity)
     private readonly txns: Repository<InventoryTransactionEntity>,
+    /** 只读汇总用：判断「是否已由预警生成采购单」，不注入 OrderService（避免模块循环） */
+    @InjectRepository(TradeOrderEntity)
+    private readonly orders: Repository<TradeOrderEntity>,
   ) {}
 
   async list(companyId: string, onlyOpen = true): Promise<AlertEntity[]> {
@@ -205,10 +211,44 @@ export class AlertService {
       })
     }
 
-    // 去重：已有未确认的同类同对象预警则跳过
+    /**
+     * 去重：同一(type, 对象)不重复报
+     *
+     * 三条规则（缺一条就会让「确认」显得没生效）：
+     * 1. 已有**未确认**的同类同对象预警 → 跳过（原本就有，等处理）
+     * 2. 最近**确认过**且在静默期内 → 跳过。用户点「确认」是表示「我知道了/在处理」，
+     *    若条件没变就立刻再报一条，等于让确认按钮失效、用户被同一件事反复打扰。
+     * 3. 已由该对象的预警**生成过采购单**且订单未取消 → 跳过（问题已在处理中）。
+     *    库存确实还低是事实，但重复提醒无意义——采购单已经在了。
+     */
     const existing = await this.alerts.find({ where: { companyId, acknowledged: false } })
     const seen = new Set(existing.map((a) => `${a.type}:${a.refId}`))
-    const toCreate = candidates.filter((c) => !seen.has(`${c.type}:${c.refId}`))
+
+    // 静默期内的已确认预警
+    const silenceBefore = new Date(Date.now() - ACK_SILENCE_DAYS * 86400000)
+    const recentAcked = await this.alerts
+      .createQueryBuilder('a')
+      .where('a.company_id = :companyId', { companyId })
+      .andWhere('a.acknowledged = :ack', { ack: true })
+      .andWhere('a.acknowledged_at >= :since', { since: silenceBefore })
+      .getMany()
+    const silenced = new Set(recentAcked.map((a) => `${a.type}:${a.refId}`))
+
+    // 已转采购单的对象（订单未取消）
+    const orderedRefIds = new Set<string>()
+    const liveOrders = await this.orders.find({
+      where: { companyId, sourceAlertId: Not(IsNull()) },
+      relations: { sourceAlert: true },
+    })
+    for (const o of liveOrders) {
+      if (o.status === 'cancelled') continue
+      const refId = (o as unknown as { sourceAlert?: { refId?: string } }).sourceAlert?.refId
+      if (refId) orderedRefIds.add(`${o.orderType === 'purchase' ? 'low_stock' : o.orderType}:${refId}`)
+    }
+
+    const toCreate = candidates.filter(
+      (c) => !seen.has(`${c.type}:${c.refId}`) && !silenced.has(`${c.type}:${c.refId}`) && !orderedRefIds.has(`${c.type}:${c.refId}`),
+    )
     if (toCreate.length) {
       await this.alerts.save(
         toCreate.map((c) => this.alerts.create({ tenantId, companyId, ...c, acknowledged: false })),

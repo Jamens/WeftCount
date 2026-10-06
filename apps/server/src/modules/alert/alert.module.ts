@@ -7,11 +7,12 @@ import { MaterialEntity } from '../material/entities/material.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity'
 import { InventoryTransactionEntity } from '../inventory/entities/inventory-transaction.entity'
+import { TradeOrderEntity } from '../order/entities/trade-order.entity'
 import { AuthModule } from '../auth/auth.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AlertEntity, MaterialEntity, ProductionOrderEntity, InventoryBatchEntity, InventoryTransactionEntity]),
+    TypeOrmModule.forFeature([AlertEntity, MaterialEntity, ProductionOrderEntity, InventoryBatchEntity, InventoryTransactionEntity, TradeOrderEntity]),
     AuthModule,
   ],
   controllers: [AlertController],

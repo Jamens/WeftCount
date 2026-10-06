@@ -237,3 +237,43 @@ test('预警→采购单：按建议生成采购订单，同一预警不可重�
   // 防重复：同一预警再生成应被拒
   await assert.rejects(() => post(c, `/orders/from-alert/${alert.id}`, {}))
 })
+
+// ---- 确认(ack) 的静默期：确认后不该立刻又冒出来 ----
+
+test('预警确认后进入静默期：重复扫描不再新建（否则「确认」像没反应）', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const sup = await supplierOf(c)
+  const tag = Date.now()
+  const mat = await post(c, '/materials', {
+    name: `静默测试料${tag}`, category: 'greige', specification: '测试',
+    safetyStock: 500, leadTimeDays: 7,
+  })
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100,
+    unitPrice: 8, partnerId: sup.id,
+  })
+
+  await post(c, '/alerts/scan')
+  const a = (await get(c, '/alerts')).find((x) => x.refId === mat.id)
+  assert.ok(a, '库存远低于补货点，应触发预警')
+
+  // 规则1：已有未确认 → 不重复建
+  await post(c, '/alerts/scan')
+  assert.equal(
+    (await get(c, '/alerts')).filter((x) => x.refId === mat.id).length,
+    1, '有未确认预警时不应重复创建',
+  )
+
+  // 规则2：确认后进入静默期 → 不再新建
+  await post(c, `/alerts/${a.id}/ack`, {})
+  assert.equal(
+    (await get(c, '/alerts')).filter((x) => x.refId === mat.id).length,
+    0, '确认后应从未确认列表消失',
+  )
+  await post(c, '/alerts/scan')
+  assert.equal(
+    (await get(c, '/alerts')).filter((x) => x.refId === mat.id).length,
+    0, '确认后静默期内重复扫描不应再冒出来（否则「确认」等于没反应）',
+  )
+})

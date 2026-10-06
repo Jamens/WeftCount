@@ -3,10 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   VersionColumn,
 } from 'typeorm'
+import type { AlertEntity } from '../../alert/entities/alert.entity'
 
 /**
  * 采购 / 销售订单（trade order）—— 订单头
@@ -76,6 +79,13 @@ export class TradeOrderEntity {
    */
   @Column({ type: 'char', length: 36, nullable: true })
   sourceAlertId!: string | null
+
+  /** 来源预警（只读回溯：订单模块注册 AlertEntity 做汇总，不反向依赖 alert 模块） */
+  @ManyToOne('AlertEntity', { nullable: true })
+  // 必须写**真实列名**：本项目有 WeftNamingStrategy（camel→snake），
+  // 若只给属性名 TypeORM 会去找`source_alert` 列 → Unknown column 500
+  @JoinColumn({ name: 'source_alert_id' })
+  sourceAlert?: AlertEntity
 
   @Column({ type: 'enum', enum: ['draft', 'confirmed', 'completed', 'cancelled'], default: 'draft' })
   status!: TradeOrderStatus
