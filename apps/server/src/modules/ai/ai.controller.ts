@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator'
 import { LlmClient } from './llm.client'
 import { PricingService } from './pricing.service'
+import { LossService } from './loss.service'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'
@@ -28,6 +29,7 @@ class QuoteDto {
 export class AiController {
   constructor(
     private readonly pricing: PricingService,
+    private readonly loss: LossService,
     private readonly llm: LlmClient,
   ) {}
 
@@ -43,5 +45,12 @@ export class AiController {
   @ApiOperation({ summary: '智能核价：确定性成本+历史价带 → 建议报价（带置信度与依据）' })
   quote(@CurrentUser() ctx: RequestContext, @Body() dto: QuoteDto) {
     return this.pricing.quote(ctx.tenantId, ctx.companyId, dto)
+  }
+
+  @Get('loss')
+  @RequirePermission(Permission.COST_VIEW)
+  @ApiOperation({ summary: '损耗归因：按规格算超额损耗（投料vs标准得布率vs产出）+ AI 解释建议' })
+  lossAttribution(@CurrentUser() ctx: RequestContext) {
+    return this.loss.attribute(ctx.tenantId, ctx.companyId)
   }
 }

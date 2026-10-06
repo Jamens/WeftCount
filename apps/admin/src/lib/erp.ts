@@ -309,6 +309,29 @@ export interface QuoteData {
   targetMarginRate: number
 }
 
+export interface SpecLossRow {
+  specId: string
+  specName: string
+  inputM: number
+  outputM: number
+  inputYarnKg: number
+  outputKg: number
+  standardYield: number
+  actualYield: number
+  excessLossM: number
+  excessLossKg: number
+  excessLossRate: number
+  lossAmount: number
+  outputCount: number
+}
+
+export interface LossData {
+  rows: SpecLossRow[]
+  totalExcessKg: number
+  totalLossAmount: number
+  specCount: number
+}
+
 // ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------
