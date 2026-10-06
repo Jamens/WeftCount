@@ -157,3 +157,21 @@ test('损耗热点到匹：规格级损耗 + 该规格产出件卡', async () =>
   assert.equal(one.orderNo, order.orderNo, '件卡应标注产出工单')
   assert.ok(one.machineName, '件卡应标注机台')
 })
+
+test('织造件追溯：来源解析为报工工单+机台(非库存单据)', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const machine = await firstMachine(c)
+  const order = await post(c, '/production-orders', { materialId: mat.id, specId: spec.id, plannedQuantityM: 200, machineId: machine.id })
+  await post(c, `/production-orders/${order.id}/schedule`, {})
+  const tag = Date.now()
+  const rollNo = `TR${tag}`
+  await post(c, `/production-orders/${order.id}/reports`, { outputM: 60, rolls: [{ rollNo, meters: 60 }] })
+  // 织造件的 sourceDocId=报工id，去 inventory_documents 查不到；应回退解析 report→order
+  const tr = await get(c, `/inventory/rolls/trace?rollNo=${rollNo}`)
+  assert.ok(tr.source, '织造件应有来源')
+  assert.equal(tr.source.docType, 'production_report', '来源应是报工')
+  assert.equal(tr.source.docNo, order.orderNo, '来源应是产出工单号')
+  assert.equal(tr.source.machineName, machine.name, '来源应带机台名')
+})

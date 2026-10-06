@@ -17,6 +17,9 @@ import { OrderService } from '../order/order.service'
 import { WarehouseService } from '../warehouse/warehouse.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { RollEntity } from './entities/roll.entity'
+import { ProductionReportEntity } from '../production/entities/production-report.entity'
+import { ProductionOrderEntity } from '../production/entities/production-order.entity'
+import { MachineEntity } from '../production/entities/machine.entity'
 import { InventoryTransactionEntity } from './entities/inventory-transaction.entity'
 import { InventoryDocumentEntity, type InventoryDocType } from './entities/inventory-document.entity'
 
@@ -85,6 +88,12 @@ export class InventoryService {
     private readonly batches: Repository<InventoryBatchEntity>,
     @InjectRepository(RollEntity)
     private readonly rolls: Repository<RollEntity>,
+    @InjectRepository(ProductionReportEntity)
+    private readonly reports: Repository<ProductionReportEntity>,
+    @InjectRepository(ProductionOrderEntity)
+    private readonly prodOrders: Repository<ProductionOrderEntity>,
+    @InjectRepository(MachineEntity)
+    private readonly machines: Repository<MachineEntity>,
     @InjectRepository(InventoryTransactionEntity)
     private readonly txns: Repository<InventoryTransactionEntity>,
     @InjectRepository(InventoryDocumentEntity)
@@ -1037,10 +1046,41 @@ export class InventoryService {
           .catch(() => null)
       : null
 
-    // 来源：入库单（供应商 + 采购订单）
-    const inDoc = roll.sourceDocId
-      ? await this.docs.findOne({ where: { id: roll.sourceDocId, companyId } })
-      : null
+    // 来源：分两种——采购件看入库单(供应商+采购订单)；织造件看报工(工单+机台)。
+    // 织造批次的 sourceDocId 指向**报工**而非库存单据，需经 report→order 解析织造来源。
+    let source: {
+      docNo: string
+      docType: string
+      partnerName: string | null
+      orderId: string | null
+      date: Date
+      machineName?: string
+    } | null = null
+    if (roll.sourceDocId) {
+      const inDoc = await this.docs.findOne({ where: { id: roll.sourceDocId, companyId } })
+      if (inDoc) {
+        source = { docNo: inDoc.docNo, docType: inDoc.docType, partnerName: inDoc.partnerName, orderId: inDoc.orderId, date: inDoc.createdAt }
+      } else {
+        // 织造件：sourceDocId = 报工 id
+        const report = await this.reports.findOne({ where: { id: roll.sourceDocId } })
+        if (report) {
+          const order = await this.prodOrders.findOne({ where: { id: report.orderId } })
+          let machineName: string | undefined
+          if (order?.machineId) {
+            const m = await this.machines.findOne({ where: { id: order.machineId } })
+            machineName = m?.name
+          }
+          source = {
+            docNo: order?.orderNo ?? '—',
+            docType: 'production_report',
+            partnerName: null,
+            orderId: report.orderId,
+            date: report.reportDate ? new Date(report.reportDate) : report.createdAt ?? new Date(),
+            machineName,
+          }
+        }
+      }
+    }
 
     // 去向：出库单（客户 + 销售订单）
     const outDoc = roll.outboundDocId
@@ -1065,15 +1105,7 @@ export class InventoryService {
       },
       material: material ? { id: material.id, name: material.name, code: material.code } : null,
       batch: { id: batch.id, batchNo: batch.batchNo, remainingM: batch.remainingQuantity },
-      source: inDoc
-        ? {
-            docNo: inDoc.docNo,
-            docType: inDoc.docType,
-            partnerName: inDoc.partnerName,
-            orderId: inDoc.orderId,
-            date: inDoc.createdAt,
-          }
-        : null,
+      source,
       destination: outDoc
         ? {
             docNo: outDoc.docNo,
