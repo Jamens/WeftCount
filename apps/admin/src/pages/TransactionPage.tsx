@@ -3,7 +3,7 @@ import { App as AntdApp, Button, Card, Select, Space, Table, Tag, Typography } f
 import { ReloadOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useLookups } from '../lib/lookups'
-import { dec, fmt, type TxnWire } from '../lib/erp'
+import { dec, fmt, LIST_TABLE_SCROLL_Y, type TxnWire } from '../lib/erp'
 import { STOCK_TXN_LABEL, type StockTxnTypeValue } from '@weftcount/shared'
 
 const { Title, Text } = Typography
@@ -90,7 +90,7 @@ export default function TransactionPage() {
           size="small"
           loading={loading}
           dataSource={filtered}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1200, y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 30 }}
           columns={[
             {

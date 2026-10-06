@@ -21,6 +21,7 @@ import {
   fmtMoney,
   PERM,
   type MaterialWire,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { MATERIAL_CATEGORY_LABEL, MEASURE_MODE_LABEL, type MaterialCategoryValue, type MeasureMode } from '@weftcount/shared'
 import { useAuthStore } from '../stores/auth.store'
@@ -178,6 +179,7 @@ export default function MaterialPage() {
           loading={loading}
           dataSource={data}
           onRow={(r) => ({ onClick: () => setDetail(r) })}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 90 },

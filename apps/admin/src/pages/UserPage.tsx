@@ -22,6 +22,7 @@ import {
   type RoleWire,
   type UserStatusValue,
   type UserWire,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -166,6 +167,7 @@ export default function UserPage() {
           size="small"
           loading={loading}
           dataSource={users}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 人`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '账号', dataIndex: 'username', width: 120 },

@@ -784,3 +784,13 @@ export const YARN_PRICE_SOURCE_LABEL: Record<YarnPriceSource, { text: string; co
   standard_price: { text: '参考价', color: 'blue' },
   none: { text: '无价格', color: 'red' },
 }
+
+/**
+ * 列表页表格垂直滚动高度
+ *
+ * 给 antd Table 的 scroll.y：表格**体内**上下滚动（列头与分页固定），
+ * 页面高度被约束在视口内、不会整页撑出屏幕，需拖动整页。
+ * 360px ≈ 顶栏(64) + 内容内边距(48) + 页标题(64) + 筛选卡(68) + 表头/分页/内边距(120) 的合计，
+ * 留有余量，不同页面零星浮动不会溢出。
+ */
+export const LIST_TABLE_SCROLL_Y = 'calc(100vh - 360px)'

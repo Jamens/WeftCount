@@ -35,6 +35,7 @@ import {
   type PartnerWire,
   type TradeOrderStatusValue,
   type TradeOrderTypeValue,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -246,6 +247,7 @@ export default function OrderPage() {
         <Table<OrderWire>
           rowKey="id" size="small" loading={loading} dataSource={data}
           onRow={(r) => ({ onClick: () => void openDetail(r.id) })}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '订单号', dataIndex: 'orderNo', width: 150 },

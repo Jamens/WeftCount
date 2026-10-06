@@ -23,6 +23,7 @@ import {
   DOC_TYPE_OPTIONS,
   fmt,
   fmtMoney,
+  LIST_TABLE_SCROLL_Y,
   PERM,
   SUGGESTED_UNITS,
   type DocWire,
@@ -231,7 +232,7 @@ export default function DocPage() {
           loading={loading}
           dataSource={data}
           onRow={(r) => ({ onClick: () => void openDetail(r.id), style: { cursor: 'pointer' } })}
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1300, y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '单据号', dataIndex: 'docNo', width: 140, fixed: 'left' },

@@ -33,6 +33,7 @@ import {
   type ProductionOrderStatusValue,
   type ProductionOrderWire,
   type MachineStatusValue,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -308,6 +309,7 @@ export default function ProductionPage() {
         <Table<ProductionOrderWire>
           rowKey="id" size="small" loading={loading} dataSource={orders}
           onRow={(r) => ({ onClick: () => void openDetail(r.id) })}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '工单号', dataIndex: 'orderNo', width: 150 },
@@ -336,6 +338,7 @@ export default function ProductionPage() {
       </Space>
       <Table<MachineWire>
         rowKey="id" size="small" dataSource={machines}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
         pagination={{ showTotal: (t) => `共 ${t} 台`, showSizeChanger: false }}
         columns={[
           { title: '编码', dataIndex: 'code', width: 100 },

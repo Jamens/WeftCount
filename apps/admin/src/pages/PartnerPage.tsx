@@ -23,6 +23,7 @@ import {
   type PartnerStatusValue,
   type PartnerTypeValue,
   type PartnerWire,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -213,6 +214,7 @@ export default function PartnerPage() {
           loading={loading}
           dataSource={data}
           onRow={(r) => ({ onClick: () => setDetail(r) })}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 90 },

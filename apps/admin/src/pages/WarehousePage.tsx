@@ -14,7 +14,7 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { PERM, WAREHOUSE_TYPE_LABEL, type WarehouseTypeValue, type WarehouseWire } from '../lib/erp'
+import { LIST_TABLE_SCROLL_Y, PERM, WAREHOUSE_TYPE_LABEL, type WarehouseTypeValue, type WarehouseWire } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
@@ -124,6 +124,7 @@ export default function WarehousePage() {
           size="small"
           loading={loading}
           dataSource={data}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 个仓库`, showSizeChanger: false }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 90 },

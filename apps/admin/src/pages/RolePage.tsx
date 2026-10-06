@@ -19,6 +19,7 @@ import {
   PERM,
   PERMISSION_CATALOG,
   type RoleWire,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -143,6 +144,7 @@ export default function RolePage() {
           size="small"
           loading={loading}
           dataSource={data}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 个`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 140 },

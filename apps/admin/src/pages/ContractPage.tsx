@@ -29,6 +29,7 @@ import {
   type ContractStatusValue,
   type ContractWire,
   type PartnerWire,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -212,6 +213,7 @@ export default function ContractPage() {
           onRow={(r) => ({
             onClick: () => void api.get<{ items: ContractItemWire[] }>(`/contracts/${r.id}`).then((res) => setDetail({ contract: r, items: res.data.data.items })),
           })}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 份`, showSizeChanger: false }}
           columns={[
             { title: '合同号', dataIndex: 'contractNo', width: 150 },

@@ -25,6 +25,7 @@ import {
   type StocktakeStatusValue,
   type StocktakeWire,
   type WarehouseWire,
+  LIST_TABLE_SCROLL_Y,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
@@ -192,6 +193,7 @@ export default function StocktakePage() {
           loading={loading}
           dataSource={data}
           onRow={(r) => ({ onClick: () => void openDetail(r.id) })}
+          scroll={{ y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 单`, showSizeChanger: false }}
           columns={[
             { title: '盘点单号', dataIndex: 'stocktakeNo', width: 150 },

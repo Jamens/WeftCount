@@ -19,6 +19,7 @@ import {
   BATCH_STATUS_LABEL,
   fmt,
   fmtMoney,
+  LIST_TABLE_SCROLL_Y,
   PERM,
   SOURCE_TYPE_LABEL,
   type BatchWire,
@@ -155,7 +156,7 @@ export default function BatchPage() {
           size="small"
           loading={loading}
           dataSource={data}
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1100, y: LIST_TABLE_SCROLL_Y }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '批次号', dataIndex: 'batchNo', width: 130, fixed: 'left' },
