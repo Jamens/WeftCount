@@ -18,7 +18,7 @@ import {
 } from 'antd'
 import { BarcodeOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { api, newReqId } from '../lib/api'
+import { api, newReqId, postOrQueue } from '../lib/api'
 import { fmt, num, type ReportableOrder } from '../lib/types'
 
 const { Title, Text } = Typography
@@ -90,15 +90,23 @@ export default function ReportPage() {
     setSubmitting(true)
     try {
       if (!reqIdRef.current) reqIdRef.current = newReqId()
-      await api.post(`/production-orders/${target.id}/reports`, {
-        clientRequestId: reqIdRef.current,
-        outputM: effectiveOutput,
-        reportDate: dayjs().format('YYYY-MM-DD'),
-        stoppageMinutes: stopMin ?? null,
-        ...(rollMode && rolls.length ? { rolls } : {}),
-      })
+      const r = await postOrQueue<{ report: { id: string } }>(
+        '织机报工',
+        `/production-orders/${target.id}/reports`,
+        {
+          clientRequestId: reqIdRef.current,
+          outputM: effectiveOutput,
+          reportDate: dayjs().format('YYYY-MM-DD'),
+          stoppageMinutes: stopMin ?? null,
+          ...(rollMode && rolls.length ? { rolls } : {}),
+        },
+      )
       reqIdRef.current = '' // 本单已完成，下张单用新键
+      if (r.queued) {
+        message.warning(`网络中断，报工已离线暂存（${effectiveOutput}m），恢复后自动同步`)
+      } else {
       message.success(`报工成功：${effectiveOutput}m 已入库${rolls.length ? `（${rolls.length} 匹）` : ''}${target.status === 'scheduled' ? '，工单转入生产中' : ''}`)
+      }
       setTarget(null)
       setOutputM(null)
       setStopMin(null)

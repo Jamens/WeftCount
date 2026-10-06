@@ -17,7 +17,7 @@ import {
   type InputRef,
 } from 'antd'
 import { BarcodeOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons'
-import { api } from '../lib/api'
+import { api, postOrQueue } from '../lib/api'
 import { fmt, num, type BatchWire, type GreigeSpecWire, type PartnerWire } from '../lib/types'
 
 const { Title, Text } = Typography
@@ -179,7 +179,7 @@ export default function PickPage() {
     const first = picks[0]
     setSubmitting(true)
     try {
-      const res = await api.post<{ docNo: string }>('/inventory/sales-outbound', {
+      const res = await postOrQueue<{ docNo: string }>('扫码出库', '/inventory/sales-outbound', {
         materialId: batches.find((b) => b.id === first.batchId)!.materialId,
         specId: first.specId,
         enteredUnit: 'm',
@@ -188,7 +188,8 @@ export default function PickPage() {
         partnerId: customerId,
         pickedItems: picks.map((p) => ({ batchId: p.batchId, quantityM: p.quantityM })),
       })
-      message.success(`已发货：单据 ${res.docNo}，${picks.length} 个批次共 ${fmt(totalM, 1)}m`)
+      const tag = res.queued ? '（网络中断，已离线暂存待同步）' : ''
+      if (res.queued) { message.warning(`已离线暂存出库：${fmt(totalM, 1)}m${tag}`) } else message.success(`已发货：单据 ${res.data.docNo}，${picks.length} 个批次共 ${fmt(totalM, 1)}m`)
       setPicks([])
       setUnitPrice(null)
     } catch (e) {
@@ -209,7 +210,7 @@ export default function PickPage() {
     }
     setSubmitting(true)
     try {
-      const res = await api.post<{ docNo: string }>('/inventory/sales-outbound', {
+      const res = await postOrQueue<{ docNo: string }>('扫码出库', '/inventory/sales-outbound', {
         materialId: batches.find((b) => b.specId === rollPicks[0].specId)?.materialId,
         specId: rollPicks[0].specId,
         enteredUnit: 'm',
@@ -220,11 +221,17 @@ export default function PickPage() {
         pickedRolls: rollPicks.map((p) => ({ rollNo: p.rollNo, meters: p.shipM })),
       })
       const splitCnt = rollPicks.filter((p) => p.shipM < p.remainM - 1e-6).length
-      message.success(
-        splitCnt > 0
-          ? `已发货：单据 ${res.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m（其中 ${splitCnt} 匹拆匹发，残匹留库）`
-          : `已发货：单据 ${res.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m`
-      )
+      if (res.queued) {
+        message.warning(
+          `网络中断，件卡发货已离线暂存（${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m），恢复后自动同步`,
+        )
+      } else {
+        message.success(
+          splitCnt > 0
+            ? `已发货：单据 ${res.data.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m（其中 ${splitCnt} 匹拆匹发，残匹留库）`
+            : `已发货：单据 ${res.data.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m`,
+        )
+      }
       setRollPicks([])
       setUnitPrice(null)
     } catch (e) {

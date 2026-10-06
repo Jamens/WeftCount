@@ -23,7 +23,8 @@ import {
   MoonOutlined,
   InboxOutlined,
 } from '@ant-design/icons'
-import { api, authStore, sessionStore, type SessionInfo } from './lib/api'
+import { api, authStore, sessionStore, flushOfflineQueue, type SessionInfo } from './lib/api'
+import { offlineQueue } from './lib/offline-queue'
 import { WORKSHOP_VIEW_PERM } from '@weftcount/shared'
 import { useThemeStore } from './stores/theme.store'
 import LoginPage from './pages/LoginPage'
@@ -43,10 +44,13 @@ type View = 'report' | 'board' | 'label' | 'rollcard' | 'scan' | 'pick' | 'picki
 const VIEW_PERM = WORKSHOP_VIEW_PERM
 
 export default function App() {
+  const { message: messageApi } = AntdApp.useApp()
   const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())
   const [view, setView] = useState<View>('report')
   const [env, setEnv] = useState<{ version: string; platform: string } | null>(null)
   const [session, setSession] = useState<SessionInfo | null>(() => sessionStore.get())
+  /** 待同步的离线操作条数（离线队列） */
+  const [pendingOps, setPendingOps] = useState(0)
 
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
@@ -60,6 +64,35 @@ export default function App() {
   }, [])
 
   // 拉取当前用户权限（/auth/me），用于菜单按权限门控
+  // 离线队列自动重放：启动即试一次，之后定时试，网络恢复(online)立刻试。
+  // 重放安全性依赖服务端 clientRequestId 幂等——即使首次其实成功只是响应丢了，
+  // 重放也只会拿到首次结果，不会重复计量/重复出入库。
+  useEffect(() => {
+    if (!authed) return
+    let stopped = false
+    const tryFlush = async () => {
+      if (offlineQueue.count() === 0) {
+        if (!stopped) setPendingOps(0)
+        return
+      }
+      const r = await flushOfflineQueue().catch(() => null)
+      if (stopped) return
+      setPendingOps(offlineQueue.count())
+      if (r && r.done > 0) {
+        messageApi.success(`已同步 ${r.done} 条离线操作`)
+      }
+    }
+    void tryFlush()
+    const timer = setInterval(() => void tryFlush(), 20000)
+    const onOnline = () => void tryFlush()
+    window.addEventListener('online', onOnline)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [authed])
+
   useEffect(() => {
     if (!authed) return
     let alive = true
@@ -127,6 +160,14 @@ export default function App() {
               />
             </Tooltip>
             {env && <Tag style={{ margin: 0 }}>v{env.version}</Tag>}
+            {/* 离线队列待同步提示：有待同步时操作员能明确知道「数据还没进系统」 */}
+            {pendingOps > 0 && (
+              <Tooltip title={`${pendingOps} 条操作待同步（网络恢复后自动重放）`}>
+                <Tag color="warning" style={{ margin: 0 }}>
+                  待同步 {pendingOps}
+                </Tag>
+              </Tooltip>
+            )}
             <Text style={{ color: headerText, cursor: 'pointer' }} onClick={onLogout}>
               <LogoutOutlined /> 退出
             </Text>

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { isNetworkError, netStatus, offlineQueue } from './offline-queue'
 import { hasPermission } from '@weftcount/shared'
 
 /**
@@ -108,12 +109,15 @@ instance.interceptors.response.use(
       if (failure?.code === 2001 || failure?.code === 2002) {
         authStore.clear() // 登录失效，交由上层跳登录
       }
-      return Promise.reject(
-        new Error(
-          failure?.message ??
-            (error.code === 'ECONNABORTED' ? '请求超时' : '无法连接服务器，请确认后端已启动'),
-        ),
+      const e = new Error(
+        failure?.message ??
+          (error.code === 'ECONNABORTED' ? '请求超时' : '无法连接服务器，请确认后端已启动'),
       )
+      // **保留原始 axios 错误**：离线队列要靠它区分「网络类」与「业务类」。
+      // 丢了原始错误，所有失败都会被当成业务错误而不入队，队列形同虚设。
+      ;(e as Error & { isAxios?: boolean; noResponse?: boolean }).isAxios = true
+      ;(e as Error & { noResponse?: boolean }).noResponse = !error.response
+      return Promise.reject(e)
     }
     return Promise.reject(error)
   },
@@ -134,6 +138,53 @@ export const api = {
   get: <T,>(url: string): Promise<T> => request<T>('get', url),
   post: <T,>(url: string, data?: unknown): Promise<T> => request<T>('post', url, data),
   patch: <T,>(url: string, data?: unknown): Promise<T> => request<T>('patch', url, data),
+}
+
+/** 写操作结果：正常成功，或已存入离线队列待重放 */
+export type WriteResult<T> = { queued: false; data: T } | { queued: true; opId: string }
+
+/**
+ * 写操作 + 离线兜底（**离线队列入口**）
+ *
+ * - 请求成功 → `{queued:false, data}`
+ * - **网络类失败**（断网/超时，请求没到服务端）→ 存入离线队列，返回 `{queued:true}`
+ *   界面提示「已离线暂存，恢复后自动同步」，操作员**不会丢单**。
+ * - **业务类失败**（库存不足/规格不符/权限不足等 4xx）→ 直接抛错给界面，
+ *   **不入队**——服务端已明确拒绝，重试无用，且排队会掩盖真实错误。
+ *
+ * 幂等：入队时生成 `clientRequestId` 并写进 body，重放复用同一个，
+ * 服务端据此去重，不会重复计量/重复出入库。
+ */
+export async function postOrQueue<T>(
+  label: string,
+  url: string,
+  data?: unknown,
+): Promise<WriteResult<T>> {
+  const body = (data && typeof data === 'object' ? { ...data } : {}) as Record<string, unknown>
+  if (!body.clientRequestId) body.clientRequestId = newReqId()
+  try {
+    const res = await request<T>('post', url, body)
+    return { queued: false, data: res }
+  } catch (e) {
+    if (!isNetworkError(e)) throw e
+    const op = offlineQueue.enqueue({
+      label,
+      method: 'POST',
+      path: url,
+      body,
+      clientRequestId: String(body.clientRequestId),
+    })
+    return { queued: true, opId: op.id }
+  }
+}
+
+/** 重放离线队列（应用启动/恢复网络时调用） */
+export async function flushOfflineQueue(): Promise<{ done: number; failed: number }> {
+  const r = await offlineQueue.flush(async (op) => {
+    await request('post', op.path, op.body)
+  })
+  netStatus.lastSyncAt = Date.now()
+  return r
 }
 
 /**
