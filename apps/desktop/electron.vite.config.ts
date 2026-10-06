@@ -28,6 +28,17 @@ export default defineConfig({
       },
     },
     plugins: [react()],
+    server: {
+      // 渲染进程以相对路径 /api 请求后端，由 dev server 代理转发 → 与后端**同源**。
+      // 这样绕开 Chromium 对 file/localhost→127.0.0.1 的 CORS 与 Private Network Access
+      // 拦截（直连绝对地址常被 PNA 拦成“网络错误”）。目标端口见下方 target。
+      proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:3180',
+          changeOrigin: true,
+        },
+      },
+    },
     build: {
       rollupOptions: {
         input: { index: fileURLToPath(new URL('./src/renderer/index.html', import.meta.url)) },

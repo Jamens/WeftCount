@@ -10,8 +10,18 @@ import axios from 'axios'
  * 统一拆服务端 envelope({code,message,data})：成功直接返回 data，失败抛后端 message。
  */
 
-/** 后端地址；打包后仍是本机/局域网服务，可按需改这里 */
-export const API_BASE = 'http://127.0.0.1:3180/api'
+/**
+ * API 基址
+ *
+ * - 开发(渲染进程由 vite dev server 加载，http 协议)：用相对路径 `/api`，由 dev server
+ *   代理到后端(见 electron.vite.config.ts 的 server.proxy)。渲染进程与请求**同源**，
+ *   从根上绕开 Chromium 的 CORS 与 Private Network Access 拦截——直连绝对地址
+ *   127.0.0.1 常被 PNA 判违规拦成「网络错误」。
+ * - 打包后(file:// 加载)：没有 dev server 可代理，退回绝对地址(后端需允许该来源)。
+ */
+export const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:3180/api' : '/api'
+
+const BACKEND_ORIGIN = 'http://127.0.0.1:3180'
 
 const TOKEN_KEY = 'weft_desktop_token'
 const TENANT_KEY = 'weft_desktop_tenant'
