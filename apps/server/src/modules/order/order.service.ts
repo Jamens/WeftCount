@@ -10,6 +10,7 @@ import {
 } from '@weftcount/shared'
 import dayjs from 'dayjs'
 import { withUniqueNo } from '../../common/util/unique-no'
+import { GreigeSpecEntity } from '../material/entities/greige-spec.entity'
 import { AlertEntity } from '../alert/entities/alert.entity'
 import { TradeOrderEntity, type TradeOrderStatus, type TradeOrderType } from './entities/trade-order.entity'
 import { TradeOrderItemEntity } from './entities/trade-order-item.entity'
@@ -115,6 +116,35 @@ export class OrderService {
   }
 
   /** 逐行折算并算行金额，返回可直接落库的行数据与订单头汇总 */
+  /**
+   * 校验「物料 + 规格」组合是否成立
+   *
+   * 规则（按业务语义）：
+   * - **坯布物料**(category=greige)：规格即其产物，任意有效坯布规格均可（现有主流程）
+   * - **纱线物料**(category=yarn)：纱线是「被规格使用」的原材料，只能配**确实用到它**
+   *   的规格（warpMaterialId/weftMaterialId 命中）。买纱是为了织某个规格，
+   *   配一个不使用该纱的规格在业务上说不通，且换算会用错克重。
+   */
+  private async assertMaterialSpecCompatible(
+    tenantId: string,
+    companyId: string,
+    materialId: string,
+    specId: string,
+  ): Promise<void> {
+    const material = await this.materials.findOne(tenantId, companyId, materialId)
+    const spec = await this.materials.findSpec(tenantId, companyId, specId)
+    if (material.category !== 'yarn') return // 坯布/成品等：规格即产物，放行
+    const uses =
+      (spec.warpMaterialId != null && spec.warpMaterialId === materialId) ||
+      (spec.weftMaterialId != null && spec.weftMaterialId === materialId)
+    if (!uses) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `规格「${spec.name}」未使用纱线「${material.name}」，请改选用到该纱的规格，或改用坯布物料`,
+      })
+    }
+  }
+
   private async buildItems(tenantId: string, companyId: string, items: OrderItemInput[]) {
     const rows: Array<{
       materialId: string
@@ -133,6 +163,10 @@ export class OrderService {
     let totalAmt = 0
     let hasPrice = false
     for (const it of items) {
+      // **物料与规格必须匹配**：否则会造出「纱线物料 + 坯布规格」这种无意义数据，
+      // 且三视图换算(kg→m)会用错规格的克重，金额全错。原实现完全不校验，
+      // 前端规格下拉也没按物料过滤 → 很容易被建出来。
+      await this.assertMaterialSpecCompatible(tenantId, companyId, it.materialId, it.specId)
       const views = await this.computeViews(tenantId, companyId, it.specId, it.orderedUnit, it.orderedValue)
       const price = it.unitPrice != null ? num(it.unitPrice, 4) : null
       const lineAmount = price != null ? num(Number(price) * views.quantityM, 2) : null
@@ -251,9 +285,13 @@ export class OrderService {
     const materialId = alert.refId
     const material = await this.materials.findOne(tenantId, companyId, materialId)
 
-    // 规格：调用方指定优先（首次采购的新物料没有历史可推断）；否则从历史入库推断。
-    // 都拿不到就报错让用户选——**不给就明确报错，不猜**。
-    const batchSpecId = opts.specId ?? (await this.findSpecFromStock(materialId, companyId))
+    // 规格推断优先级：①调用方指定 ②**纱线自动选用到它的规格** ③历史入库用过的规格。
+    // 纱线是「被规格使用」的原材料，买纱就是为了织某个规格——让它自己认出来，
+    // 而不是让用户在一堆规格里猜哪个用这批纱（猜错会被 assertMaterialSpecCompatible 拦下）。
+    const batchSpecId =
+      opts.specId ??
+      (material.category === 'yarn' ? await this.findSpecUsingYarn(tenantId, materialId, companyId) : null) ??
+      (await this.findSpecFromStock(materialId, companyId))
     const inboundSpecId = batchSpecId ?? (await this.findSpecFromLastInbound(materialId, companyId))
     if (!inboundSpecId) {
       throw new BadRequestException({
@@ -333,6 +371,21 @@ export class OrderService {
         return o
       })
     })
+  }
+
+  /**
+   * 找出**用到该纱线**的规格（warp/weft 命中）。
+   * 恰好一个时直接采用（纱线专供某个规格是常态）；多个则不猜，交给调用方指定。
+   */
+  private async findSpecUsingYarn(tenantId: string, materialId: string, companyId: string): Promise<string | null> {
+    const specs: GreigeSpecEntity[] = await this.materials.findSpecs(tenantId, companyId)
+    const hits = specs.filter(
+      (sp) =>
+        sp.status === 'active' &&
+        ((sp.warpMaterialId != null && sp.warpMaterialId === materialId) ||
+          (sp.weftMaterialId != null && sp.weftMaterialId === materialId)),
+    )
+    return hits.length === 1 ? hits[0].id : null
   }
 
   /** 该物料现有库存批次的规格（采购要买现在在用的规格） */
