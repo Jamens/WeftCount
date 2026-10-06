@@ -7,21 +7,20 @@ import {
   UpdateDateColumn,
   VersionColumn,
 } from 'typeorm'
-import type { SpecCalculationSnapshot } from '@weftcount/shared'
 
 /**
- * 采购 / 销售订单（trade order）
+ * 采购 / 销售订单（trade order）—— 订单头
  *
- * 采购与销售共用一张表，用 orderType 区分——与 inventory_documents 同样的
- * 「一表两用」风格。订单是「意向/计划」层，inventory_documents 是「实际收发」层：
- *   - 采购订单  orderType=purchase  → 对应实际「采购入库」单
- *   - 销售订单  orderType=sales     → 对应实际「销售出库」单
+ * 采购与销售共用一张表，用 orderType 区分。订单是「意向/计划」层，inventory_documents 是
+ * 「实际收发」层：
+ *   - 采购订单 orderType=purchase → 对应「采购入库」单
+ *   - 销售订单 orderType=sales    → 对应「销售出库」单
  *
- * 关键设计：订单也走「一件事三算」——只按本环节自然单位录入（采购按重量、
- * 销售按面积），系统用规格快照折算出米/kg/m² 三个视图并存下，与单据一致。
- * 另存 partnerName / specSnapshot 名称与规格快照，改名改规格都不影响历史订单。
+ * **多明细**：一个订单含多条明细行（trade_order_items），每行一个「物料+规格+数量+单价」。
+ * 订单头只冗余汇总(total_quantity_m / total_amount)，明细为准。往来单位/订单号等在头。
+ * 可选关联合同(contract_id)，明细行可引用合同行取协议价。
  *
- * 单行订单（一个订单一条明细），与现有单据一致；多明细后续拆 items 表。
+ * 三视图（米/kg/m²）与规格快照都落在**明细行**上（每行一个规格），订单头只存汇总。
  */
 export type TradeOrderType = 'purchase' | 'sales'
 export type TradeOrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled'
@@ -49,7 +48,7 @@ export class TradeOrderEntity {
   @Column({ type: 'enum', enum: ['purchase', 'sales'] })
   orderType!: TradeOrderType
 
-  /** 往来单位：采购=供应商，销售=客户 */
+  /** 往来单位：采购=供应商，销售=客户（订单头统一一个相对方） */
   @Column({ type: 'char', length: 36 })
   partnerId!: string
 
@@ -57,43 +56,17 @@ export class TradeOrderEntity {
   @Column({ type: 'varchar', length: 128 })
   partnerName!: string
 
-  @Column({ type: 'char', length: 36 })
-  materialId!: string
+  /** 汇总数量（米），= 明细 quantity_m 合计。冗余用于履约进度 */
+  @Column({ type: 'decimal', precision: 16, scale: 3, default: 0 })
+  totalQuantityM!: string
 
-  @Column({ type: 'char', length: 36 })
-  specId!: string
-
-  /** 规格快照，锁死三视图折算依据 */
-  @Column({ type: 'json' })
-  specSnapshot!: SpecCalculationSnapshot
-
-  /** 录入单位（采购多按 kg，销售多按 m2） */
-  @Column({ type: 'varchar', length: 8 })
-  orderedUnit!: string
-
-  /** 录入数量（按 orderedUnit） */
-  @Column({ type: 'decimal', precision: 14, scale: 4 })
-  orderedValue!: string
-
-  /** 折算主单位数量（米） */
-  @Column({ type: 'decimal', precision: 14, scale: 3 })
-  quantityM!: string
-
-  /** 折算重量 kg */
-  @Column({ type: 'decimal', precision: 14, scale: 3 })
-  weightKg!: string
-
-  /** 折算面积 m² */
-  @Column({ type: 'decimal', precision: 14, scale: 4 })
-  areaM2!: string
-
-  /** 单价（元/米），与单据一致口径 */
-  @Column({ type: 'decimal', precision: 14, scale: 4, nullable: true })
-  unitPrice!: string | null
-
-  /** 金额（元） */
-  @Column({ type: 'decimal', precision: 16, scale: 2, nullable: true })
+  /** 汇总金额（元），= 明细 line_amount 合计 */
+  @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true })
   totalAmount!: string | null
+
+  /** 可选：来源合同（从合同建单时关联） */
+  @Column({ type: 'char', length: 36, nullable: true })
+  contractId!: string | null
 
   @Column({ type: 'enum', enum: ['draft', 'confirmed', 'completed', 'cancelled'], default: 'draft' })
   status!: TradeOrderStatus

@@ -97,15 +97,15 @@ export default function DocPage() {
     const want = creating === 'purchase_inbound' ? 'purchase' : 'sales'
     return orders
       .filter((o) => o.orderType === want)
-      .map((o) => ({ value: o.id, label: `${o.orderNo} ${o.partnerName}（${fmt(o.quantityM, 0)}m）` }))
+      .map((o) => ({ value: o.id, label: `${o.orderNo} ${o.partnerName}（${fmt(o.totalQuantityM, 0)}m）` }))
   }, [orders, creating])
 
-  // 选中订单自动带出往来单位/物料/规格，省去重复选择、也保证与订单一致（后端会强校验）
+  // 选中订单自动带出往来单位；物料/规格仍需用户选(须命中订单某一明细行，服务端会强校验)
   const onOrderChange = (orderId?: string) => {
     form.setFieldValue('orderId', orderId)
     const o = orders.find((x) => x.id === orderId)
     if (o) {
-      form.setFieldsValue({ partnerId: o.partnerId, materialId: o.materialId, specId: o.specId })
+      form.setFieldsValue({ partnerId: o.partnerId })
     }
   }
 

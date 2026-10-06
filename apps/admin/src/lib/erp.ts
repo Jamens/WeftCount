@@ -173,16 +173,12 @@ export interface OrderWire {
   orderType: TradeOrderTypeValue
   partnerId: string
   partnerName: string
-  materialId: string
-  specId: string
-  specSnapshot: SpecCalculationSnapshot
-  orderedUnit: string
-  orderedValue: string
-  quantityM: string
-  weightKg: string
-  areaM2: string
-  unitPrice: string | null
+  /** 汇总数量（米）= 明细 quantityM 合计 */
+  totalQuantityM: string
+  /** 汇总金额 = 明细 lineAmount 合计 */
   totalAmount: string | null
+  /** 来源合同（可选） */
+  contractId: string | null
   status: TradeOrderStatusValue
   /** 交期 YYYY-MM-DD */
   expectedDate: string | null
@@ -190,6 +186,21 @@ export interface OrderWire {
   version: number
   createdAt: string
   updatedAt: string
+}
+
+export interface OrderItemWire {
+  id: string
+  orderId: string
+  materialId: string
+  specId: string
+  orderedUnit: string
+  orderedValue: string
+  quantityM: string
+  weightKg: string
+  areaM2: string
+  unitPrice: string | null
+  lineAmount: string | null
+  contractItemId: string | null
 }
 
 /** 订单详情（含已关联的履约单据与进度） */
