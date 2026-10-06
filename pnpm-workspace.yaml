@@ -32,4 +32,5 @@ injectWorkspacePackages: true
 allowBuilds:
   '@scarf/scarf': false
   electron: true
+  electron-winstaller: true
   esbuild: true

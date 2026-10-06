@@ -19,7 +19,7 @@
 
 | 层 | 技术 |
 | --- | --- |
-| 桌面端 | Electron 33 + electron-vite 2 + React 19 + TS + Ant Design 5 |
+| 桌面端 | Electron 44 + electron-vite 5 + React 19 + TS + Ant Design 5 |
 | 管理端 | React 19 + TS + Vite 6 + Ant Design 5 + Zustand + React Router 7 |
 | 后端 | NestJS 11 + TypeORM + MySQL 8 + JWT + Swagger |
 | 共享层 | `packages/shared`：单位体系、支数换算、工艺公式、领域契约（双格式产物 CJS + ESM） |
