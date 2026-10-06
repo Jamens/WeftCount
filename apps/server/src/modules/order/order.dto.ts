@@ -90,3 +90,15 @@ export class OrderFilterDto {
   @IsOptional() @IsString()
   keyword?: string
 }
+
+/** 从补货预警一键生成采购订单：可覆盖供应商/交期/单价，其余从建议推导 */
+export class CreateOrderFromAlertDto {
+  @IsOptional() @IsString()
+  partnerId?: string | null
+
+  @IsOptional() @IsDateString({}, { message: '交期格式应为 YYYY-MM-DD' })
+  expectedDate?: string | null
+
+  @IsOptional() @IsNumber() @Min(0)
+  unitPrice?: number | null
+}

@@ -185,3 +185,55 @@ test('补货建议：按真实出库流水算日均用量并给出建议补货�
   assertNear(Number(d.reorderPoint), daily * 20 + 900, 0.01, '补货点 = 日均×(提前期+周期)+安全库存')
   assert.ok(Number(d.suggestQty) > 0, '库存低于补货点应给出正的建议补货量')
 })
+
+// ---- 预警一键生成采购订单 ----
+
+test('预警→采购单：按建议生成采购订单，同一预警不可重复生成', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  const mat = await post(c, '/materials', {
+    name: `转单测试料${tag}`, category: 'greige', specification: '测试',
+    safetyStock: 900, leadTimeDays: 10, standardPrice: 9.9,
+  })
+  // 造消耗：入库 600 → 卖 600（产生日均 20/天）与一条现存批次
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 600,
+    unitPrice: 8.2, partnerId: sup.id,
+  })
+  await post(c, '/inventory/sales-outbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 600,
+    unitPrice: 9.5, partnerId: cus.id,
+  })
+  await post(c, '/alerts/scan')
+  const alert = (await get(c, '/alerts')).find((a) => a.type === 'low_stock' && a.refId === mat.id)
+  assert.ok(alert, '应有低库存预警')
+
+  // 一键生成采购单
+  const order = await post(c, `/orders/from-alert/${alert.id}`, {})
+  assert.ok(order.orderNo, '应生成采购订单号')
+  assert.equal(order.orderType, 'purchase', '应为采购订单')
+  assert.equal(order.status, 'draft', '应为草稿（需人工确认）')
+  // 数量 = 建议补货量
+  const suggestQty = Number(alert.data.suggestQty)
+  assertNear(Number(order.totalQuantityM), suggestQty, 0.01, '订单数量应等于建议补货量')
+  // 交期 = 今天 + 提前期 10 天。**必须按本地时区算日期**：
+  // toISOString() 是 UTC，凌晨时段会差一天（服务端 dayjs 用本地时间，是对的）
+  const exp = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 10)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+  assert.equal(order.expectedDate, exp, '交期应为今天+采购提前期(10天)')
+  // 明细带规格与单价
+  const detail = await get(c, `/orders/${order.id}`)
+  assert.equal(detail.items.length, 1, '应有一条明细')
+  assert.equal(detail.items[0].specId, spec.id, '规格应取该物料历史入库所用规格')
+  assertNear(Number(detail.items[0].unitPrice), 9.9, 0.01, '单价应取物料标准价')
+  assert.ok(String(detail.remark ?? order.remark).includes('补货预警'), '备注应记录建议来源')
+
+  // 防重复：同一预警再生成应被拒
+  await assert.rejects(() => post(c, `/orders/from-alert/${alert.id}`, {}))
+})

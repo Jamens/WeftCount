@@ -68,6 +68,15 @@ export class TradeOrderEntity {
   @Column({ type: 'char', length: 36, nullable: true })
   contractId!: string | null
 
+  /**
+   * 来源补货预警 id（可空=普通建单）
+   *
+   * 预警一键生成采购单时写入，用于**防重复生成**（同一预警只允许一张采购单）
+   * 与回溯「这张单是哪条预警建议生成的」。
+   */
+  @Column({ type: 'char', length: 36, nullable: true })
+  sourceAlertId!: string | null
+
   @Column({ type: 'enum', enum: ['draft', 'confirmed', 'completed', 'cancelled'], default: 'draft' })
   status!: TradeOrderStatus
 

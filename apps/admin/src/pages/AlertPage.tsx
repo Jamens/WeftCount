@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { App as AntdApp, Badge, Button, Card, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { BellOutlined, CheckOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { BellOutlined, CheckOutlined, ReloadOutlined, ShoppingCartOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { PERM, fmt, type AlertWire, type AlertSeverity } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
@@ -21,6 +21,10 @@ const SEV: Record<AlertSeverity, { color: string; label: string }> = {
 /** 预警中心：交期逾期 / 库存低位 / 呆滞批次（确定性规则扫描） */
 export default function AlertPage() {
   const { message } = AntdApp.useApp()
+  /** 正在生成采购单的预警 id（防连点） */
+  const [creating, setCreating] = useState<string | null>(null)
+  /** 已由预警生成过采购单的预警 id → {预警id: 订单号}，按钮变成「已生成」避免重复点*/
+  const [generated, setGenerated] = useState<Record<string, string>>({})
   const canManage = useAuthStore((s) => s.hasPermission(PERM.INVENTORY_MANAGE))
   const [rows, setRows] = useState<AlertWire[]>([])
   const [open, setOpen] = useState<number>(0)
@@ -59,6 +63,37 @@ export default function AlertPage() {
       setScanning(false)
     }
   }
+
+  /** 预警一键生成采购订单：数量/交期/单价都来自补货建议，生成后是草稿需人工确认 */
+
+  const createOrder = async (a: AlertWire) => {
+
+    setCreating(a.id)
+
+    try {
+
+      const res = await api.post<{ id: string; orderNo: string }>(`/orders/from-alert/${a.id}`, {})
+
+      const data = res.data.data
+
+      setGenerated((g) => ({ ...g, [a.id]: data.orderNo }))
+
+      message.success(`已生成采购订单 ${data.orderNo}（草稿），请到订单页确认`)
+
+      void load()
+
+    } catch (e) {
+
+      message.error(e instanceof Error ? e.message : '生成采购单失败')
+
+    } finally {
+
+      setCreating(null)
+
+    }
+
+  }
+
 
   const ack = async (id: string) => {
     try {
@@ -134,10 +169,35 @@ export default function AlertPage() {
             { title: '状态', dataIndex: 'acknowledged', width: 80, render: (v: boolean) => (v ? <Tag>已确认</Tag> : <Tag color="gold">待处理</Tag>) },
             ...(canManage
               ? [{
-                  title: '操作', width: 90,
-                  render: (_: unknown, r: AlertWire) => (r.acknowledged ? null : (
-                    <Button size="small" type="link" icon={<CheckOutlined />} onClick={() => void ack(r.id)}>确认</Button>
-                  )),
+                  title: '操作', width: 190,
+                  render: (_: unknown, r: AlertWire) => {
+                    // 「生成采购单」只对**带补货建议的低库存预警**开放——
+                    // 其余预警类型（逾期/呆滞）没有可执行建议，给按钮是误导
+                    const canOrder = r.type === 'low_stock' && r.data?.suggestQty != null && Number(r.data.suggestQty) > 0
+                    return (
+                      <Space size={0}>
+                        {canOrder &&
+                          (generated[r.id] ? (
+                            <Tag color="success" style={{ margin: 0 }}>{generated[r.id]}</Tag>
+                          ) : (
+                            <Button
+                              size="small"
+                              type="link"
+                              icon={<ShoppingCartOutlined />}
+                              loading={creating === r.id}
+                              onClick={() => void createOrder(r)}
+                            >
+                              生成采购单
+                            </Button>
+                          ))}
+                        {r.acknowledged ? null : (
+                          <Button size="small" type="link" icon={<CheckOutlined />} onClick={() => void ack(r.id)}>
+                            确认
+                          </Button>
+                        )}
+                      </Space>
+                    )
+                  },
                 }]
               : []),
           ]}

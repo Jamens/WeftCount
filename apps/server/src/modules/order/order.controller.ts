@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { OrderService } from './order.service'
-import { CreateOrderDto, OrderFilterDto, UpdateOrderDto } from './order.dto'
+import { CreateOrderDto, CreateOrderFromAlertDto, OrderFilterDto, UpdateOrderDto } from './order.dto'
 import { TradeOrderEntity, type TradeOrderStatus } from './entities/trade-order.entity'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
@@ -29,6 +29,18 @@ export class OrderController {
   @ApiOperation({ summary: '新建采购/销售订单（草稿）' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateOrderDto): Promise<TradeOrderEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)
+  }
+
+  @Post('from-alert/:alertId')
+  @RequirePermission(Permission.PURCHASE_MANAGE)
+  @Audit({ action: 'create', module: 'order', targetType: 'order' })
+  @ApiOperation({ summary: '从补货预警一键生成采购订单（同一预警只允许生成一张）' })
+  createFromAlert(
+    @CurrentUser() ctx: RequestContext,
+    @Param('alertId') alertId: string,
+    @Body() dto: CreateOrderFromAlertDto,
+  ): Promise<TradeOrderEntity> {
+    return this.svc.createFromAlert(ctx.tenantId, ctx.companyId, ctx.userId, alertId, dto)
   }
 
   @Get()

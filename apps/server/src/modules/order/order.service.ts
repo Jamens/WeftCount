@@ -8,7 +8,9 @@ import {
   type ContextParams,
   type ConversionError,
 } from '@weftcount/shared'
+import dayjs from 'dayjs'
 import { withUniqueNo } from '../../common/util/unique-no'
+import { AlertEntity } from '../alert/entities/alert.entity'
 import { TradeOrderEntity, type TradeOrderStatus, type TradeOrderType } from './entities/trade-order.entity'
 import { TradeOrderItemEntity } from './entities/trade-order-item.entity'
 import type { CreateOrderDto, OrderFilterDto, OrderItemInput, UpdateOrderDto } from './order.dto'
@@ -48,6 +50,8 @@ export class OrderService {
     private readonly orders: Repository<TradeOrderEntity>,
     @InjectRepository(TradeOrderItemEntity)
     private readonly items: Repository<TradeOrderItemEntity>,
+    @InjectRepository(AlertEntity)
+    private readonly alerts: Repository<AlertEntity>,
     @InjectRepository(InventoryDocumentEntity)
     private readonly docs: Repository<InventoryDocumentEntity>,
     private readonly materials: MaterialService,
@@ -202,6 +206,179 @@ export class OrderService {
         return o
       })
     })
+  }
+
+  /**
+   * 从**低库存/补货预警**一键生成采购订单（草稿）
+   *
+   * 预警的 `data` 里已有结构化建议（建议补货量/补货点/日均/覆盖天数），
+   * 这里只负责把「建议」翻译成「订单」——**不改数据模型、不臆造参数**：
+   *
+   * - **物料** = 预警的 refId
+   * - **规格** = 该物料**现有库存批次**的规格（采购要买什么规格，取决于现在在用什么）；
+   *   若无库存批次则取该物料最近一次入库单所用规格。都没有则明确报错让用户选，不猜。
+   * - **数量** = 建议补货量（按主单位；与安全库存同单位）
+   * - **单价** = 物料标准价优先；否则供应商最近成交价；都没有留空让采购填
+   * - **交期** = 今天 + 采购提前期天数（留空按 7 天）
+   * - **供应商** = 入参指定；未指定则取该物料最近一次采购入库的供应商
+   *
+   * **防重复**：记录 `sourceAlertId`，同一预警只允许生成一张采购单。
+   */
+  async createFromAlert(
+    tenantId: string,
+    companyId: string,
+    userId: string,
+    alertId: string,
+    opts: { partnerId?: string | null; expectedDate?: string | null; unitPrice?: number | null } = {},
+  ): Promise<TradeOrderEntity> {
+    const alert = await this.alerts.findOne({ where: { id: alertId, tenantId, companyId } })
+    if (!alert) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '预警不存在' })
+    if (alert.type !== 'low_stock' || !alert.data?.suggestQty) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '只有带补货建议的低库存预警才能生成采购单',
+      })
+    }
+    // 防重复：同一预警不重复生成
+    const dup = await this.orders.findOne({ where: { sourceAlertId: alert.id, companyId } })
+    if (dup) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `该预警已生成采购订单 ${dup.orderNo}，如需追加请直接编辑该订单`,
+      })
+    }
+
+    const materialId = alert.refId
+    const material = await this.materials.findOne(tenantId, companyId, materialId)
+
+    // 规格：现有库存批次 → 最近采购入库单所用规格。都不推断，缺就报错让用户选。
+    const batchSpecId = await this.findSpecFromStock(materialId, companyId)
+    const inboundSpecId = batchSpecId ?? (await this.findSpecFromLastInbound(materialId, companyId))
+    if (!inboundSpecId) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `物料「${material.name}」没有库存批次也没有历史入库记录，无法确定采购规格，请先选择规格`,
+      })
+    }
+
+    // 供应商：入参 → 最近采购入库的供应商
+    const partnerId = opts.partnerId ?? (await this.findLastInboundSupplier(materialId, companyId))
+    if (!partnerId) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `无法确定物料「${material.name}」的供应商，请手动选择`,
+      })
+    }
+
+    // 交期：今天 + 采购提前期（物料未填按 7 天）
+    const lead = material.leadTimeDays == null ? 7 : Number(material.leadTimeDays)
+    const expectedDate =
+      opts.expectedDate ?? dayjs().add(Math.max(0, Math.ceil(lead)), 'day').format('YYYY-MM-DD')
+
+    // 单价：物料标准价优先，其次供应商最近成交价
+    const unitPrice = opts.unitPrice ?? material.standardPrice ?? (await this.findLastInboundPrice(materialId, companyId))
+
+    const suggestQty = Number(alert.data.suggestQty)
+    if (!Number.isFinite(suggestQty) || suggestQty <= 0) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '建议补货量无效，无法生成采购单' })
+    }
+
+    const dto: CreateOrderDto = {
+      orderType: 'purchase',
+      partnerId,
+      expectedDate,
+      remark: `由补货预警生成：${alert.title}（建议补 ${alert.data.suggestQty} ${alert.data.unit ?? ''}）`.slice(0, 255),
+      items: [
+        {
+          materialId,
+          specId: inboundSpecId,
+          orderedUnit: material.primaryUnit,
+          orderedValue: suggestQty,
+          unitPrice: unitPrice != null ? Number(unitPrice) : null,
+        },
+      ],
+    }
+    return this.createFromAlertDto(tenantId, companyId, dto, alert.id)
+  }
+
+  /** 复用 create 的落库逻辑，但额外写 sourceAlertId */
+  private async createFromAlertDto(
+    tenantId: string,
+    companyId: string,
+    dto: CreateOrderDto,
+    sourceAlertId: string,
+  ): Promise<TradeOrderEntity> {
+    const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, dto.orderType)
+    const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
+    return withUniqueNo(async () => {
+      const orderNo = await this.nextOrderNo(companyId, dto.orderType)
+      return this.dataSource.transaction(async (manager) => {
+        const o = await manager.save(
+          manager.create(TradeOrderEntity, {
+            tenantId, companyId, orderNo,
+            orderType: dto.orderType,
+            partnerId: partner.id,
+            partnerName: partner.name,
+            totalQuantityM,
+            totalAmount,
+            contractId: null,
+            status: 'draft',
+            expectedDate: dto.expectedDate ?? null,
+            remark: dto.remark ?? null,
+            sourceAlertId,
+          } as Partial<TradeOrderEntity>),
+        )
+        await manager.save(rows.map((r) => manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r })))
+        return o
+      })
+    })
+  }
+
+  /** 该物料现有库存批次的规格（采购要买现在在用的规格） */
+  private async findSpecFromStock(materialId: string, companyId: string): Promise<string | null> {
+    const rows = await this.docs
+      .createQueryBuilder('d')
+      .select('d.spec_id', 'specId')
+      .where('d.company_id = :companyId', { companyId })
+      .andWhere('d.material_id = :materialId', { materialId })
+      .andWhere("d.doc_type = 'purchase_inbound'")
+      .orderBy('d.created_at', 'DESC')
+      .getRawMany<{ specId: string }>()
+    return rows[0]?.specId ?? null
+  }
+
+  /** 最近一次采购入库单所用的规格 */
+  private async findSpecFromLastInbound(materialId: string, companyId: string): Promise<string | null> {
+    return this.findSpecFromStock(materialId, companyId)
+  }
+
+  /** 最近采购入库的供应商 */
+  private async findLastInboundSupplier(materialId: string, companyId: string): Promise<string | null> {
+    const row = await this.docs
+      .createQueryBuilder('d')
+      .select('d.partner_id', 'partnerId')
+      .where('d.company_id = :companyId', { companyId })
+      .andWhere('d.material_id = :materialId', { materialId })
+      .andWhere("d.doc_type = 'purchase_inbound'")
+      .andWhere('d.partner_id IS NOT NULL')
+      .orderBy('d.created_at', 'DESC')
+      .getRawOne<{ partnerId: string }>()
+    return row?.partnerId ?? null
+  }
+
+  /** 最近一次采购入库单价（无标准价时的兜底） */
+  private async findLastInboundPrice(materialId: string, companyId: string): Promise<number | null> {
+    const row = await this.docs
+      .createQueryBuilder('d')
+      .select('d.unit_price', 'unitPrice')
+      .where('d.company_id = :companyId', { companyId })
+      .andWhere('d.material_id = :materialId', { materialId })
+      .andWhere("d.doc_type = 'purchase_inbound'")
+      .andWhere('d.unit_price IS NOT NULL')
+      .orderBy('d.created_at', 'DESC')
+      .getRawOne<{ unitPrice: string }>()
+    const n = Number(row?.unitPrice)
+    return Number.isFinite(n) && n > 0 ? n : null
   }
 
   async findAll(tenantId: string, companyId: string, filter?: OrderFilterDto): Promise<TradeOrderEntity[]> {
