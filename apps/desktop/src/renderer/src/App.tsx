@@ -21,7 +21,7 @@ import {
   MoonOutlined,
   InboxOutlined,
 } from '@ant-design/icons'
-import { authStore } from './lib/api'
+import { api, authStore, sessionStore, type SessionInfo } from './lib/api'
 import { useThemeStore } from './stores/theme.store'
 import LoginPage from './pages/LoginPage'
 import ReportPage from './pages/ReportPage'
@@ -36,10 +36,22 @@ const { Text } = Typography
 
 type View = 'report' | 'board' | 'label' | 'rollcard' | 'scan' | 'pick' | 'pickin'
 
+/** 每个车间页所需权限码（与后端端点一一对应，避免点了才报「无权限」） */
+const VIEW_PERM: Record<View, string> = {
+  report: 'production.report',   // 织机报工
+  board: 'production.view',      // 车间大屏（看工单/机台）
+  pick: 'inventory.manage',      // 扫码出库
+  pickin: 'inventory.manage',    // 扫码入库
+  label: 'inventory.view',       // 标签打印
+  rollcard: 'inventory.view',    // 件卡打印
+  scan: 'report.view',           // 扫码查询（件卡/批次追溯）
+}
+
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())
   const [view, setView] = useState<View>('report')
   const [env, setEnv] = useState<{ version: string; platform: string } | null>(null)
+  const [session, setSession] = useState<SessionInfo | null>(() => sessionStore.get())
 
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
@@ -52,8 +64,35 @@ export default function App() {
     )
   }, [])
 
+  // 拉取当前用户权限（/auth/me），用于菜单按权限门控
+  useEffect(() => {
+    if (!authed) return
+    let alive = true
+    void api
+      .get<SessionInfo>('/auth/me')
+      .then((info) => {
+        if (!alive) return
+        sessionStore.set(info)
+        setSession(info)
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [authed])
+
+  // 权限就绪后，若当前页无权访问，自动落到第一个有权的页面
+  useEffect(() => {
+    if (!session) return
+    if (sessionStore.has(VIEW_PERM[view])) return
+    const first = (Object.keys(VIEW_PERM) as View[]).find((v) => sessionStore.has(VIEW_PERM[v]))
+    if (first) setView(first)
+  }, [session, view])
+
   const onLogout = useCallback(() => {
     authStore.clear()
+    sessionStore.clear()
+    setSession(null)
     setAuthed(false)
   }, [])
 
@@ -108,7 +147,10 @@ export default function App() {
                 { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
                 { key: 'rollcard', icon: <BarcodeOutlined />, label: '件卡打印' },
                 { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
-              ]}
+              ]
+                // 菜单按权限门控：低权限账号(如挡车工)看不到无权访问的车间页，
+                // 避免「点了才报无权限」。与后端端点权限码一一对应。
+                .filter((item) => !session || sessionStore.has(VIEW_PERM[item.key as View]))}
               onClick={({ key }) => setView(key as View)}
             />
           </Layout.Sider>

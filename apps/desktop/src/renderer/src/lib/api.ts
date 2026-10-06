@@ -41,6 +41,55 @@ export const authStore = {
   },
 }
 
+/** 当前登录用户上下文（含权限码），用于菜单按权限门控 */
+export interface SessionInfo {
+  username: string
+  realName: string
+  roles: string[]
+  permissions: string[]
+}
+
+const PERMS_KEY = 'weft_desktop_perms'
+const NAME_KEY = 'weft_desktop_name'
+
+export const sessionStore = {
+  get: (): SessionInfo | null => {
+    const raw = localStorage.getItem(PERMS_KEY)
+    if (!raw) return null
+    try {
+      return {
+        username: localStorage.getItem(NAME_KEY) ?? '',
+        realName: localStorage.getItem('weft_desktop_realname') ?? '',
+        roles: [],
+        permissions: JSON.parse(raw) as string[],
+      }
+    } catch {
+      return null
+    }
+  },
+  set: (info: SessionInfo): void => {
+    localStorage.setItem(PERMS_KEY, JSON.stringify(info.permissions))
+    localStorage.setItem(NAME_KEY, info.username)
+    localStorage.setItem('weft_desktop_realname', info.realName)
+  },
+  /** 权限匹配：与后端一致的双向通配（任一侧含 * 即命中） */
+  has: (perm: string): boolean => {
+    const perms = sessionStore.get()?.permissions
+    if (!perms) return false
+    return perms.some((p) => {
+      if (p === perm || p === '*') return true
+      if (p.endsWith('.*')) return perm.startsWith(p.slice(0, -1))
+      if (perm.endsWith('.*')) return p.startsWith(perm.slice(0, -1))
+      return false
+    })
+  },
+  clear: (): void => {
+    localStorage.removeItem(PERMS_KEY)
+    localStorage.removeItem(NAME_KEY)
+    localStorage.removeItem('weft_desktop_realname')
+  },
+}
+
 const instance = axios.create({ baseURL: API_BASE, timeout: 15000 })
 
 instance.interceptors.request.use((config) => {
