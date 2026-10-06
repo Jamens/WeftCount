@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Badge, Button, Card, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { App as AntdApp, Badge, Button, Card, Modal, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import { BellOutlined, CheckOutlined, ReloadOutlined, ShoppingCartOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { PERM, fmt, type AlertWire, type AlertSeverity } from '../lib/erp'
+import { PERM, fmt, type AlertWire, type AlertSeverity, type PartnerWire } from '../lib/erp'
+import { useLookups } from '../lib/lookups'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
@@ -21,8 +22,22 @@ const SEV: Record<AlertSeverity, { color: string; label: string }> = {
 /** 预警中心：交期逾期 / 库存低位 / 呆滞批次（确定性规则扫描） */
 export default function AlertPage() {
   const { message } = AntdApp.useApp()
+  /**规格下拉（补选规格时用） */
+  const { specs } = useLookups()
+  /** 供应商下拉（useLookups 不含往来单位，单独拉一次） */
+  const [suppliers, setSuppliers] = useState<PartnerWire[]>([])
+  useEffect(() => {
+    void api
+      .get<PartnerWire[]>('/partners')
+      .then((r) => setSuppliers(r.data.data.filter((x) => x.type === 'supplier' || x.type === 'both')))
+      .catch(() => undefined)
+  }, [])
   /** 正在生成采购单的预警 id（防连点） */
   const [creating, setCreating] = useState<string | null>(null)
+  /** 服务端推断不出规格时，弹窗让用户补选（首次采购的新物料没有历史可推断） */
+  const [needSpec, setNeedSpec] = useState<AlertWire | null>(null)
+  const [pickedSpec, setPickedSpec] = useState<string | undefined>()
+  const [pickedPartner, setPickedPartner] = useState<string | undefined>()
   /** 已由预警生成过采购单的预警 id → {预警id: 订单号}，按钮变成「已生成」避免重复点*/
   const [generated, setGenerated] = useState<Record<string, string>>({})
   const canManage = useAuthStore((s) => s.hasPermission(PERM.INVENTORY_MANAGE))
@@ -66,17 +81,25 @@ export default function AlertPage() {
 
   /** 预警一键生成采购订单：数量/交期/单价都来自补货建议，生成后是草稿需人工确认 */
 
-  const createOrder = async (a: AlertWire) => {
+  const createOrder = async (a: AlertWire, opts?: { specId?: string; partnerId?: string }) => {
 
     setCreating(a.id)
 
     try {
 
-      const res = await api.post<{ id: string; orderNo: string }>(`/orders/from-alert/${a.id}`, {})
+      const res = await api.post<{ id: string; orderNo: string }>(
+
+        `/orders/from-alert/${a.id}`, opts ?? {},
+
+      )
 
       const data = res.data.data
 
       setGenerated((g) => ({ ...g, [a.id]: data.orderNo }))
+
+      setNeedSpec(null)
+
+      setPickedSpec(undefined)
 
       message.success(`已生成采购订单 ${data.orderNo}（草稿），请到订单页确认`)
 
@@ -84,7 +107,23 @@ export default function AlertPage() {
 
     } catch (e) {
 
-      message.error(e instanceof Error ? e.message : '生成采购单失败')
+      const msg = e instanceof Error ? e.message : '生成采购单失败'
+
+      // 服务端明确说「推断不出规格」→ 弹窗让用户补选，而不是甩一个死错误
+
+      // 服务端可能缺「规格」或「供应商」（首次采购的新物料两者都无历史）——
+      // 任一缺失都让用户补，不要只处理规格然后又卡在供应商上
+      if (msg.includes('无法确定采购规格') || msg.includes('的供应商')) {
+
+        setNeedSpec(a)
+
+        setPickedSpec(undefined)
+
+        return
+
+      }
+
+      message.error(msg)
 
     } finally {
 
@@ -203,6 +242,57 @@ export default function AlertPage() {
           ]}
         />
       </Card>
+
+      {/* 推断不出规格时：让用户补选（首次采购的新物料没有历史入库可依据） */}
+      <Modal
+        open={needSpec !== null}
+        title="补全采购信息"
+        okText="生成采购单"
+        cancelText="取消"
+        okButtonProps={{
+          disabled: !pickedSpec || !pickedPartner,
+          loading: creating === needSpec?.id,
+        }}
+        onOk={() => {
+          if (needSpec && pickedSpec && pickedPartner) {
+            void createOrder(needSpec, { specId: pickedSpec, partnerId: pickedPartner })
+          }
+        }}
+        onCancel={() => {
+          setNeedSpec(null)
+          setPickedSpec(undefined)
+          setPickedPartner(undefined)
+        }}
+      >
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          该物料没有历史入库记录，规格与供应商都无法推断。
+          请补全——<b>系统不替你猜</b>。
+        </Text>
+        <div style={{ marginTop: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>采购规格</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            placeholder="请选择规格"
+            showSearch
+            optionFilterProp="label"
+            value={pickedSpec}
+            onChange={setPickedSpec}
+            options={specs.map((sp) => ({ value: sp.id, label: `${sp.code} ${sp.name}` }))}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>供应商</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            placeholder="请选择供应商"
+            showSearch
+            optionFilterProp="label"
+            value={pickedPartner}
+            onChange={setPickedPartner}
+            options={suppliers.map((x) => ({ value: x.id, label: `${x.name}（${x.code}）` }))}
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -229,7 +229,7 @@ export class OrderService {
     companyId: string,
     userId: string,
     alertId: string,
-    opts: { partnerId?: string | null; expectedDate?: string | null; unitPrice?: number | null } = {},
+    opts: { specId?: string | null; partnerId?: string | null; expectedDate?: string | null; unitPrice?: number | null } = {},
   ): Promise<TradeOrderEntity> {
     const alert = await this.alerts.findOne({ where: { id: alertId, tenantId, companyId } })
     if (!alert) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '预警不存在' })
@@ -251,8 +251,9 @@ export class OrderService {
     const materialId = alert.refId
     const material = await this.materials.findOne(tenantId, companyId, materialId)
 
-    // 规格：现有库存批次 → 最近采购入库单所用规格。都不推断，缺就报错让用户选。
-    const batchSpecId = await this.findSpecFromStock(materialId, companyId)
+    // 规格：调用方指定优先（首次采购的新物料没有历史可推断）；否则从历史入库推断。
+    // 都拿不到就报错让用户选——**不给就明确报错，不猜**。
+    const batchSpecId = opts.specId ?? (await this.findSpecFromStock(materialId, companyId))
     const inboundSpecId = batchSpecId ?? (await this.findSpecFromLastInbound(materialId, companyId))
     if (!inboundSpecId) {
       throw new BadRequestException({

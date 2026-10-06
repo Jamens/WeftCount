@@ -93,6 +93,15 @@ export class OrderFilterDto {
 
 /** 从补货预警一键生成采购订单：可覆盖供应商/交期/单价，其余从建议推导 */
 export class CreateOrderFromAlertDto {
+  /**
+   * 指定规格（**服务端推断不出时必填**）
+   *
+   * 服务端会优先从该物料历史采购入库记录推断规格；像「首次采购的新物料」这类
+   * 无历史的情况推断不出来，此时由调用方指定——**不给就明确报错，不猜**。
+   */
+  @IsOptional() @IsString()
+  specId?: string | null
+
   @IsOptional() @IsString()
   partnerId?: string | null
 
