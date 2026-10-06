@@ -11,7 +11,9 @@ import { MaterialEntity } from '../modules/material/entities/material.entity'
 import { GreigeSpecEntity } from '../modules/material/entities/greige-spec.entity'
 import { WarehouseEntity } from '../modules/warehouse/entities/warehouse.entity'
 import { MachineEntity } from '../modules/production/entities/machine.entity'
+import { InventoryDocumentEntity } from '../modules/inventory/entities/inventory-document.entity'
 import { MaterialService } from '../modules/material/material.service'
+import { InventoryService } from '../modules/inventory/inventory.service'
 
 /**
  * 种子数据：创建一个演示租户 + 一个工厂 + 九个内置角色 + 三类演示账号
@@ -19,7 +21,7 @@ import { MaterialService } from '../modules/material/material.service'
  * 幂等：按 code 判断是否已存在，重复执行不会重复插入
  * 运行：pnpm --filter @weftcount/server seed
  */
-export async function seed(ds: DataSource, materialService: MaterialService): Promise<void> {
+export async function seed(ds: DataSource, materialService: MaterialService, inventoryService: InventoryService, seedUserId: string): Promise<void> {
   const tenants = ds.getRepository(TenantEntity)
   const companies = ds.getRepository(CompanyEntity)
   const roles = ds.getRepository(RoleEntity)
@@ -187,7 +189,7 @@ export async function seed(ds: DataSource, materialService: MaterialService): Pr
   }
   console.log(`[seed] 演示往来单位就绪（${demoPartners.length} 个）`)
 
-  await seedMasterData(tenant.id, company.id, ds, materialService)
+  await seedMasterData(tenant.id, company.id, ds, materialService, inventoryService, seedUserId)
 }
 
 /**
@@ -202,7 +204,10 @@ export async function seed(ds: DataSource, materialService: MaterialService): Pr
  * 规格经 MaterialService.createSpec 创建以**正确计算工艺快照**（kg/100m 等），
  * 否则成本/单耗/对账全算不出数。
  */
-async function seedMasterData(tenantId: string, companyId: string, ds: DataSource, materialService: MaterialService): Promise<void> {
+async function seedMasterData(
+  tenantId: string, companyId: string, ds: DataSource,
+  materialService: MaterialService, inventoryService: InventoryService, seedUserId: string,
+): Promise<void> {
   const warehouseRepo = ds.getRepository(WarehouseEntity)
   const machineRepo = ds.getRepository(MachineEntity)
   const specRepo = ds.getRepository(GreigeSpecEntity)
@@ -258,6 +263,60 @@ async function seedMasterData(tenantId: string, companyId: string, ds: DataSourc
     created++
   }
   console.log(`[seed] 演示坯布规格就绪（新增 ${created} 个）`)
+
+  await seedDemoRolls(tenantId, companyId, ds, inventoryService, seedUserId, cotton40s.id, specs[0].code)
+}
+
+/**
+ * 演示件卡（逐匹入库）：让桌面端**扫码流程开箱可用**
+ *
+ * 件卡只能由「逐匹入库」产生，seed 此前不建 → 新库/重置后开发库 0 件卡，
+ * 桌面端扫码出库/件卡打印/标签打印/扫码查询全部无从测试（用户扫件卡号报「不存在」）。
+ * 故固化 3 匹 100m 的全棉府绸坯布。
+ */
+async function seedDemoRolls(
+  tenantId: string, companyId: string, ds: DataSource,
+  inventoryService: InventoryService, userId: string,
+  yarnMaterialId: string, _specCode: string,
+): Promise<void> {
+  const docRepo = ds.getRepository(InventoryDocumentEntity)
+  const has = await docRepo
+    .createQueryBuilder('d')
+    .where('d.company_id = :companyId', { companyId })
+    .andWhere('d.remark LIKE :r', { r: '%演示件卡%' })
+    .getCount()
+  if (has > 0) {
+    console.log('[seed] 演示件卡已存在，跳过')
+    return
+  }
+  const specRepo = ds.getRepository(GreigeSpecEntity)
+  const spec = await specRepo.findOne({ where: { companyId, code: 'FUC-120-72' } })
+  const greige = await ds.getRepository(MaterialEntity).findOne({ where: { companyId, code: 'G-COTTON-PLAIN' } })
+  const supplier = await ds.getRepository(PartnerEntity).findOne({ where: { companyId, type: 'supplier' } })
+  if (!spec || !greige || !supplier) {
+    console.log('[seed] 跳过演示件卡（规格/物料/供应商缺失）')
+    return
+  }
+  const rolls = [
+    { rollNo: 'PC-DEMO-001', meters: 100 },
+    { rollNo: 'PC-DEMO-002', meters: 100 },
+    { rollNo: 'PC-DEMO-003', meters: 100 },
+  ]
+  await inventoryService.createPurchaseInbound(
+    { tenantId, companyId, userId },
+    {
+      materialId: greige.id,
+      specId: spec.id,
+      enteredUnit: 'm',
+      enteredValue: 300,
+      unitPrice: 8.5,
+      partnerId: supplier.id,
+      remark: '演示件卡（逐匹入库）',
+      rolls,
+    } as never,
+  )
+  void yarnMaterialId
+  console.log(`[seed] 演示件卡就绪（${rolls.length} 匹 PC-DEMO-001~003，可直接扫码测试）`)
 }
 
 /** 幂等建物料 */
