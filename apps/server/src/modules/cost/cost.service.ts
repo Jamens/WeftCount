@@ -164,4 +164,77 @@ export class CostService {
       }
     })
   }
+
+  /**
+   * 单规格成本明细（供智能核价复用）。
+   * 与 analysis 同一套确定性算法，只是只算一个规格。
+   */
+  async specCost(tenantId: string, companyId: string, specId: string): Promise<SpecCostRow | null> {
+    const spec = await this.materials.findSpec(tenantId, companyId, specId)
+    const yarnIds = [spec.warpMaterialId, spec.weftMaterialId].filter((v): v is string => !!v)
+    const [purchaseMap, standardMap, salesMap] = await Promise.all([
+      this.latestPurchasePrices(companyId, yarnIds),
+      this.standardPrices(companyId, yarnIds),
+      this.latestSalesPrices(companyId, [specId]),
+    ])
+    const matName = new Map<string, string>()
+    if (yarnIds.length) {
+      const mats = await this.matRepo
+        .createQueryBuilder('m')
+        .where('m.company_id = :companyId', { companyId })
+        .andWhere('m.id IN (:...ids)', { ids: yarnIds })
+        .getMany()
+      for (const m of mats) matName.set(m.id, m.name)
+    }
+    const pickPrice = (id: string | null): { price: number; source: YarnPriceSource } => {
+      if (!id) return { price: 0, source: 'none' }
+      const p = purchaseMap.get(id)
+      if (p != null) return { price: p, source: 'latest_purchase' }
+      const s = standardMap.get(id)
+      if (s != null) return { price: s, source: 'standard_price' }
+      return { price: 0, source: 'none' }
+    }
+    const snapshot = this.materials.getSnapshot(spec) as SpecCalculationSnapshot
+    const warp = pickPrice(spec.warpMaterialId)
+    const weft = pickPrice(spec.weftMaterialId)
+    const cost = computeSpecCost({
+      snapshot,
+      warpYarnPrice: warp.price,
+      weftYarnPrice: weft.price,
+      overheadPerMeter: Number(spec.overheadCostPerMeter ?? 0),
+      salesPricePerMeter: salesMap.get(spec.id) ?? null,
+    })
+    return {
+      specId: spec.id, specCode: spec.code, specName: spec.name,
+      warpMaterialName: spec.warpMaterialId ? (matName.get(spec.warpMaterialId) ?? null) : null,
+      weftMaterialName: spec.weftMaterialId ? (matName.get(spec.weftMaterialId) ?? null) : null,
+      warpYarnPrice: warp.price, weftYarnPrice: weft.price,
+      warpPriceSource: warp.source, weftPriceSource: weft.source,
+      warpKgPer100m: snapshot.warpKgPer100m, weftKgPer100m: snapshot.weftKgPer100m,
+      ...cost,
+    }
+  }
+
+  /**
+   * 某规格近期成交价带（最近 limit 笔销售出库单价）。
+   * 供智能核价参考市场价——没有历史成交就没有价带，不臆造。
+   */
+  async salesPriceBand(companyId: string, specId: string, limit = 12): Promise<{ min: number; max: number; avg: number; count: number } | null> {
+    const docs = await this.docRepo
+      .createQueryBuilder('d')
+      .select('d.unit_price', 'unitPrice')
+      .where('d.company_id = :companyId', { companyId })
+      .andWhere('d.spec_id = :specId', { specId })
+      .andWhere("d.doc_type = 'sales_outbound'")
+      .andWhere('d.unit_price IS NOT NULL')
+      .orderBy('d.created_at', 'DESC')
+      .limit(limit)
+      .getRawMany<{ unitPrice: string }>()
+    const prices = docs.map((d) => Number(d.unitPrice)).filter((n) => Number.isFinite(n) && n > 0)
+    if (prices.length === 0) return null
+    const min = Math.min(...prices)
+    const max = Math.max(...prices)
+    const avg = prices.reduce((a, b) => a + b, 0) / prices.length
+    return { min, max, avg, count: prices.length }
+  }
 }

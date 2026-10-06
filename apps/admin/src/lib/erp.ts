@@ -280,6 +280,36 @@ export const CONTRACT_STATUS_LABEL: Record<ContractStatusValue, { text: string; 
 }
 
 // ---------------------------------------------------------------------------
+// AI 智能（阶段五）：确定性事实 + AI 建议
+// ---------------------------------------------------------------------------
+
+export interface AiInsight<T> {
+  /** llm=大模型生成；rule=规则兜底（AI 不可用时） */
+  source: 'llm' | 'rule'
+  /** 置信度 0~1 */
+  confidence: number
+  /** 推导依据（确定性事实） */
+  derivation: string[]
+  /** 理由（LLM 或规则说明） */
+  reasoning: string
+  data: T
+}
+
+export interface QuoteData {
+  specId: string
+  specName: string
+  quantityM: number
+  costPerM: number
+  materialCostPerM: number
+  overheadPerM: number
+  suggestedPrice: number
+  marginRate: number
+  grossProfitPerM: number
+  priceBand: { min: number; max: number; avg: number; count: number } | null
+  targetMarginRate: number
+}
+
+// ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------
 

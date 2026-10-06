@@ -19,6 +19,7 @@ import {
   FileDoneOutlined,
   NodeIndexOutlined,
   FileProtectOutlined,
+  RobotOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -37,6 +38,7 @@ import WarehousePage from './pages/WarehousePage'
 import StocktakePage from './pages/StocktakePage'
 import TracePage from './pages/TracePage'
 import ContractPage from './pages/ContractPage'
+import AiQuotePage from './pages/AiQuotePage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -102,6 +104,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
           { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
         ]
+      : []),
+    ...(hasPermission(PERM.SALES_VIEW)
+      ? [{ key: '/ai-quote', icon: <RobotOutlined />, label: '智能核价(AI)' }]
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
       ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
@@ -302,6 +307,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ContractPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ai-quote"
+          element={
+            <RequireAuth>
+              <Shell>
+                <AiQuotePage />
               </Shell>
             </RequireAuth>
           }
