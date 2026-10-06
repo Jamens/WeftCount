@@ -5,8 +5,10 @@ import {
   Card,
   Col,
   Empty,
+  Input,
   InputNumber,
   Progress,
+  Radio,
   Row,
   Space,
   Statistic,
@@ -14,7 +16,7 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { ReloadOutlined, SendOutlined } from '@ant-design/icons'
+import { BarcodeOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import { fmt, num, type ReportableOrder } from '../lib/types'
@@ -35,6 +37,25 @@ export default function ReportPage() {
   const [outputM, setOutputM] = useState<number | null>(null)
   const [stopMin, setStopMin] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // 报工按匹：本次产出的件卡（rollNo+米数）
+  const [rollMode, setRollMode] = useState(false)
+  const [rolls, setRolls] = useState<{ rollNo: string; meters: number }[]>([])
+  const [rollNoInput, setRollNoInput] = useState('')
+  const [rollMeters, setRollMeters] = useState(30)
+  const rollTotal = rolls.reduce((s, r) => s + r.meters, 0)
+
+  const addRoll = () => {
+    const no = rollNoInput.trim()
+    if (!no) return
+    if (rolls.some((r) => r.rollNo === no)) {
+      message.warning(`件卡 ${no} 本次已登记`)
+      setRollNoInput('')
+      return
+    }
+    setRolls((p) => [...p, { rollNo: no, meters: rollMeters }])
+    setRollNoInput('')
+  }
+  const removeRoll = (no: string) => setRolls((p) => p.filter((r) => r.rollNo !== no))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -55,21 +76,25 @@ export default function ReportPage() {
 
   const onSubmit = async () => {
     if (!target) return
-    if (!outputM || outputM <= 0) {
-      message.warning('请输入本次产出（米）')
+    // 报工按匹：产出 = 各件卡米数之和（强制以米计）
+    const effectiveOutput = rollMode ? rollTotal : outputM
+    if (!effectiveOutput || effectiveOutput <= 0) {
+      message.warning(rollMode ? '请先登记件卡（至少一匹）' : '请输入本次产出（米）')
       return
     }
     setSubmitting(true)
     try {
       await api.post(`/production-orders/${target.id}/reports`, {
-        outputM,
+        outputM: effectiveOutput,
         reportDate: dayjs().format('YYYY-MM-DD'),
         stoppageMinutes: stopMin ?? null,
+        ...(rollMode && rolls.length ? { rolls } : {}),
       })
-      message.success(`报工成功：${outputM}m 已入库${target.status === 'scheduled' ? '，工单转入生产中' : ''}`)
+      message.success(`报工成功：${effectiveOutput}m 已入库${rolls.length ? `（${rolls.length} 匹）` : ''}${target.status === 'scheduled' ? '，工单转入生产中' : ''}`)
       setTarget(null)
       setOutputM(null)
       setStopMin(null)
+      setRolls([])
       await load()
     } catch (e) {
       message.error(e instanceof Error ? e.message : '报工失败')
@@ -159,15 +184,46 @@ export default function ReportPage() {
             </Text>
             <Space size="large" wrap>
               <div>
-                <Text>本次产出（米）</Text>
-                <div><InputNumber style={{ width: 180 }} min={0.001} value={outputM} onChange={setOutputM} placeholder="本次织出米数" /></div>
+                <Text>报工方式</Text>
+                <div>
+                  <Radio.Group value={rollMode ? 'roll' : 'meter'} onChange={(e) => { setRollMode((e.target.value as string) === 'roll'); setRolls([]) }} optionType="button" size="small" buttonStyle="solid"
+                    options={[{ label: '按米数', value: 'meter' }, { label: '按匹(件卡)', value: 'roll' }]} />
+                </div>
+              </div>
+              <div>
+                <Text>本次产出（米）{rollMode ? `= 各匹合计 ${rollTotal.toFixed(1)}m` : ''}</Text>
+                <div><InputNumber style={{ width: 180 }} min={0.001} value={rollMode ? (rollTotal || undefined) : outputM} onChange={(v) => !rollMode && setOutputM(v)} readOnly={rollMode} placeholder={rollMode ? '扫件卡自动累计' : '本次织出米数'} /></div>
               </div>
               <div>
                 <Text>停机分钟（可选）</Text>
                 <div><InputNumber style={{ width: 140 }} min={0} value={stopMin} onChange={setStopMin} placeholder="如 30" /></div>
               </div>
             </Space>
-            <Text type="secondary" style={{ fontSize: 12 }}>提交后本次产出自动入库为坯布批次，并累加工单进度（满额自动完成）。</Text>
+            {rollMode && (
+              <Card size="small" title={`本次产出件卡（${rolls.length} 匹）`} style={{ background: '#fafafa' }}>
+                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                      size="large" prefix={<BarcodeOutlined />} placeholder="扫描/输入件卡号后回车"
+                      value={rollNoInput} onChange={(e) => setRollNoInput(e.target.value)} onPressEnter={addRoll}
+                    />
+                    <InputNumber size="large" min={0.001} precision={2} style={{ width: 140 }} value={rollMeters} onChange={(v) => setRollMeters(v ?? 30)} addonBefore="每匹m" />
+                    <Button type="primary" size="large" onClick={addRoll}>登记一匹</Button>
+                  </Space.Compact>
+                  {rolls.length > 0 && (
+                    <Space wrap size={4}>
+                      {rolls.map((r) => (
+                        <Tag key={r.rollNo} closable color="blue" onClose={(e) => { e.preventDefault(); removeRoll(r.rollNo) }}>
+                          {r.rollNo} · {r.meters}m
+                        </Tag>
+                      ))}
+                    </Space>
+                  )}
+                  <Text type="secondary" style={{ fontSize: 12 }}>扫一件卡登记一匹织出的布（默认每匹 {rollMeters}m，可改）；各匹合计=本次产出，自动生成件卡可追溯。</Text>
+                </Space>
+              </Card>
+            )}
+            <Text type="secondary" style={{ fontSize: 12 }}>提交后本次产出自动入库为坯布批次，并累加工单进度（满额自动完成）。{rollMode ? '按匹报工会为每匹生成件卡。' : ''}</Text>
           </Space>
         </Card>
       )}

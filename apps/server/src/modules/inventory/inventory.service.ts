@@ -444,7 +444,7 @@ export class InventoryService {
   async createProductionInbound(
     manager: EntityManager,
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { materialId: string; specId: string; quantityM: number; sourceDocId: string; warehouseId?: string | null; remark?: string | null },
+    input: { materialId: string; specId: string; quantityM: number; sourceDocId: string; warehouseId?: string | null; remark?: string | null; rolls?: { rollNo: string; meters: number }[] | null },
   ): Promise<InventoryBatchEntity> {
     if (input.quantityM <= 0) {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '入库产量必须为正' })
@@ -504,6 +504,41 @@ export class InventoryService {
         remark: input.remark ?? null,
       }),
     )
+
+    // 报工按匹：织机产出按件卡登记（每匹一件卡，关联到本次产出批次）
+    if (input.rolls && input.rolls.length > 0) {
+      const rollSum = input.rolls.reduce((s, r) => s + Number(r.meters || 0), 0)
+      if (Math.abs(rollSum - meters) > Math.max(0.5, meters * 0.001)) {
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `逐匹合计 ${rollSum.toFixed(2)}m 与报工产量 ${meters.toFixed(2)}m 不一致，请核对`,
+        })
+      }
+      const seen = new Set<string>()
+      for (const r of input.rolls) {
+        const rollNo = String(r.rollNo).trim()
+        if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
+        if (seen.has(rollNo)) {
+          throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡号 ${rollNo} 重复` })
+        }
+        seen.add(rollNo)
+      }
+      const kgPerM = meters > 0 ? weightKg / meters : 0
+      await manager.save(
+        input.rolls.map((r) =>
+          manager.create(RollEntity, {
+            tenantId: ctx.tenantId,
+            companyId: ctx.companyId,
+            batchId: batch.id,
+            rollNo: String(r.rollNo).trim(),
+            meters: num(Number(r.meters), 3),
+            weightKg: num(kgPerM * Number(r.meters), 3),
+            status: 'in_stock',
+            sourceDocId: input.sourceDocId,
+          }),
+        ),
+      )
+    }
     return batch
   }
 

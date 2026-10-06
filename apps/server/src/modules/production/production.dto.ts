@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -8,7 +9,19 @@ import {
   IsString,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator'
+import { Type } from 'class-transformer'
+
+/** 报工按匹：织机产出的一件布（件卡） */
+export class ReportRollDto {
+  @IsString() @IsNotEmpty({ message: '件卡号不能为空' })
+  rollNo!: string
+
+  @IsNumber({}, { message: '件卡米数必须为数字' })
+  @Min(0.001, { message: '件卡米数必须大于 0' })
+  meters!: number
+}
 import type { MachineStatus } from './entities/machine.entity'
 import type { ProductionOrderStatus } from './entities/production-order.entity'
 
@@ -116,6 +129,10 @@ export class CreateReportDto {
   @IsNumber({}, { message: '产出必须为数字' })
   @Min(0.001, { message: '产出必须大于 0' })
   outputM!: number
+
+  /** 报工按匹：织机产出逐匹登记（各匹米数之和应=outputM），自动生成件卡 */
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ReportRollDto)
+  rolls?: ReportRollDto[] | null
 
   @IsOptional() @IsDateString({}, { message: '报工日期格式应为 YYYY-MM-DD' })
   reportDate?: string | null

@@ -323,12 +323,14 @@ export class ProductionService {
       )
 
       // 织造产出 → 坯布入库批次（批次 sourceDocId 指向报工，可回溯工单）
+      // 报工按匹：传 rolls 则逐匹登记件卡（createProductionInbound 内校验各匹之和≈产量）
       const batch = await this.inventory.createProductionInbound(manager, ctx, {
         materialId: o.materialId,
         specId: o.specId,
         quantityM: dto.outputM,
         sourceDocId: savedReport.id,
         remark: `报工入库 · 工单 ${o.orderNo}`,
+        rolls: dto.rolls ?? null,
       })
 
       // 累加产出 + 推进状态

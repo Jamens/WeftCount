@@ -3,6 +3,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { login, get, post, activeSpec, activeGreigeMaterial } from './helpers.mjs'
 
+/** 取一个启用机台（报工要求工单已指派机台） */
+async function firstMachine(c) {
+  const ms = await get(c, '/machines')
+  const m = ms.find((x) => x.status === 'running' || x.status === 'idle') ?? ms[0]
+  if (!m) throw new Error('无可用机台')
+  return m
+}
+
 /** 断言 AiInsight 结构完整 */
 function assertInsight(x, label) {
   assert.ok(x, `${label}: 应有返回`)
@@ -75,4 +83,40 @@ test('AI 参数非法被拒', async () => {
   const spec = await activeSpec(c)
   await assert.rejects(() => post(c, '/ai/quote', { specId: spec.id, quantityM: 0 }))
   await assert.rejects(() => post(c, '/ai/prediction', { specId: spec.id, plannedMeters: -1 }))
+})
+
+// ---- 报工按匹 ----
+
+test('报工按匹：产出各匹生成件卡', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  // 建一个已排产的工单
+  const machine = await firstMachine(c)
+  const order = await post(c, '/production-orders', { materialId: mat.id, specId: spec.id, plannedQuantityM: 1000, machineId: machine.id })
+  await post(c, `/production-orders/${order.id}/schedule`, {}) // 排产
+  const tag = Date.now()
+  const rolls = [{ rollNo: `RP${tag}-1`, meters: 40 }, { rollNo: `RP${tag}-2`, meters: 35 }]
+  const total = rolls.reduce((s, r) => s + r.meters, 0)
+  // 按匹报工
+  await post(c, `/production-orders/${order.id}/reports`, { outputM: total, rolls })
+  // 追溯件卡：应来自该报工的产出批次
+  const tr = await get(c, `/inventory/rolls/trace?rollNo=${rolls[0].rollNo}`)
+  assert.ok(tr, '件卡应有追溯')
+  assert.equal(tr.roll.meters, '40.000', '件卡米数应为 40')
+  assert.ok(tr.spec.specName, '应带规格')
+})
+
+test('报工按匹：各匹之和与产量不符被拒', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const machine = await firstMachine(c)
+  const order = await post(c, '/production-orders', { materialId: mat.id, specId: spec.id, plannedQuantityM: 1000, machineId: machine.id })
+  await post(c, `/production-orders/${order.id}/schedule`, {})
+  const tag = Date.now()
+  // 产量 100，但各匹只合 50 → 拒
+  await assert.rejects(() =>
+    post(c, `/production-orders/${order.id}/reports`, { outputM: 100, rolls: [{ rollNo: `RQ${tag}`, meters: 50 }] })
+  )
 })
