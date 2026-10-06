@@ -10,6 +10,7 @@ import {
   type ConversionError,
   type SpecCalculationSnapshot,
 } from '@weftcount/shared'
+import { withUniqueNo } from '../../common/util/unique-no'
 import { MaterialService } from '../material/material.service'
 import { PartnerService } from '../partner/partner.service'
 import { OrderService } from '../order/order.service'
@@ -259,7 +260,15 @@ export class InventoryService {
   // 采购入库（按重量）
   // ---------------------------------------------------------------------------
 
+  /** 采购入库：撞号重试（单号/批号并发碰撞时整体重试，内部每次重取号） */
   async createPurchaseInbound(
+    ctx: { tenantId: string; companyId: string; userId: string },
+    input: CreateDocInput,
+  ): Promise<InventoryDocumentEntity> {
+    return withUniqueNo(() => this.doPurchaseInbound(ctx, input))
+  }
+
+  private async doPurchaseInbound(
     ctx: { tenantId: string; companyId: string; userId: string },
     input: CreateDocInput,
   ): Promise<InventoryDocumentEntity> {
@@ -457,7 +466,15 @@ export class InventoryService {
    *   3) 记两条流水：源批次 stock_transfer 出、新批次 stock_transfer 入
    * 净效果：源仓 -q、目标仓 +q，全库总量不变，对账恒等式不受影响。
    */
+  /** 仓间调拨：撞号重试（新批次号并发碰撞时整体重试） */
   async transfer(
+    ctx: { tenantId: string; companyId: string; userId: string },
+    input: { sourceBatchId: string; toWarehouseId: string; quantityM: number; remark?: string | null },
+  ): Promise<{ sourceBatch: InventoryBatchEntity; targetBatch: InventoryBatchEntity }> {
+    return withUniqueNo(() => this.doTransfer(ctx, input))
+  }
+
+  private async doTransfer(
     ctx: { tenantId: string; companyId: string; userId: string },
     input: { sourceBatchId: string; toWarehouseId: string; quantityM: number; remark?: string | null },
   ): Promise<{ sourceBatch: InventoryBatchEntity; targetBatch: InventoryBatchEntity }> {
@@ -722,7 +739,7 @@ export class InventoryService {
     }
   }
 
-  private async createOutbound(
+  private async doCreateOutbound(
     ctx: { tenantId: string; companyId: string; userId: string },
     docType: 'production_issue' | 'sales_outbound',
     txnType: 'material_issue' | 'sales_out',
@@ -778,7 +795,7 @@ export class InventoryService {
     ctx: { tenantId: string; companyId: string; userId: string },
     input: CreateDocInput,
   ): Promise<InventoryDocumentEntity> {
-    return this.createOutbound(ctx, 'production_issue', 'material_issue', input)
+    return withUniqueNo(() => this.doCreateOutbound(ctx, 'production_issue', 'material_issue', input))
   }
 
   /** 销售出库（按面积录入） */
@@ -786,7 +803,7 @@ export class InventoryService {
     ctx: { tenantId: string; companyId: string; userId: string },
     input: CreateDocInput,
   ): Promise<InventoryDocumentEntity> {
-    return this.createOutbound(ctx, 'sales_outbound', 'sales_out', input)
+    return withUniqueNo(() => this.doCreateOutbound(ctx, 'sales_outbound', 'sales_out', input))
   }
 
   // ---------------------------------------------------------------------------

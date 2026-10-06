@@ -8,6 +8,7 @@ import {
   type ContextParams,
   type ConversionError,
 } from '@weftcount/shared'
+import { withUniqueNo } from '../../common/util/unique-no'
 import { TradeOrderEntity, type TradeOrderStatus, type TradeOrderType } from './entities/trade-order.entity'
 import { TradeOrderItemEntity } from './entities/trade-order-item.entity'
 import type { CreateOrderDto, OrderFilterDto, OrderItemInput, UpdateOrderDto } from './order.dto'
@@ -179,25 +180,27 @@ export class OrderService {
   async create(tenantId: string, companyId: string, dto: CreateOrderDto): Promise<TradeOrderEntity> {
     const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, dto.orderType)
     const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
-    const orderNo = await this.nextOrderNo(companyId, dto.orderType)
-
-    return this.dataSource.transaction(async (manager) => {
-      const o = await manager.save(
-        manager.create(TradeOrderEntity, {
-          tenantId, companyId, orderNo,
-          orderType: dto.orderType,
-          partnerId: partner.id,
-          partnerName: partner.name,
-          totalQuantityM,
-          totalAmount,
-          contractId: dto.contractId ?? null,
-          status: 'draft',
-          expectedDate: dto.expectedDate ?? null,
-          remark: dto.remark ?? null,
-        }),
-      )
-      await manager.save(rows.map((r) => manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r })))
-      return o
+    // 撞号重试：生成号 + 落库整体重试
+    return withUniqueNo(async () => {
+      const orderNo = await this.nextOrderNo(companyId, dto.orderType)
+      return this.dataSource.transaction(async (manager) => {
+        const o = await manager.save(
+          manager.create(TradeOrderEntity, {
+            tenantId, companyId, orderNo,
+            orderType: dto.orderType,
+            partnerId: partner.id,
+            partnerName: partner.name,
+            totalQuantityM,
+            totalAmount,
+            contractId: dto.contractId ?? null,
+            status: 'draft',
+            expectedDate: dto.expectedDate ?? null,
+            remark: dto.remark ?? null,
+          }),
+        )
+        await manager.save(rows.map((r) => manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r })))
+        return o
+      })
     })
   }
 

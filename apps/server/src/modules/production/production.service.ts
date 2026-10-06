@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, In, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
+import { withUniqueNo } from '../../common/util/unique-no'
 import { MachineEntity, type MachineStatus } from './entities/machine.entity'
 import { ProductionOrderEntity, type ProductionOrderStatus } from './entities/production-order.entity'
 import { ProductionReportEntity } from './entities/production-report.entity'
@@ -140,24 +141,27 @@ export class ProductionService {
     const spec = await this.materials.findSpec(tenantId, companyId, dto.specId)
     const snapshot = this.materials.getSnapshot(spec)
     const machineId = await this.validateMachine(tenantId, companyId, dto.machineId)
-    const orderNo = await this.nextOrderNo(companyId)
-    return this.orders.save(
-      this.orders.create({
-        tenantId,
-        companyId,
-        orderNo,
-        materialId: dto.materialId,
-        specId: dto.specId,
-        specSnapshot: snapshot,
-        plannedQuantityM: num(dto.plannedQuantityM, 3),
-        producedQuantityM: num(0, 3),
-        machineId,
-        status: 'draft',
-        plannedStartDate: dto.plannedStartDate ?? null,
-        dueDate: dto.dueDate ?? null,
-        remark: dto.remark ?? null,
-      }),
-    )
+    // 撞号重试：生成号 + 落库整体重试
+    return withUniqueNo(async () => {
+      const orderNo = await this.nextOrderNo(companyId)
+      return this.orders.save(
+        this.orders.create({
+          tenantId,
+          companyId,
+          orderNo,
+          materialId: dto.materialId,
+          specId: dto.specId,
+          specSnapshot: snapshot,
+          plannedQuantityM: num(dto.plannedQuantityM, 3),
+          producedQuantityM: num(0, 3),
+          machineId,
+          status: 'draft',
+          plannedStartDate: dto.plannedStartDate ?? null,
+          dueDate: dto.dueDate ?? null,
+          remark: dto.remark ?? null,
+        }),
+      )
+    })
   }
 
   async findOrders(tenantId: string, companyId: string, filter?: ProductionOrderFilterDto): Promise<ProductionOrderEntity[]> {

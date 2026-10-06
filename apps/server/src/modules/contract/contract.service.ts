@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
+import { withUniqueNo } from '../../common/util/unique-no'
 import { ContractEntity, type ContractStatus } from './entities/contract.entity'
 import { ContractItemEntity } from './entities/contract-item.entity'
 import type { ContractFilterDto, ContractItemInput, CreateContractDto, UpdateContractDto } from './contract.dto'
@@ -91,26 +92,28 @@ export class ContractService {
   async create(tenantId: string, companyId: string, dto: CreateContractDto): Promise<ContractEntity> {
     const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, dto.contractType)
     const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
-    const contractNo = await this.nextNo(companyId)
-
-    return this.dataSource.transaction(async (manager) => {
-      const ct = await manager.save(
-        manager.create(ContractEntity, {
-          tenantId, companyId, contractNo,
-          contractType: dto.contractType,
-          partnerId: partner.id,
-          partnerName: partner.name,
-          status: 'draft',
-          totalQuantityM, totalAmount,
-          startDate: dto.startDate ?? null,
-          endDate: dto.endDate ?? null,
-          remark: dto.remark ?? null,
-        }),
-      )
-      await manager.save(
-        rows.map((r) => manager.create(ContractItemEntity, { tenantId, companyId, contractId: ct.id, ...r })),
-      )
-      return ct
+    // 撞号重试：生成号 + 落库整体重试
+    return withUniqueNo(async () => {
+      const contractNo = await this.nextNo(companyId)
+      return this.dataSource.transaction(async (manager) => {
+        const ct = await manager.save(
+          manager.create(ContractEntity, {
+            tenantId, companyId, contractNo,
+            contractType: dto.contractType,
+            partnerId: partner.id,
+            partnerName: partner.name,
+            status: 'draft',
+            totalQuantityM, totalAmount,
+            startDate: dto.startDate ?? null,
+            endDate: dto.endDate ?? null,
+            remark: dto.remark ?? null,
+          }),
+        )
+        await manager.save(
+          rows.map((r) => manager.create(ContractItemEntity, { tenantId, companyId, contractId: ct.id, ...r })),
+        )
+        return ct
+      })
     })
   }
 

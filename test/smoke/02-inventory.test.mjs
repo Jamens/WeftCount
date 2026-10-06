@@ -31,14 +31,18 @@ test('销售出库按 FIFO 消耗先进批次', async () => {
   // 先确保有库存
   await post(c, '/inventory/purchase-inbound', { materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100, partnerId: (await supplierOf(c)).id, unitPrice: 8.5 })
 
-  const batches = (await get(c, '/inventory/batches')).filter((b) => b.specId === spec.id && b.status === 'normal' && num(b.remainingQuantity) > 0)
-  const oldest = batches.sort((a, b) => new Date(a.inboundAt) - new Date(b.inboundAt))[0]
-  const oldestBefore = num(oldest.remainingQuantity)
+  // FIFO 性质：全局最老的可用批次一定被优先消耗。用「最老批次剩余变少」断言，
+  // 不断言固定扣减量——前面的用例可能已消耗过它（状态随运行次数变化）。
+  const oldest = (await get(c, '/inventory/batches'))
+    .filter((b) => b.specId === spec.id && b.status === 'normal' && num(b.remainingQuantity) > 0)
+    .sort((a, b) => new Date(a.inboundAt) - new Date(b.inboundAt))[0]
+  assert.ok(oldest, '应有可用批次')
+  const before = num(oldest.remainingQuantity)
 
-  await post(c, '/inventory/sales-outbound', { materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 10, partnerId: cus.id, unitPrice: 9 })
+  await post(c, '/inventory/sales-outbound', { materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 1, partnerId: cus.id, unitPrice: 9 })
 
-  const oldestAfter = num((await get(c, '/inventory/batches')).find((b) => b.id === oldest.id).remainingQuantity)
-  assertNear(oldestBefore - oldestAfter, 10, 0.01, 'FIFO 应扣最早入库批次 10m')
+  const after = num((await get(c, '/inventory/batches')).find((b) => b.id === oldest.id).remainingQuantity)
+  assert.ok(after < before, `FIFO 应优先消耗最老批次(${oldest.batchNo})：${before} -> ${after}`)
 })
 
 test('扫码拣货(pickedItems)扣指定批次', async () => {
@@ -86,6 +90,29 @@ test('拣货规格不符被拒（扫的批次规格≠单据规格）', async ()
     pickedItems: [{ batchId: foreign.id, quantityM: 1 }], // 批次规格≠单据规格
   })
   assert.match(msg, /规格/, '应提示规格不一致')
+})
+
+test('并发建单不撞号（撞号重试生效）', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const wh = await firstWarehouse(c)
+  // 同时发起 6 个采购入库（都生成单号+批号）——修复前会撞 uk_docs_no_company(500)
+  const results = await Promise.allSettled(
+    Array.from({ length: 6 }, (_, i) =>
+      post(c, '/inventory/purchase-inbound', {
+        materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 20 + i,
+        partnerId: sup.id, unitPrice: 8.5, warehouseId: wh.id,
+      })
+    )
+  )
+  const ok = results.filter((r) => r.status === 'fulfilled')
+  const failed = results.filter((r) => r.status === 'rejected')
+  assert.equal(failed.length, 0, `并发建单应有全部成功，失败 ${failed.length} 个: ${failed.map((f) => f.reason?.message).join('; ')}`)
+  // 单号应互不相同
+  const docNos = new Set(ok.map((r) => r.value.docNo))
+  assert.equal(docNos.size, ok.length, '并发建单的单号应互不相同')
 })
 
 test('对账恒等式成立（采购入库+产出+盘盈 = 领用+出库+盘亏+结存）', async () => {

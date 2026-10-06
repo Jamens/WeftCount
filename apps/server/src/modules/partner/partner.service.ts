@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from '@nestjs/typeorm'
 import { Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
+import { withUniqueNo } from '../../common/util/unique-no'
 import { PartnerEntity } from './entities/partner.entity'
 import { SupplierCodeMappingEntity } from './entities/supplier-code-mapping.entity'
 import type { CreatePartnerDto, PartnerFilterDto, UpdatePartnerDto } from './partner.dto'
@@ -100,33 +101,33 @@ export class PartnerService {
   }
 
   async create(tenantId: string, companyId: string, input: CreatePartnerInput): Promise<PartnerEntity> {
-    const code = input.code ?? (await this.nextCode(companyId))
-
-    const exists = await this.partners.findOne({ where: { companyId, code } })
-    if (exists) {
-      throw new ConflictException({
-        code: ErrorCode.DUPLICATE_CODE,
-        message: `往来单位编码 ${code} 已存在`,
-      })
-    }
-
-    return this.partners.save(
-      this.partners.create({
-        tenantId,
-        companyId,
-        code,
-        name: input.name,
-        type: input.type ?? 'supplier',
-        contact: input.contact ?? null,
-        phone: input.phone ?? null,
-        taxNo: input.taxNo ?? null,
-        address: input.address ?? null,
-        bankName: input.bankName ?? null,
-        bankAccount: input.bankAccount ?? null,
-        status: 'active',
-        remark: input.remark ?? null,
-      }),
-    )
+    // 撞号重试：并发下「查最后号+1」可能撞唯一键，重取号再来
+    return withUniqueNo(async () => {
+      const code = input.code ?? (await this.nextCode(companyId))
+      if (input.code) {
+        const exists = await this.partners.findOne({ where: { companyId, code } })
+        if (exists) {
+          throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `往来单位编码 ${code} 已存在` })
+        }
+      }
+      return this.partners.save(
+        this.partners.create({
+          tenantId,
+          companyId,
+          code,
+          name: input.name,
+          type: input.type ?? 'supplier',
+          contact: input.contact ?? null,
+          phone: input.phone ?? null,
+          taxNo: input.taxNo ?? null,
+          address: input.address ?? null,
+          bankName: input.bankName ?? null,
+          bankAccount: input.bankAccount ?? null,
+          status: 'active',
+          remark: input.remark ?? null,
+        }),
+      )
+    })
   }
 
   async findAll(
