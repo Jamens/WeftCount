@@ -339,6 +339,20 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - 按单据类型约束交易对手：**采购入库必须是供应商**、**销售出库必须是客户**（`both` 兼营通用）、**生产领用为内部转移不设往来单位**（多传直接报错）；采购/销售强制必填，避免无供应商的入库单无法参与按供应商对账
 - 前端三算单据页按类型显示下拉：采购列供应商、销售列客户、领用不显示
 
+### 采购 / 销售订单（计划层）
+
+在「三算单据（实际收发）」之上补一层**订单（计划/意向）**。采购与销售共用 `trade_orders` 一表、用 `order_type` 区分（与 `inventory_documents` 同样的一表两用风格）。
+
+- 迁移 `1730600000000-CreateTradeOrders`；实体 `TradeOrderEntity`
+- 同样走「一件事三算」：只按自然单位录入（采购多按重量 `kg`、销售多按面积 `m2`），用规格快照折出 **米/kg/m²** 三视图并存下；另存 `partner_name` / `spec_snapshot` 名称与规格快照，改名改规格不影响历史订单
+- 往来单位按类型强约束：采购订单必须供应商、销售订单必须客户（`both` 通用）、且须启用
+- 状态机：`draft → confirmed → completed`，`draft/confirmed` 可 `cancelled`；**仅草稿可编辑**，改动数量/规格会重算三视图与金额
+- 单号规则：`PO`/`SO` + 日期 + 流水（按「前缀+日期」Like 取末号，避免跨类型撞号）
+- 接口：`GET/POST /orders`、`GET/PATCH /orders/:id`、`POST /orders/:id/{confirm,complete,cancel}`；权限 `purchase.view/manage`、`sales.view/manage`
+- 前端 `/orders`：类型/状态/关键字筛选、新建、编辑、确认/完成/取消、详情看三视图
+
+> 当前是**单行订单**（一个订单一条明细），与现有单据一致；多明细后续拆 `trade_order_items` 表，不影响现有逻辑。**单据↔订单联动**（到货/发货进度回写订单）尚未做，是下一步。
+
 ### 用户 / 角色管理
 
 `users` / `roles` 两表早已存在，但此前只有 `login / me / switch-company / change-password / permissions` 端点，缺管理接口。本次补齐。
@@ -354,12 +368,13 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
 | 物料主数据 | `/materials` | 列表（关键字/大类/状态筛选）、抽屉新建、停用 |
 | 往来单位 | `/partners` | 供应商/客户档案：列表（关键字/类型/状态筛选）、新建、编辑、停用；编码 `P+流水` 自动生成 |
+| 采购/销售订单 | `/orders` | 计划层：类型/状态/关键字筛选、新建、编辑(草稿)、确认/完成/取消、详情看三视图 |
 | 用户管理 | `/users` | 列表（含公司/角色名）、新建、编辑资料/状态/公司/角色、重置密码 |
 | 角色管理 | `/roles` | 角色列表（内置/自定义）、新建自定义角色、编辑权限、删除（内置/被引用不可删） |
 | 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |

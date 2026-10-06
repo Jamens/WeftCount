@@ -11,6 +11,7 @@ import { AuditInterceptor } from './modules/audit/audit.interceptor'
 import { MaterialModule } from './modules/material/material.module'
 import { InventoryModule } from './modules/inventory/inventory.module'
 import { PartnerModule } from './modules/partner/partner.module'
+import { OrderModule } from './modules/order/order.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -44,6 +45,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     MaterialModule,
     InventoryModule,
     PartnerModule,
+    OrderModule,
   ],
   controllers: [HealthController],
   providers: [

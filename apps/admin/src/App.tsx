@@ -12,6 +12,7 @@ import {
   AppstoreOutlined,
   TeamOutlined,
   KeyOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -23,6 +24,7 @@ import MaterialPage from './pages/MaterialPage'
 import PartnerPage from './pages/PartnerPage'
 import UserPage from './pages/UserPage'
 import RolePage from './pages/RolePage'
+import OrderPage from './pages/OrderPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -76,6 +78,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.PARTNER_VIEW)
       ? [{ key: '/partners', icon: <TeamOutlined />, label: '往来单位' }]
+      : []),
+    ...(hasPermission(PERM.PURCHASE_VIEW) || hasPermission(PERM.SALES_VIEW)
+      ? [{ key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' }]
       : []),
     ...(hasPermission(PERM.USER_VIEW)
       ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }]
@@ -239,6 +244,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <PartnerPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <RequireAuth>
+              <Shell>
+                <OrderPage />
               </Shell>
             </RequireAuth>
           }

@@ -152,6 +152,61 @@ export interface ReconcileWire {
   }>
 }
 
+// ---------------------------------------------------------------------------
+// 采购 / 销售订单
+// ---------------------------------------------------------------------------
+
+export type TradeOrderTypeValue = 'purchase' | 'sales'
+export type TradeOrderStatusValue = 'draft' | 'confirmed' | 'completed' | 'cancelled'
+
+export interface OrderWire {
+  id: string
+  orderNo: string
+  orderType: TradeOrderTypeValue
+  partnerId: string
+  partnerName: string
+  materialId: string
+  specId: string
+  specSnapshot: SpecCalculationSnapshot
+  orderedUnit: string
+  orderedValue: string
+  quantityM: string
+  weightKg: string
+  areaM2: string
+  unitPrice: string | null
+  totalAmount: string | null
+  status: TradeOrderStatusValue
+  /** 交期 YYYY-MM-DD */
+  expectedDate: string | null
+  remark: string | null
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export const ORDER_TYPE_LABEL: Record<TradeOrderTypeValue, string> = {
+  purchase: '采购订单',
+  sales: '销售订单',
+}
+
+export const ORDER_TYPE_OPTIONS = (Object.keys(ORDER_TYPE_LABEL) as TradeOrderTypeValue[]).map((k) => ({
+  value: k,
+  label: ORDER_TYPE_LABEL[k],
+}))
+
+export const ORDER_STATUS_LABEL: Record<TradeOrderStatusValue, { text: string; color: string }> = {
+  draft: { text: '草稿', color: 'default' },
+  confirmed: { text: '已确认', color: 'blue' },
+  completed: { text: '已完成', color: 'green' },
+  cancelled: { text: '已取消', color: 'red' },
+}
+
+/** 订单建议录入单位：采购多按重量，销售多按面积（与三算单据一致） */
+export const ORDER_SUGGESTED_UNITS: Record<TradeOrderTypeValue, string[]> = {
+  purchase: ['kg', 'g', 't'],
+  sales: ['m2', 'ft2'],
+}
+
 /** 往来单位（供应商 / 客户）线类型 */
 export type PartnerTypeValue = 'supplier' | 'customer' | 'both'
 export type PartnerStatusValue = 'active' | 'disabled'
@@ -185,6 +240,10 @@ export const PERM = {
   ROLE_MANAGE: 'role.manage',
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_MANAGE: 'inventory.manage',
+  PURCHASE_VIEW: 'purchase.view',
+  PURCHASE_MANAGE: 'purchase.manage',
+  SALES_VIEW: 'sales.view',
+  SALES_MANAGE: 'sales.manage',
   AUDIT_VIEW: 'audit.view',
 } as const
 
