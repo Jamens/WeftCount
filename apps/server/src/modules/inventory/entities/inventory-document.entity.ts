@@ -31,6 +31,7 @@ export type InventoryDocType = 'purchase_inbound' | 'production_issue' | 'sales_
 @Index('idx_docs_no_company', ['docNo', 'companyId'], { unique: true })
 @Index('idx_docs_spec', ['companyId', 'specId'])
 @Index('idx_docs_partner', ['companyId', 'partnerId'])
+@Index('idx_docs_order', ['companyId', 'orderId'])
 export class InventoryDocumentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string
@@ -101,6 +102,14 @@ export class InventoryDocumentEntity {
   /** 往来单位名称快照，锁死开单时的抬头（partner 改名不影响历史单据） */
   @Column({ type: 'varchar', length: 128, nullable: true })
   partnerName!: string | null
+
+  /**
+   * 关联的订单 id（trade_orders.id），可空。
+   * 采购入库/销售出库可挂到「已确认」订单上，累加履约量；满额订单自动转已完成。
+   * 生产领用为内部转移，不挂订单。
+   */
+  @Column({ type: 'char', length: 36, nullable: true })
+  orderId!: string | null
 
   /** 经办人 */
   @Column({ type: 'char', length: 36 })

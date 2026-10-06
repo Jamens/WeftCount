@@ -10,6 +10,7 @@ import {
   Input,
   InputNumber,
   Popconfirm,
+  Progress,
   Select,
   Space,
   Table,
@@ -21,6 +22,7 @@ import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import { useLookups } from '../lib/lookups'
 import {
+  DOC_TYPE_LABEL,
   ORDER_STATUS_LABEL,
   ORDER_SUGGESTED_UNITS,
   ORDER_TYPE_LABEL,
@@ -29,6 +31,7 @@ import {
   fmt,
   fmtMoney,
   type OrderWire,
+  type OrderDetail,
   type PartnerWire,
   type TradeOrderStatusValue,
   type TradeOrderTypeValue,
@@ -59,12 +62,22 @@ export default function OrderPage() {
   const [orderType, setOrderType] = useState<TradeOrderTypeValue | undefined>()
   const [status, setStatus] = useState<TradeOrderStatusValue | undefined>()
   const [keyword, setKeyword] = useState('')
-  const [detail, setDetail] = useState<OrderWire | null>(null)
+  const [detail, setDetail] = useState<OrderDetail | null>(null)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<OrderWire | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [partners, setPartners] = useState<PartnerWire[]>([])
   const [form] = Form.useForm<OrderForm>()
+
+  // 点行看详情：拉订单详情（含已关联履约单据与进度）
+  const openDetail = async (id: string) => {
+    try {
+      const res = await api.get<OrderDetail>(`/orders/${id}`)
+      setDetail(res.data.data)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '加载订单详情失败')
+    }
+  }
 
   const formType: TradeOrderTypeValue =
     (Form.useWatch('orderType', form) as TradeOrderTypeValue | undefined) ?? orderType ?? 'purchase'
@@ -238,7 +251,7 @@ export default function OrderPage() {
           size="small"
           loading={loading}
           dataSource={data}
-          onRow={(r) => ({ onClick: () => setDetail(r) })}
+          onRow={(r) => ({ onClick: () => void openDetail(r.id) })}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
           columns={[
             { title: '订单号', dataIndex: 'orderNo', width: 150 },
@@ -314,26 +327,72 @@ export default function OrderPage() {
       </Card>
 
       {/* 详情抽屉 */}
-      <Drawer title="订单详情" width={480} open={detail !== null} onClose={() => setDetail(null)}>
+      <Drawer title="订单详情" width={520} open={detail !== null} onClose={() => setDetail(null)}>
         {detail && (
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="订单号">{detail.orderNo}</Descriptions.Item>
-            <Descriptions.Item label="类型">{ORDER_TYPE_LABEL[detail.orderType]}</Descriptions.Item>
-            <Descriptions.Item label="往来单位">{detail.partnerName}</Descriptions.Item>
-            <Descriptions.Item label="物料">{materialName(detail.materialId)}</Descriptions.Item>
-            <Descriptions.Item label="规格">{specName(detail.specId)}</Descriptions.Item>
-            <Descriptions.Item label="订货量">
-              {fmt(detail.orderedValue, 2)} {detail.orderedUnit}
-            </Descriptions.Item>
-            <Descriptions.Item label="折算米">{fmt(detail.quantityM, 2)} m</Descriptions.Item>
-            <Descriptions.Item label="折算重量">{fmt(detail.weightKg, 2)} kg</Descriptions.Item>
-            <Descriptions.Item label="折算面积">{fmt(detail.areaM2, 2)} m²</Descriptions.Item>
-            <Descriptions.Item label="单价">{detail.unitPrice == null ? '-' : `${fmtMoney(detail.unitPrice)}/m`}</Descriptions.Item>
-            <Descriptions.Item label="金额">{detail.totalAmount == null ? '-' : fmtMoney(detail.totalAmount)}</Descriptions.Item>
-            <Descriptions.Item label="交期">{detail.expectedDate ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="状态">{statusTag(detail.status)}</Descriptions.Item>
-            <Descriptions.Item label="备注">{detail.remark ?? '-'}</Descriptions.Item>
-          </Descriptions>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label="订单号">{detail.order.orderNo}</Descriptions.Item>
+              <Descriptions.Item label="类型">{ORDER_TYPE_LABEL[detail.order.orderType]}</Descriptions.Item>
+              <Descriptions.Item label="往来单位">{detail.order.partnerName}</Descriptions.Item>
+              <Descriptions.Item label="物料">{materialName(detail.order.materialId)}</Descriptions.Item>
+              <Descriptions.Item label="规格">{specName(detail.order.specId)}</Descriptions.Item>
+              <Descriptions.Item label="订货量">
+                {fmt(detail.order.orderedValue, 2)} {detail.order.orderedUnit}
+              </Descriptions.Item>
+              <Descriptions.Item label="折算米">{fmt(detail.order.quantityM, 2)} m</Descriptions.Item>
+              <Descriptions.Item label="折算重量">{fmt(detail.order.weightKg, 2)} kg</Descriptions.Item>
+              <Descriptions.Item label="折算面积">{fmt(detail.order.areaM2, 2)} m²</Descriptions.Item>
+              <Descriptions.Item label="单价">
+                {detail.order.unitPrice == null ? '-' : `${fmtMoney(detail.order.unitPrice)}/m`}
+              </Descriptions.Item>
+              <Descriptions.Item label="金额">
+                {detail.order.totalAmount == null ? '-' : fmtMoney(detail.order.totalAmount)}
+              </Descriptions.Item>
+              <Descriptions.Item label="交期">{detail.order.expectedDate ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="状态">{statusTag(detail.order.status)}</Descriptions.Item>
+              <Descriptions.Item label="备注">{detail.order.remark ?? '-'}</Descriptions.Item>
+            </Descriptions>
+
+            <Card size="small" title="履约进度">
+              <Progress
+                percent={Math.round(detail.progressPct)}
+                status={detail.progressPct >= 100 ? 'success' : 'active'}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {detail.order.orderType === 'purchase' ? '已到货' : '已发货'} {fmt(detail.fulfilledM, 2)} m / 订单{' '}
+                {fmt(detail.orderedM, 2)} m
+              </Text>
+            </Card>
+
+            <Card size="small" title={`已关联单据（${detail.documents.length}）`}>
+              {detail.documents.length === 0 ? (
+                <Text type="secondary">暂无关联单据</Text>
+              ) : (
+                <Table
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  dataSource={detail.documents}
+                  columns={[
+                    { title: '单据号', dataIndex: 'docNo', width: 150 },
+                    {
+                      title: '类型',
+                      dataIndex: 'docType',
+                      width: 90,
+                      render: (v: keyof typeof DOC_TYPE_LABEL) => DOC_TYPE_LABEL[v]?.text ?? v,
+                    },
+                    {
+                      title: '数量',
+                      dataIndex: 'quantityM',
+                      width: 90,
+                      align: 'right',
+                      render: (v: string) => `${fmt(v, 1)} m`,
+                    },
+                  ]}
+                />
+              )}
+            </Card>
+          </Space>
         )}
       </Drawer>
 

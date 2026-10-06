@@ -40,9 +40,9 @@ export class OrderController {
 
   @Get(':id')
   @RequirePermission(Permission.PURCHASE_VIEW, Permission.SALES_VIEW)
-  @ApiOperation({ summary: '查询订单详情' })
-  findOne(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<TradeOrderEntity> {
-    return this.svc.findOne(ctx.tenantId, ctx.companyId, id)
+  @ApiOperation({ summary: '查询订单详情（含已关联履约单据与进度）' })
+  findOne(@CurrentUser() ctx: RequestContext, @Param('id') id: string) {
+    return this.svc.getDetail(ctx.tenantId, ctx.companyId, id)
   }
 
   @Patch(':id')

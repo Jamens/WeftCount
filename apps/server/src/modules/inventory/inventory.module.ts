@@ -7,6 +7,7 @@ import { InventoryTransactionEntity } from './entities/inventory-transaction.ent
 import { InventoryDocumentEntity } from './entities/inventory-document.entity'
 import { MaterialModule } from '../material/material.module'
 import { PartnerModule } from '../partner/partner.module'
+import { OrderModule } from '../order/order.module'
 import { AuthModule } from '../auth/auth.module'
 
 @Module({
@@ -14,6 +15,7 @@ import { AuthModule } from '../auth/auth.module'
     TypeOrmModule.forFeature([InventoryBatchEntity, InventoryTransactionEntity, InventoryDocumentEntity]),
     MaterialModule,
     PartnerModule,
+    OrderModule,
     AuthModule,
   ],
   controllers: [InventoryController],

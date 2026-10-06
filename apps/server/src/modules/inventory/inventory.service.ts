@@ -12,6 +12,7 @@ import {
 } from '@weftcount/shared'
 import { MaterialService } from '../material/material.service'
 import { PartnerService } from '../partner/partner.service'
+import { OrderService } from '../order/order.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { InventoryTransactionEntity } from './entities/inventory-transaction.entity'
 import { InventoryDocumentEntity, type InventoryDocType } from './entities/inventory-document.entity'
@@ -39,6 +40,8 @@ export interface CreateDocInput {
   unitPrice?: number | null
   /** 往来单位 id（采购=供应商，销售=客户，领用不传） */
   partnerId?: string | null
+  /** 关联订单 id（采购/销售可挂已确认订单，满额自动完成；领用不传） */
+  orderId?: string | null
   remark?: string | null
 }
 
@@ -62,6 +65,7 @@ export class InventoryService {
     private readonly docs: Repository<InventoryDocumentEntity>,
     private readonly materials: MaterialService,
     private readonly partners: PartnerService,
+    private readonly orders: OrderService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -190,6 +194,40 @@ export class InventoryService {
     return { partnerId: p.id, partnerName: p.name }
   }
 
+  /**
+   * 校验「单据挂订单」：生产领用不挂订单（多传报错）；采购/销售传了就必须是
+   * 可履约的已确认订单，且往来单位/物料/规格与订单一致。返回 orderId 供落库。
+   */
+  private async validateOrderLink(
+    ctx: { tenantId: string; companyId: string },
+    orderId: string | null | undefined,
+    docType: InventoryDocType,
+    partnerId: string,
+    materialId: string,
+    specId: string,
+  ): Promise<string | null> {
+    if (docType === 'production_issue') {
+      if (orderId) {
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '生产领用为内部转移，不关联订单',
+        })
+      }
+      return null
+    }
+    if (!orderId) return null
+    await this.orders.validateLink(
+      ctx.tenantId,
+      ctx.companyId,
+      orderId,
+      docType,
+      partnerId,
+      materialId,
+      specId,
+    )
+    return orderId
+  }
+
   // ---------------------------------------------------------------------------
   // 采购入库（按重量）
   // ---------------------------------------------------------------------------
@@ -219,8 +257,11 @@ export class InventoryService {
     const docNo = await this.nextDocNo(ctx.companyId, 'purchase_inbound')
     const batchNo = await this.nextBatchNo(ctx.companyId)
     const partner = await this.resolvePartner(ctx, input.partnerId, 'purchase_inbound')
+    const orderId = await this.validateOrderLink(
+      ctx, input.orderId, 'purchase_inbound', partner.partnerId as string, input.materialId, input.specId,
+    )
 
-    return this.dataSource.transaction(async (manager) => {
+    const savedDoc = await this.dataSource.transaction(async (manager) => {
       const batch = manager.create(InventoryBatchEntity, {
         tenantId: ctx.tenantId,
         companyId: ctx.companyId,
@@ -260,6 +301,7 @@ export class InventoryService {
         totalAmount: input.unitPrice != null ? num(input.unitPrice * meters, 2) : null,
         partnerId: partner.partnerId,
         partnerName: partner.partnerName,
+        orderId,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
       })
@@ -292,6 +334,12 @@ export class InventoryService {
 
       return savedDoc
     })
+
+    // 事务提交后再回写订单履约进度（挂单才需要；满额订单会自动转已完成）
+    if (orderId) {
+      await this.orders.recomputeFulfillment(ctx.tenantId, ctx.companyId, orderId)
+    }
+    return savedDoc
   }
 
   // ---------------------------------------------------------------------------
@@ -405,8 +453,11 @@ export class InventoryService {
     const snapshot = this.materials.getSnapshot(spec)
     const widthCm = Number(spec.finishedWidth)
     const partner = await this.resolvePartner(ctx, input.partnerId, docType)
+    const orderId = await this.validateOrderLink(
+      ctx, input.orderId, docType, partner.partnerId ?? '', input.materialId, input.specId,
+    )
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       const plan = await this.planConsumption(manager, ctx, input, snapshot, widthCm)
       const docNo = await this.nextDocNo(ctx.companyId, docType)
       const doc = manager.create(InventoryDocumentEntity, {
@@ -427,13 +478,19 @@ export class InventoryService {
         totalAmount: input.unitPrice != null ? num(input.unitPrice * plan.totalM, 2) : null,
         partnerId: partner.partnerId,
         partnerName: partner.partnerName,
+        orderId,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
       })
-      const saved = await manager.save(doc)
-      await this.executeConsumption(manager, ctx, saved.id, txnType, input, plan)
-      return saved
+      const savedDoc = await manager.save(doc)
+      await this.executeConsumption(manager, ctx, savedDoc.id, txnType, input, plan)
+      return savedDoc
     })
+
+    if (orderId) {
+      await this.orders.recomputeFulfillment(ctx.tenantId, ctx.companyId, orderId)
+    }
+    return saved
   }
 
   /** 生产领用（按长度录入） */

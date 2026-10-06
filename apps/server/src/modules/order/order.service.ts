@@ -10,6 +10,7 @@ import {
 } from '@weftcount/shared'
 import { TradeOrderEntity, type TradeOrderStatus, type TradeOrderType } from './entities/trade-order.entity'
 import type { CreateOrderDto, OrderFilterDto, UpdateOrderDto } from './order.dto'
+import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
 import { MaterialService } from '../material/material.service'
 import { PartnerService } from '../partner/partner.service'
 
@@ -17,6 +18,12 @@ import { PartnerService } from '../partner/partner.service'
 const ORDER_PREFIX: Record<TradeOrderType, string> = {
   purchase: 'PO',
   sales: 'SO',
+}
+
+/** 订单类型 ←→ 可履约的单据类型（采购订单由采购入库履约，销售订单由销售出库履约） */
+const FULFILL_DOC_TYPE: Record<TradeOrderType, 'purchase_inbound' | 'sales_outbound'> = {
+  purchase: 'purchase_inbound',
+  sales: 'sales_outbound',
 }
 
 /** 允许的状态流转 */
@@ -37,6 +44,8 @@ export class OrderService {
   constructor(
     @InjectRepository(TradeOrderEntity)
     private readonly orders: Repository<TradeOrderEntity>,
+    @InjectRepository(InventoryDocumentEntity)
+    private readonly docs: Repository<InventoryDocumentEntity>,
     private readonly materials: MaterialService,
     private readonly partners: PartnerService,
   ) {}
@@ -233,5 +242,89 @@ export class OrderService {
     }
     o.status = to
     return this.orders.save(o)
+  }
+
+  // -------------------------------------------------------------------------
+  // 履约：单据 ↔ 订单联动
+  // -------------------------------------------------------------------------
+
+  /**
+   * 校验「单据挂订单」是否合法（创建采购入库/销售出库时调用）。
+   * 关联单据必须与订单严格对应，否则履约进度没有意义：
+   *   - 类型匹配：采购订单↔采购入库、销售订单↔销售出库
+   *   - 状态可履约：仅「已确认」订单可挂单（草稿未确认、已完成/已取消不再收单）
+   *   - 往来单位、物料、规格须与订单一致（防止给 A 供应商的订单记 B 的货）
+   */
+  async validateLink(
+    tenantId: string,
+    companyId: string,
+    orderId: string,
+    docType: 'purchase_inbound' | 'sales_outbound',
+    partnerId: string,
+    materialId: string,
+    specId: string,
+  ): Promise<TradeOrderEntity> {
+    const o = await this.findOne(tenantId, companyId, orderId)
+    if (FULFILL_DOC_TYPE[o.orderType] !== docType) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `订单类型不匹配：${ORDER_PREFIX[o.orderType]} 订单不能由${
+          docType === 'purchase_inbound' ? '采购入库' : '销售出库'
+        }单履约`,
+      })
+    }
+    if (o.status !== 'confirmed') {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `订单当前为「${o.status}」，仅「已确认」订单可关联单据`,
+      })
+    }
+    if (o.partnerId !== partnerId) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `往来单位与订单不一致（订单为「${o.partnerName}」）`,
+      })
+    }
+    if (o.materialId !== materialId || o.specId !== specId) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '物料/规格与订单不一致',
+      })
+    }
+    return o
+  }
+
+  /**
+   * 汇总某订单的已履约量（关联单据的折米合计），满额自动把订单推为「已完成」。
+   * 单据不可编辑/删除，履约量只增不减，因此满额即完成是安全的。
+   * 返回履约进度供调用方（创建单据后 / 订单详情）使用。
+   */
+  async recomputeFulfillment(
+    tenantId: string,
+    companyId: string,
+    orderId: string,
+  ): Promise<{ fulfilledM: number; orderedM: number; progressPct: number; documents: InventoryDocumentEntity[] }> {
+    const o = await this.findOne(tenantId, companyId, orderId)
+    const documents = await this.docs.find({
+      where: { tenantId, companyId, orderId },
+      order: { createdAt: 'ASC' },
+    })
+    const fulfilledM = documents.reduce((sum, d) => sum + Number(d.quantityM), 0)
+    const orderedM = Number(o.quantityM)
+    const progressPct = orderedM > 0 ? Math.min((fulfilledM / orderedM) * 100, 100) : 0
+
+    // 满额（留 1cm 容差防浮点/进位误判）且仍为已确认 → 自动完成
+    if (o.status === 'confirmed' && fulfilledM >= orderedM - 0.01) {
+      o.status = 'completed'
+      await this.orders.save(o)
+    }
+    return { fulfilledM, orderedM, progressPct, documents }
+  }
+
+  /** 订单详情：含已关联的履约单据与进度 */
+  async getDetail(tenantId: string, companyId: string, id: string) {
+    const order = await this.findOne(tenantId, companyId, id)
+    const { fulfilledM, orderedM, progressPct, documents } = await this.recomputeFulfillment(tenantId, companyId, id)
+    return { order, fulfilledM, orderedM, progressPct, documents }
   }
 }

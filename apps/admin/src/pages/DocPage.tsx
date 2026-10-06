@@ -27,6 +27,7 @@ import {
   SUGGESTED_UNITS,
   type DocWire,
   type InventoryDocType,
+  type OrderWire,
   type PartnerWire,
   type TxnWire,
 } from '../lib/erp'
@@ -41,6 +42,7 @@ interface DocForm {
   enteredValue: number
   unitPrice?: number
   partnerId?: string
+  orderId?: string
   remark?: string
 }
 
@@ -80,6 +82,32 @@ export default function DocPage() {
       .filter((p) => (wantSupplier ? p.type === 'supplier' || p.type === 'both' : p.type === 'customer' || p.type === 'both'))
       .map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))
   }, [partners, creating])
+
+  // 已确认订单下拉（用于把本单挂到订单上累计履约）：采购单挂采购订单、销售单挂销售订单
+  const [orders, setOrders] = useState<OrderWire[]>([])
+  useEffect(() => {
+    api
+      .get<OrderWire[]>('/orders?status=confirmed')
+      .then((res) => setOrders(res.data.data))
+      .catch(() => setOrders([]))
+  }, [])
+
+  const orderOptions = useMemo(() => {
+    if (!creating || creating === 'production_issue') return []
+    const want = creating === 'purchase_inbound' ? 'purchase' : 'sales'
+    return orders
+      .filter((o) => o.orderType === want)
+      .map((o) => ({ value: o.id, label: `${o.orderNo} ${o.partnerName}（${fmt(o.quantityM, 0)}m）` }))
+  }, [orders, creating])
+
+  // 选中订单自动带出往来单位/物料/规格，省去重复选择、也保证与订单一致（后端会强校验）
+  const onOrderChange = (orderId?: string) => {
+    form.setFieldValue('orderId', orderId)
+    const o = orders.find((x) => x.id === orderId)
+    if (o) {
+      form.setFieldsValue({ partnerId: o.partnerId, materialId: o.materialId, specId: o.specId })
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -133,6 +161,7 @@ export default function DocPage() {
         enteredValue: v.enteredValue,
         unitPrice: v.unitPrice ?? null,
         partnerId: v.partnerId ?? null,
+        orderId: v.orderId ?? null,
         remark: v.remark ?? null,
       })
       message.success(`已保存${DOC_TYPE_LABEL[creating].text}单据`)
@@ -388,6 +417,18 @@ export default function DocPage() {
               <Form.Item name="unitPrice" label="单价（元/米，可选）">
                 <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="可选" />
               </Form.Item>
+              {creating && creating !== 'production_issue' && (
+                <Form.Item name="orderId" label="关联订单（可选，选后自动带出往来单位/物料/规格）">
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="选择已确认订单以累计履约"
+                    optionFilterProp="label"
+                    options={orderOptions}
+                    onChange={onOrderChange}
+                  />
+                </Form.Item>
+              )}
               {creating && creating !== 'production_issue' && (
                 <Form.Item
                   name="partnerId"

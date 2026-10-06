@@ -33,6 +33,11 @@ class CreateDocDto implements CreateDocInput {
   @IsString()
   partnerId?: string | null
 
+  /** 关联订单（采购/销售可挂已确认订单；领用不传） */
+  @IsOptional()
+  @IsString()
+  orderId?: string | null
+
   @IsOptional()
   @IsString()
   @MaxLength(255)

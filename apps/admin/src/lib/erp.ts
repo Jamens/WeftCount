@@ -104,6 +104,7 @@ export interface DocWire {
   totalAmount: string | null
   partnerId: string | null
   partnerName: string | null
+  orderId: string | null
   operatorId: string
   remark: string | null
   createdAt: string
@@ -182,6 +183,19 @@ export interface OrderWire {
   version: number
   createdAt: string
   updatedAt: string
+}
+
+/** 订单详情（含已关联的履约单据与进度） */
+export interface OrderDetail {
+  order: OrderWire
+  /** 已履约折米 */
+  fulfilledM: number
+  /** 订单折米 */
+  orderedM: number
+  /** 履约进度百分比 0~100 */
+  progressPct: number
+  /** 已关联的入库/出库单 */
+  documents: DocWire[]
 }
 
 export const ORDER_TYPE_LABEL: Record<TradeOrderTypeValue, string> = {
