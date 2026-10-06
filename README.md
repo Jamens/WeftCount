@@ -637,6 +637,12 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 - 涉及金额与数量的计算一律走 `packages/shared` 的领域函数，业务层不重复实现
 - 工艺公式改动必须同步更新 `packages/shared/src/__tests__/weave-math.test.ts`
 - 新增行业公式必须做**至少两路独立推导交叉验证**，并用行业标准值（如 40S → 14.76 Tex）校验
+- **加迁移后必须对所有在用数据库各跑一次** `migration:run`（不能只跑测试库）。
+  用 `migration:show` 确认没有 `[ ]`——漏跑的表现是接口 500（Unknown column）
+- **判断「某功能有没有」不许凭记忆，跑 `node scripts/feature-scan.mjs [关键词]`**。
+  开发中反复出现「以为没做其实早做了」（补货点、大屏轮询）或
+  「以为做了其实断在别处」（`audit/target` 有端点但 targetType 缺失导致永查不到）。
+  **有端点 ≠ 有功能**，要看整条链路是否通
 
 ## 本机环境适配说明
 
