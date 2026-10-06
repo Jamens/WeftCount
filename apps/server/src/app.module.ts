@@ -10,6 +10,7 @@ import { AuditModule } from './modules/audit/audit.module'
 import { AuditInterceptor } from './modules/audit/audit.interceptor'
 import { MaterialModule } from './modules/material/material.module'
 import { InventoryModule } from './modules/inventory/inventory.module'
+import { PartnerModule } from './modules/partner/partner.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -42,6 +43,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     AuditModule,
     MaterialModule,
     InventoryModule,
+    PartnerModule,
   ],
   controllers: [HealthController],
   providers: [

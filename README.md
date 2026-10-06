@@ -323,13 +323,24 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 接口：`POST /inventory/{purchase-inbound,production-issue,sales-outbound}`、
 `GET /inventory/{batches,documents,transactions,reconcile}`。
 
+### 往来单位（供应商 / 客户）
+
+采购与销售单据的 `counterparty` 指向此主数据。隔离维度与物料一致（`tenant_id` + `company_id`），编码在公司内唯一。
+
+- 实体 `partners`，迁移 `1730400000000-CreatePartner`
+- 接口：`GET/POST /partners`、`GET/PATCH /partners/:id`、`POST /partners/:id/disable`
+- 编码规则：固定前缀 `P` + 4 位流水（如 `P0001`），类型可改为「供应商兼客户」而不必换编码
+- 权限门控：`partner.view`（读）/ `partner.edit`（写），内置角色 `company_admin`、`tenant_owner` 已含
+- 种子数据：演示租户下预置 3 个往来单位（绍兴金辉棉纺 / 杭州天成服装 / 宁波华联供应链）
+
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `inventory.view` / `inventory.manage`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `inventory.view` / `inventory.manage`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
 | 物料主数据 | `/materials` | 列表（关键字/大类/状态筛选）、抽屉新建、停用 |
+| 往来单位 | `/partners` | 供应商/客户档案：列表（关键字/类型/状态筛选）、新建、编辑、停用；编码 `P+流水` 自动生成 |
 | 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |
 | 库存批次 | `/inventory/batches` | 列表（规格/状态筛选），米 + 公斤 + 平方米三视图 |
 | 三算单据 | `/inventory/documents` | 采购入库 / 生产领用 / 销售出库 三种单据新建 + 详情（折算三视图与关联交易流水） |

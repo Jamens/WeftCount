@@ -10,6 +10,7 @@ import {
   SwapOutlined,
   UserOutlined,
   AppstoreOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -18,6 +19,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AuditLogPage from './pages/AuditLogPage'
 import MaterialPage from './pages/MaterialPage'
+import PartnerPage from './pages/PartnerPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -68,6 +70,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.AUDIT_VIEW)
       ? [{ key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' }]
+      : []),
+    ...(hasPermission(PERM.PARTNER_VIEW)
+      ? [{ key: '/partners', icon: <TeamOutlined />, label: '往来单位' }]
       : []),
     { key: 'placeholder-m2', icon: <SettingOutlined />, label: '系统设置（建设中）', disabled: true },
   ]
@@ -215,6 +220,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <SpecPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/partners"
+          element={
+            <RequireAuth>
+              <Shell>
+                <PartnerPage />
               </Shell>
             </RequireAuth>
           }

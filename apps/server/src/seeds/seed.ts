@@ -6,6 +6,7 @@ import { TenantEntity } from '../modules/tenant/entities/tenant.entity'
 import { CompanyEntity } from '../modules/tenant/entities/company.entity'
 import { RoleEntity } from '../modules/auth/entities/role.entity'
 import { UserEntity } from '../modules/auth/entities/user.entity'
+import { PartnerEntity } from '../modules/partner/entities/partner.entity'
 
 /**
  * 种子数据：创建一个演示租户 + 一个工厂 + 九个内置角色 + 三类演示账号
@@ -18,6 +19,7 @@ export async function seed(ds: DataSource): Promise<void> {
   const companies = ds.getRepository(CompanyEntity)
   const roles = ds.getRepository(RoleEntity)
   const users = ds.getRepository(UserEntity)
+  const partners = ds.getRepository(PartnerEntity)
 
   const TENANT_CODE = 'demo'
   let tenant = await tenants.findOne({ where: { code: TENANT_CODE } })
@@ -117,4 +119,59 @@ export async function seed(ds: DataSource): Promise<void> {
     )
   }
   console.log(`[seed] 演示账号就绪（${demoUsers.length} 个，密码 ${demoPassword}）`)
+
+  // 演示往来单位：1 供应商 + 1 客户 + 1 供应商兼客户
+  const demoPartners = [
+    {
+      code: 'P0001',
+      name: '绍兴金辉棉纺有限公司',
+      type: 'supplier' as const,
+      contact: '陈经理',
+      phone: '0575-66001122',
+      taxNo: '91330621MA2BXXXX2B',
+      address: '浙江省绍兴市柯桥区轻纺城',
+      bankName: '工行绍兴柯桥支行',
+      bankAccount: '6212261210001234567',
+      remark: '主营全棉/涤棉纱线',
+    },
+    {
+      code: 'P0002',
+      name: '杭州天成服装贸易有限公司',
+      type: 'customer' as const,
+      contact: '周总',
+      phone: '0571-88007766',
+      taxNo: '91330106MA2CXXXX3C',
+      address: '浙江省杭州市西湖区',
+      bankName: '建行杭州西湖支行',
+      bankAccount: '6227001210007654321',
+      remark: '坯布长期采购方',
+    },
+    {
+      code: 'P0003',
+      name: '宁波华联纺织供应链',
+      type: 'both' as const,
+      contact: '吴经理',
+      phone: '0574-55001234',
+      taxNo: '91330212MA2DXXXX4D',
+      address: '浙江省宁波市鄞州区',
+      bankName: '中行宁波鄞州支行',
+      bankAccount: '6216601210003456789',
+      remark: '既供纱线也收坯布',
+    },
+  ]
+
+  for (const p of demoPartners) {
+    const exists = await partners.findOne({ where: { companyId: company.id, code: p.code } })
+    if (exists) continue
+    await partners.save(
+      partners.create({
+        id: randomUUID(),
+        tenantId: tenant.id,
+        companyId: company.id,
+        ...p,
+        status: 'active',
+      }),
+    )
+  }
+  console.log(`[seed] 演示往来单位就绪（${demoPartners.length} 个）`)
 }

@@ -151,10 +151,33 @@ export interface ReconcileWire {
   }>
 }
 
+/** 往来单位（供应商 / 客户）线类型 */
+export type PartnerTypeValue = 'supplier' | 'customer' | 'both'
+export type PartnerStatusValue = 'active' | 'disabled'
+
+export interface PartnerWire {
+  id: string
+  code: string
+  name: string
+  type: PartnerTypeValue
+  contact: string | null
+  phone: string | null
+  taxNo: string | null
+  address: string | null
+  bankName: string | null
+  bankAccount: string | null
+  status: PartnerStatusValue
+  remark: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 /** 权限码（与后端 Permission 保持一致，前端仅做菜单/按钮门控） */
 export const PERM = {
   MATERIAL_VIEW: 'material.view',
   MATERIAL_EDIT: 'material.edit',
+  PARTNER_VIEW: 'partner.view',
+  PARTNER_EDIT: 'partner.edit',
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_MANAGE: 'inventory.manage',
   AUDIT_VIEW: 'audit.view',
@@ -238,4 +261,20 @@ export const SUGGESTED_UNITS: Record<InventoryDocType, string[]> = {
   purchase_inbound: ['kg', 'g', 't'],
   production_issue: ['m', 'yd'],
   sales_outbound: ['m2', 'ft2'],
+}
+
+export const PARTNER_TYPE_LABEL: Record<PartnerTypeValue, string> = {
+  supplier: '供应商',
+  customer: '客户',
+  both: '供应商兼客户',
+}
+
+export const PARTNER_TYPE_OPTIONS = (Object.keys(PARTNER_TYPE_LABEL) as PartnerTypeValue[]).map((k) => ({
+  value: k,
+  label: PARTNER_TYPE_LABEL[k],
+}))
+
+export const PARTNER_STATUS_LABEL: Record<PartnerStatusValue, { text: string; color: string }> = {
+  active: { text: '启用', color: 'green' },
+  disabled: { text: '停用', color: 'default' },
 }

@@ -73,6 +73,8 @@ export const api = {
     instance.post<ApiSuccess<T>>(url, data, config),
   put: <T,>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     instance.put<ApiSuccess<T>>(url, data, config),
+  patch: <T,>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+    instance.patch<ApiSuccess<T>>(url, data, config),
   delete: <T,>(url: string, config?: AxiosRequestConfig) =>
     instance.delete<ApiSuccess<T>>(url, config),
 }
