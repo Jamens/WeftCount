@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   App as AntdApp,
   Button,
   Layout,
   Menu,
+  Result,
+  Spin,
   Space,
   Tag,
   Tooltip,
@@ -75,12 +77,16 @@ export default function App() {
   }, [authed])
 
   // 权限就绪后，若当前页无权访问，自动落到第一个有权的页面
+  // 有权的车间视图；权限未加载时为空数组
+  const allowedViews = useMemo(
+    () => (session ? (Object.keys(VIEW_PERM) as View[]).filter((v) => sessionStore.has(VIEW_PERM[v])) : []),
+    [session]
+  )
+  // 渲染前就落到有权的视图：只靠 effect 后置切换会先渲染一次无权页再切，仍会撞 403
+  const safeView: View = session && sessionStore.has(VIEW_PERM[view]) ? view : (allowedViews[0] ?? view)
   useEffect(() => {
-    if (!session) return
-    if (sessionStore.has(VIEW_PERM[view])) return
-    const first = (Object.keys(VIEW_PERM) as View[]).find((v) => sessionStore.has(VIEW_PERM[v]))
-    if (first) setView(first)
-  }, [session, view])
+    if (safeView !== view) setView(safeView)
+  }, [safeView, view])
 
   const onLogout = useCallback(() => {
     authStore.clear()
@@ -161,8 +167,33 @@ export default function App() {
     )
   }
 
+  // 权限尚未加载完：先显示加载态，**不渲染任何车间页**。
+  // 否则会用默认视图(织机报工)抢先发请求，低权限账号(如仓管员无 production.report)
+  // 登录瞬间就撞 403「无权访问，缺少权限」——即使随后兜底切页，错误提示已弹出。
+  if (!session) {
+    return (
+      <AntdApp>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <Spin size="large" tip="加载账号权限…" />
+        </div>
+      </AntdApp>
+    )
+  }
+
+  // 渲染前就落到有权的视图（safeView 在上方已算好，这里不再重复推导）
+  // 权限已加载但一个车间页面都没权限：给出明确提示，而不是渲染无权页再报 403
+  if (allowedViews.length === 0) {
+    return (
+      <AntdApp>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <Result status="403" title="无可访问的车间页面" subTitle="该账号未被授予任何车间权限，请联系管理员在「角色管理」中配置。" />
+        </div>
+      </AntdApp>
+    )
+  }
+
   const page =
-    view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'rollcard' ? <RollCardPage /> : view === 'pick' ? <PickPage /> : view === 'pickin' ? <PickInPage /> : <ScanPage />
+    safeView === 'report' ? <ReportPage /> : safeView === 'board' ? <BoardPage /> : safeView === 'label' ? <LabelPage /> : safeView === 'rollcard' ? <RollCardPage /> : safeView === 'pick' ? <PickPage /> : safeView === 'pickin' ? <PickInPage /> : <ScanPage />
 
   return shell(page)
 }
