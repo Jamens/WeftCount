@@ -4,7 +4,6 @@ import { api } from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Text, Paragraph } = Typography
-const { token } = theme.useToken()
 
 interface HealthPayload {
   status: string
@@ -44,6 +43,8 @@ const LAYERS = [
 
 export default function DashboardPage() {
   const permissions = useAuthStore((s) => s.permissions)
+  // useToken 是 Hook，必须在组件体内调用（不可提到模块顶层）
+  const { token } = theme.useToken()
   const [health, setHealth] = useState<HealthPayload | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
