@@ -45,6 +45,7 @@ import AiQuotePage from './pages/AiQuotePage'
 import AiLossPage from './pages/AiLossPage'
 import AiCoefficientPage from './pages/AiCoefficientPage'
 import SupplierCodePage from './pages/SupplierCodePage'
+import AiProductionPage from './pages/AiProductionPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -121,7 +122,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       ? [{ key: '/ai-loss', icon: <ExperimentOutlined />, label: '损耗归因(AI)' }]
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
-      ? [{ key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习(AI)' }]
+      ? [
+          { key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习(AI)' },
+          { key: '/ai-production', icon: <ExperimentOutlined />, label: 'AI 生产助手' },
+        ]
       : []),
     ...(hasPermission(PERM.PRODUCTION_VIEW)
       ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
@@ -352,6 +356,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <AiLossPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ai-production"
+          element={
+            <RequireAuth>
+              <Shell>
+                <AiProductionPage />
               </Shell>
             </RequireAuth>
           }

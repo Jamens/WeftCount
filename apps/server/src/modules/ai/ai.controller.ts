@@ -5,6 +5,8 @@ import { LlmClient } from './llm.client'
 import { PricingService } from './pricing.service'
 import { LossService } from './loss.service'
 import { CoefficientService } from './coefficient.service'
+import { PredictionService } from './prediction.service'
+import { SchedulingService } from './scheduling.service'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'
@@ -33,6 +35,16 @@ class ApplyCoefficientDto {
   factor!: number
 }
 
+class PredictionDto {
+  @IsString() @IsNotEmpty({ message: '请选择规格' })
+  specId!: string
+
+  /** 计划产量（米） */
+  @IsNumber({}, { message: '计划产量必须为数字' })
+  @Min(1, { message: '计划产量必须大于 0' })
+  plannedMeters!: number
+}
+
 @ApiTags('AI 智能')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
@@ -42,6 +54,8 @@ export class AiController {
     private readonly pricing: PricingService,
     private readonly loss: LossService,
     private readonly coefficient: CoefficientService,
+    private readonly prediction: PredictionService,
+    private readonly scheduling: SchedulingService,
     private readonly llm: LlmClient,
   ) {}
 
@@ -80,5 +94,19 @@ export class AiController {
   async applyCoefficient(@CurrentUser() ctx: RequestContext, @Body() dto: ApplyCoefficientDto) {
     await this.coefficient.apply(ctx.tenantId, ctx.companyId, dto)
     return { ok: true }
+  }
+
+  @Post('prediction')
+  @RequirePermission(Permission.PRODUCTION_VIEW)
+  @ApiOperation({ summary: '用料预测：按规格工艺单耗算经/纬纱需求，对比库存给采购缺口 + AI 备料建议' })
+  materialPrediction(@CurrentUser() ctx: RequestContext, @Body() dto: PredictionDto) {
+    return this.prediction.advise(ctx.tenantId, ctx.companyId, dto.specId, dto.plannedMeters)
+  }
+
+  @Get('scheduling')
+  @RequirePermission(Permission.PRODUCTION_VIEW)
+  @ApiOperation({ summary: '排产建议：待排工单按交期(EDD)×机台产能贪心排 + AI 解读' })
+  scheduleSuggestion(@CurrentUser() ctx: RequestContext) {
+    return this.scheduling.advise(ctx.tenantId, ctx.companyId)
   }
 }

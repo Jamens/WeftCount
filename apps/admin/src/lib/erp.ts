@@ -359,6 +359,51 @@ export interface SupplierCodeMappingWire {
   remark: string | null
 }
 
+export interface YarnNeed {
+  role: 'warp' | 'weft'
+  materialId: string | null
+  materialName: string
+  needKg: number
+  stockKg: number
+  gapKg: number
+  pricePerKg: number | null
+}
+
+export interface PredictionData {
+  specId: string
+  specName: string
+  plannedMeters: number
+  warp: YarnNeed
+  weft: YarnNeed
+  totalNeedKg: number
+  totalGapKg: number
+  estPurchaseCost: number | null
+  warpKgPer100m: number
+  weftKgPer100m: number
+}
+
+export interface ScheduleRow {
+  orderId: string
+  orderNo: string
+  specName: string
+  plannedMeters: number
+  machineId: string | null
+  machineName: string | null
+  days: number
+  startDay: number
+  endDay: number
+  dueInDays: number | null
+  meetsDue: boolean | null
+  dailyOutputM: number
+}
+
+export interface ScheduleData {
+  rows: ScheduleRow[]
+  orderCount: number
+  atRiskCount: number
+  machineCount: number
+}
+
 // ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------

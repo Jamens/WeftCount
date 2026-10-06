@@ -516,7 +516,9 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
   - 口径要点：生产领用单存的是**成品当量**不是投纱重，实际投纱重由工艺系数(`warpKgPer100m+weftKgPer100m`)从米数推算；**领用折算已含标准损耗，不能重复扣**。得布率恒>100% 说明投料/产出数据缺口(负损耗会被标记)。
 - **系数自学习**（`ai/coefficient.service.ts`，端点 `GET /ai/coefficients`、`POST /ai/coefficients/apply`）：从历史「生产领用(投料当量米) / 报工(产出米)」反推该规格**实测多耗倍数 F = 领用米/报工米**（>1 = 实际比设计多耗）。建议校准系数 `clamp(F,1,1.6)`（样本≥3 且 F≤1.6 才判可学习），应用后写入规格 `learned_loss_factor`；算工艺快照时按 **`(1+设计损耗)×F−1`** 折算有效损耗率，**反哺成本/用料/三算的确定性引擎**。因数作用在算快照时而非改设计基准，**反复学习不累积漂移**。权限：分析 `production.view`、应用 `material.edit`（带审计）。
   - 这是「AI 反哺确定性计算」的闭环：AI/统计定系数，**数字仍由 `shared` 引擎算**。
-- 前端 `/ai-quote`「智能核价」、`/ai-loss`「损耗归因」、`/ai-coefficient`「系数自学习」。
+- **用料预测**（`ai/prediction.service.ts`，端点 `POST /ai/prediction`）：按规格工艺单耗(含**实测校准系数**) × 计划产量 = 需经/纬纱 kg；对比当前纱线库存(批次 `remainingWeightKg`) → 采购缺口 → 预计采购成本(有价才估)。AI 给备料采购量/时机/价位建议。权限 `production.view`。
+- **排产建议**（`ai/scheduling.service.ts`，端点 `GET /ai/scheduling`）：对未排产(draft)生产工单按**交期升序(EDD)贪心**分配机台——占用天数 = 计划米数 ÷ 该规格日产能(快照 `dailyOutputM`)；机台初始负载含在产/已排工单；产出每单的建议机台/起止天/是否按期 + 逾期风险数。AI 解读排产合理性、点风险给调整建议。权限 `production.view`。
+- 前端 `/ai-quote`「智能核价」、`/ai-loss`「损耗归因」、`/ai-coefficient`「系数自学习」、`/ai-production`「AI 生产助手(用料预测+排产建议)」。
 - **成本口径**复用成本报表引擎(`CostService.specCost`/`salesPriceBand`)，AI 与成本报表数字一致、可对账。
 
 > 后续 AI 能力（可复用本框架）：用料预测、损耗归因、系数自学习、排产建议。
