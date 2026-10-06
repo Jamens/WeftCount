@@ -18,6 +18,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AuditLogPage from './pages/AuditLogPage'
 import MaterialPage from './pages/MaterialPage'
+import SpecPage from './pages/SpecPage'
 import { PERM } from './lib/erp'
 
 const { Text } = Typography
@@ -45,11 +46,13 @@ function Shell({ children }: { children: React.ReactNode }) {
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: '工作台' },
     ...(hasPermission(PERM.MATERIAL_VIEW)
-      ? [{ key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' }]
+      ? [
+          { key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' },
+          { key: '/greige-specs', icon: <AppstoreOutlined />, label: '坯布规格' },
+        ]
       : []),
     ...(hasPermission(PERM.INVENTORY_VIEW)
       ? [
-          { key: 'placeholder-spec', icon: <AppstoreOutlined />, label: '坯布规格（建设中）', disabled: true },
           { key: 'placeholder-batch', icon: <AppstoreOutlined />, label: '库存批次（建设中）', disabled: true },
           { key: 'placeholder-doc', icon: <AppstoreOutlined />, label: '三算单据（建设中）', disabled: true },
           { key: 'placeholder-txn', icon: <AppstoreOutlined />, label: '事务流水（建设中）', disabled: true },
@@ -181,6 +184,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <MaterialPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/greige-specs"
+          element={
+            <RequireAuth>
+              <Shell>
+                <SpecPage />
               </Shell>
             </RequireAuth>
           }
