@@ -361,6 +361,24 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - 订单详情 `GET /orders/:id` 返回 `{ order, fulfilledM, orderedM, progressPct, documents }`；前端订单页展示履约进度条与已关联单据
 - 前端三算单据页新建采购/销售单时可「关联订单（可选）」，选中自动带出往来单位/物料/规格
 
+### 生产管理（阶段四 · 织造命脉）
+
+机台 + 生产工单 + 挡车工报工，构成织造生产的最小闭环。三张表（迁移 `1730800000000-CreateProduction`）：
+
+| 表 | 作用 |
+| --- | --- |
+| `machines` | 机台（织机）主数据，编码 `M+流水`；状态 idle/running/maintenance/retired |
+| `production_orders` | 生产工单（织造任务）：计划产量(米)、指派机台、状态机、累计产出 |
+| `production_reports` | 挡车工报工：本次产出(米)、报工日期、停机分钟/原因 |
+
+- **工单状态机**：`draft → scheduled → in_progress → completed`，`draft/scheduled/in_progress` 可 `cancelled`；**排产/开工前必须已指派机台**（未指派机台的机台不可指派、报废机台不可用）
+- **报工**：针对「已排产/生产中」且已指派机台的工单；产出累加到 `produced_quantity_m`，**首次报工自动转「生产中」，满额（1cm 容差）自动转「已完成」**；报工记录不可编辑/删除，产出只增不减
+- 工单详情 `GET /production-orders/:id` 返回 `{ order, reports, progressPct }`
+- 权限：`production.view`（读）/ `production.order.edit`（建/指派/排产/开工/完成）/ `production.report`（报工）；均已含在内置 `company_admin` 等角色
+- 前端 `/production`：「生产工单」Tab（列表/新建/指派机台/排产/开工/报工弹窗/进度条/报工记录）+「机台」Tab（列表/新建/编辑）
+
+> 报工产出**自动生成坯布入库批次**（`production_in`）尚未做，是下一步——做完「织造产出→坯布库存→销售/领用」才真正全链闭环。
+
 ### 用户 / 角色管理
 
 `users` / `roles` 两表早已存在，但此前只有 `login / me / switch-company / change-password / permissions` 端点，缺管理接口。本次补齐。
@@ -376,13 +394,14 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
 | 物料主数据 | `/materials` | 列表（关键字/大类/状态筛选）、抽屉新建、停用 |
 | 往来单位 | `/partners` | 供应商/客户档案：列表（关键字/类型/状态筛选）、新建、编辑、停用；编码 `P+流水` 自动生成 |
 | 采购/销售订单 | `/orders` | 计划层：类型/状态/关键字筛选、新建、编辑(草稿)、确认/完成/取消、详情看三视图 |
+| 生产管理 | `/production` | 生产工单（指派机台/排产/开工/报工/进度/报工记录）+ 机台主数据 |
 | 用户管理 | `/users` | 列表（含公司/角色名）、新建、编辑资料/状态/公司/角色、重置密码 |
 | 角色管理 | `/roles` | 角色列表（内置/自定义）、新建自定义角色、编辑权限、删除（内置/被引用不可删） |
 | 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |

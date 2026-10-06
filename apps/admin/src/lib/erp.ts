@@ -221,6 +221,75 @@ export const ORDER_SUGGESTED_UNITS: Record<TradeOrderTypeValue, string[]> = {
   sales: ['m2', 'ft2'],
 }
 
+// ---------------------------------------------------------------------------
+// 生产：机台 / 工单 / 报工
+// ---------------------------------------------------------------------------
+
+export type MachineStatusValue = 'idle' | 'running' | 'maintenance' | 'retired'
+export type ProductionOrderStatusValue = 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+
+export interface MachineWire {
+  id: string
+  code: string
+  name: string
+  model: string | null
+  status: MachineStatusValue
+  remark: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProductionOrderWire {
+  id: string
+  orderNo: string
+  materialId: string
+  specId: string
+  specSnapshot: SpecCalculationSnapshot
+  plannedQuantityM: string
+  producedQuantityM: string
+  machineId: string | null
+  status: ProductionOrderStatusValue
+  plannedStartDate: string | null
+  dueDate: string | null
+  remark: string | null
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProductionReportWire {
+  id: string
+  orderId: string
+  machineId: string
+  reportDate: string
+  outputM: string
+  stoppageMinutes: number | null
+  stopReason: string | null
+  operatorId: string
+  createdAt: string
+}
+
+export interface ProductionOrderDetail {
+  order: ProductionOrderWire
+  reports: ProductionReportWire[]
+  progressPct: number
+}
+
+export const MACHINE_STATUS_LABEL: Record<MachineStatusValue, { text: string; color: string }> = {
+  idle: { text: '空闲', color: 'default' },
+  running: { text: '运转中', color: 'green' },
+  maintenance: { text: '维修中', color: 'orange' },
+  retired: { text: '已报废', color: 'red' },
+}
+
+export const PRODUCTION_STATUS_LABEL: Record<ProductionOrderStatusValue, { text: string; color: string }> = {
+  draft: { text: '草稿', color: 'default' },
+  scheduled: { text: '已排产', color: 'blue' },
+  in_progress: { text: '生产中', color: 'processing' },
+  completed: { text: '已完成', color: 'green' },
+  cancelled: { text: '已取消', color: 'red' },
+}
+
 /** 往来单位（供应商 / 客户）线类型 */
 export type PartnerTypeValue = 'supplier' | 'customer' | 'both'
 export type PartnerStatusValue = 'active' | 'disabled'
@@ -258,6 +327,9 @@ export const PERM = {
   PURCHASE_MANAGE: 'purchase.manage',
   SALES_VIEW: 'sales.view',
   SALES_MANAGE: 'sales.manage',
+  PRODUCTION_VIEW: 'production.view',
+  PRODUCTION_ORDER_EDIT: 'production.order.edit',
+  PRODUCTION_REPORT: 'production.report',
   AUDIT_VIEW: 'audit.view',
 } as const
 
