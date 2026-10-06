@@ -831,21 +831,45 @@ export class InventoryService {
     if (filter?.specId) batchQb.andWhere('b.spec_id = :specId', { specId: filter.specId })
     const batches = await batchQb.getMany()
 
-    // 按规格聚合。入库侧 = 采购入库 + 生产产出（织造报工入库），
-    // 出库侧 = 生产领用 + 销售出库，结存 = 批次剩余。恒等式：
-    //   采购入库 + 生产产出 = 生产领用 + 销售出库 + 期末结存
-    // 早期版本只把采购入库当入库侧，加了生产产出后每米织造布都会被误报「去向不明」。
+    // 盘点调整：count_gain(盘盈) 计入入库侧，count_loss(盘亏) 计入出库侧。
+    // 盘点是「已解释」的差异（做了盘点并已调整批次），不该再被算成 unexplained。
+    const adjQb = this.txns
+      .createQueryBuilder('t')
+      .where('t.tenant_id = :tenantId', { tenantId })
+      .andWhere('t.company_id = :companyId', { companyId })
+      .andWhere("t.txn_type IN ('count_gain','count_loss')")
+    if (filter?.specId) adjQb.andWhere('t.spec_id = :specId', { specId: filter.specId })
+    const adjustTxns = await adjQb.getMany()
+
+    // 按规格聚合。入库侧 = 采购入库 + 生产产出 + 盘盈，出库侧 = 生产领用 + 销售出库 + 盘亏，
+    // 结存 = 批次剩余。恒等式：
+    //   采购入库 + 生产产出 + 盘盈 = 生产领用 + 销售出库 + 盘亏 + 期末结存
+    // 每加一类「来源/去向」都要同步进对应侧，否则会被误报「去向不明」。
     const groups = new Map<
       string,
-      { purchaseKg: number; productionInKg: number; productionOutKg: number; salesOutKg: number; remainingKg: number }
+      {
+        purchaseKg: number
+        productionInKg: number
+        countGainKg: number
+        productionOutKg: number
+        salesOutKg: number
+        countLossKg: number
+        remainingKg: number
+      }
     >()
     const ensure = (specId: string) => {
       let g = groups.get(specId)
       if (!g) {
-        g = { purchaseKg: 0, productionInKg: 0, productionOutKg: 0, salesOutKg: 0, remainingKg: 0 }
+        g = { purchaseKg: 0, productionInKg: 0, countGainKg: 0, productionOutKg: 0, salesOutKg: 0, countLossKg: 0, remainingKg: 0 }
         groups.set(specId, g)
       }
       return g
+    }
+    // 盘点调整计入对应侧（按重量）
+    for (const t of adjustTxns) {
+      const g = ensure(t.specId)
+      if (t.txnType === 'count_gain') g.countGainKg += Number(t.changeWeightKg)
+      else g.countLossKg += Math.abs(Number(t.changeWeightKg))
     }
 
     for (const d of docs) {
@@ -874,8 +898,10 @@ export class InventoryService {
       specId: string
       purchaseKg: string
       productionInKg: string
+      countGainKg: string
       productionOutKg: string
       salesOutKg: string
+      countLossKg: string
       remainingKg: string
       unexplainedKg: string
       unexplainedRate: string
@@ -884,20 +910,25 @@ export class InventoryService {
 
     let tPurchase = 0
     let tProdIn = 0
+    let tGain = 0
     let tProd = 0
     let tSales = 0
+    let tLoss = 0
     let tRemain = 0
     for (const [specId, g] of groups) {
-      const inKg = g.purchaseKg + g.productionInKg
-      const unexplained = inKg - g.productionOutKg - g.salesOutKg - g.remainingKg
+      const inKg = g.purchaseKg + g.productionInKg + g.countGainKg
+      const outKg = g.productionOutKg + g.salesOutKg + g.countLossKg
+      const unexplained = inKg - outKg - g.remainingKg
       const rate = inKg > 0 ? Math.abs(unexplained) / inKg : 0
       const within = rate <= toleranceRate
       bySpec.push({
         specId,
         purchaseKg: num(g.purchaseKg, 3),
         productionInKg: num(g.productionInKg, 3),
+        countGainKg: num(g.countGainKg, 3),
         productionOutKg: num(g.productionOutKg, 3),
         salesOutKg: num(g.salesOutKg, 3),
+        countLossKg: num(g.countLossKg, 3),
         remainingKg: num(g.remainingKg, 3),
         unexplainedKg: num(unexplained, 3),
         unexplainedRate: num(rate, 4),
@@ -905,31 +936,37 @@ export class InventoryService {
       })
       tPurchase += g.purchaseKg
       tProdIn += g.productionInKg
+      tGain += g.countGainKg
       tProd += g.productionOutKg
       tSales += g.salesOutKg
+      tLoss += g.countLossKg
       tRemain += g.remainingKg
     }
 
-    const tIn = tPurchase + tProdIn
-    const tUnexplained = tIn - tProd - tSales - tRemain
+    const tIn = tPurchase + tProdIn + tGain
+    const tOut = tProd + tSales + tLoss
+    const tUnexplained = tIn - tOut - tRemain
     const tRate = tIn > 0 ? Math.abs(tUnexplained) / tIn : 0
     const warnings: string[] = []
     if (tRate > toleranceRate) {
       warnings.push(
-        `入库合计 ${num(tIn, 2)}kg（采购 ${num(tPurchase, 2)} + 生产产出 ${num(tProdIn, 2)}），生产+销售折算 ${num(
-          tProd + tSales,
+        `入库合计 ${num(tIn, 2)}kg（采购 ${num(tPurchase, 2)} + 生产产出 ${num(tProdIn, 2)} + 盘盈 ${num(tGain, 2)}），出库合计 ${num(
+          tOut,
           2,
-        )}kg，结存 ${num(tRemain, 2)}kg，差异 ${num(tUnexplained, 2)}kg（占比 ${(tRate * 100).toFixed(
+        )}kg（领用+销售 ${num(tProd + tSales, 2)} + 盘亏 ${num(tLoss, 2)}），结存 ${num(tRemain, 2)}kg，差异 ${num(
+          tUnexplained,
           2,
-        )}%），超出容差 ${(toleranceRate * 100).toFixed(0)}%。请核查报废/盘亏单据，或录入单位、规格版本是否一致。`,
+        )}kg（占比 ${(tRate * 100).toFixed(2)}%），超出容差 ${(toleranceRate * 100).toFixed(0)}%。请核查报废/未记录盘亏，或录入单位、规格版本是否一致。`,
       )
     }
 
     const ledger = {
       purchaseKg: num(tPurchase, 3),
       productionInKg: num(tProdIn, 3),
+      countGainKg: num(tGain, 3),
       productionOutKg: num(tProd, 3),
       salesOutKg: num(tSales, 3),
+      countLossKg: num(tLoss, 3),
       remainingKg: num(tRemain, 3),
       unexplainedKg: num(tUnexplained, 3),
       unexplainedRate: num(tRate, 4),

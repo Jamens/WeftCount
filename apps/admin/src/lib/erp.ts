@@ -136,8 +136,10 @@ export interface ReconcileWire {
   ledger: {
     purchaseKg: string
     productionInKg: string
+    countGainKg: string
     productionOutKg: string
     salesOutKg: string
+    countLossKg: string
     remainingKg: string
     unexplainedKg: string
     unexplainedRate: string
@@ -147,8 +149,10 @@ export interface ReconcileWire {
     specId: string
     purchaseKg: string
     productionInKg: string
+    countGainKg: string
     productionOutKg: string
     salesOutKg: string
+    countLossKg: string
     remainingKg: string
     unexplainedKg: string
     unexplainedRate: string
@@ -538,6 +542,39 @@ export const WAREHOUSE_TYPE_LABEL: Record<WarehouseTypeValue, { text: string; co
   auxiliary: { text: '辅料库', color: 'purple' },
   scrap: { text: '废料库', color: 'red' },
   other: { text: '其他', color: 'default' },
+}
+
+// ---------------------------------------------------------------------------
+// 盘点
+// ---------------------------------------------------------------------------
+
+export type StocktakeStatusValue = 'draft' | 'completed' | 'cancelled'
+
+export interface StocktakeWire {
+  id: string
+  stocktakeNo: string
+  warehouseId: string
+  stocktakeDate: string
+  status: StocktakeStatusValue
+  operatorId: string
+  remark: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StocktakeItemView {
+  id: string
+  batchId: string
+  batchNo: string
+  bookQuantityM: number
+  countedQuantityM: number | null
+  diffQuantityM: number | null
+}
+
+export const STOCKTAKE_STATUS_LABEL: Record<StocktakeStatusValue, { text: string; color: string }> = {
+  draft: { text: '盘点中', color: 'processing' },
+  completed: { text: '已完成', color: 'green' },
+  cancelled: { text: '已取消', color: 'default' },
 }
 
 export const COUNT_SYSTEM_LABEL: Record<CountSystem, string> = {
