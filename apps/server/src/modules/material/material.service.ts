@@ -76,11 +76,23 @@ export class MaterialService {
       spare: 'S',
     }
     const p = prefix[category]
-    const last = await this.materials.findOne({
+    // 只把「前缀+纯数字」的编码计入自动编号，取最大值+1。
+    // 不能用 findOne(order code DESC)+Number(slice(1))：遇到自定义编码(如 Y-大货)会
+    // parse 成 NaN 误报「编码已用尽」，且 DESC 取到自定义编码时编号会错乱。
+    const re = new RegExp(`^${p}(\\d+)$`)
+    const existing = await this.materials.find({
       where: { companyId, code: Like(`${p}%`) },
-      order: { code: 'DESC' },
+      select: { id: true, code: true },
     })
-    const nextNum = last ? Number(last.code.slice(1)) + 1 : 1
+    let max = 0
+    for (const m of existing) {
+      const hit = re.exec(m.code)
+      if (hit) {
+        const n = Number(hit[1])
+        if (Number.isFinite(n) && n > max) max = n
+      }
+    }
+    const nextNum = max + 1
     if (!Number.isFinite(nextNum) || nextNum > 9999) {
       throw new BadRequestException({
         code: ErrorCode.VALIDATION_FAILED,

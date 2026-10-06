@@ -1,11 +1,11 @@
 // 导入导出：模板 / 批量导入(部分成功) / XLSX 导出
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { login, get, post } from './helpers.mjs'
+import { login, get, post, BASE } from './helpers.mjs'
 
 // 带鉴权拿原始文本/字节（模板与导出不是 JSON envelope）
 async function raw(client, path) {
-  const r = await fetch('http://127.0.0.1:3180/api' + path, { headers: client.headers })
+  const r = await fetch(BASE + '/api' + path, { headers: client.headers })
   if (!r.ok) throw new Error(`${path} -> HTTP ${r.status}`)
   return r
 }

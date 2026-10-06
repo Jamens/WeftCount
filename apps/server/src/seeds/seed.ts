@@ -7,6 +7,11 @@ import { CompanyEntity } from '../modules/tenant/entities/company.entity'
 import { RoleEntity } from '../modules/auth/entities/role.entity'
 import { UserEntity } from '../modules/auth/entities/user.entity'
 import { PartnerEntity } from '../modules/partner/entities/partner.entity'
+import { MaterialEntity } from '../modules/material/entities/material.entity'
+import { GreigeSpecEntity } from '../modules/material/entities/greige-spec.entity'
+import { WarehouseEntity } from '../modules/warehouse/entities/warehouse.entity'
+import { MachineEntity } from '../modules/production/entities/machine.entity'
+import { MaterialService } from '../modules/material/material.service'
 
 /**
  * 种子数据：创建一个演示租户 + 一个工厂 + 九个内置角色 + 三类演示账号
@@ -14,7 +19,7 @@ import { PartnerEntity } from '../modules/partner/entities/partner.entity'
  * 幂等：按 code 判断是否已存在，重复执行不会重复插入
  * 运行：pnpm --filter @weftcount/server seed
  */
-export async function seed(ds: DataSource): Promise<void> {
+export async function seed(ds: DataSource, materialService: MaterialService): Promise<void> {
   const tenants = ds.getRepository(TenantEntity)
   const companies = ds.getRepository(CompanyEntity)
   const roles = ds.getRepository(RoleEntity)
@@ -181,4 +186,96 @@ export async function seed(ds: DataSource): Promise<void> {
     )
   }
   console.log(`[seed] 演示往来单位就绪（${demoPartners.length} 个）`)
+
+  await seedMasterData(tenant.id, company.id, ds, materialService)
+}
+
+/**
+ * 演示主数据：物料 / 坯布规格 / 仓库 / 机台
+ *
+ * 为什么必须 seed：这些是系统可用的**最小完整基线**。缺了它们，界面全是空的、
+ * 冒烟测试全部因「无可用规格/机台」而挂。原本这些数据只存在于开发库（手工造的），
+ * 重置库后会消失——故固化成种子，保证任何库 reset 后都立刻可用、测试可复现。
+ *
+ * 规格用**领域校验过的基准**：全棉府绸 120×72 根/英寸 40S 幅宽150cm
+ * → 克重 111.6 g/m²、百米经纱 10.46kg / 纬纱 6.28kg（与 shared 单测同源）。
+ * 规格经 MaterialService.createSpec 创建以**正确计算工艺快照**（kg/100m 等），
+ * 否则成本/单耗/对账全算不出数。
+ */
+async function seedMasterData(tenantId: string, companyId: string, ds: DataSource, materialService: MaterialService): Promise<void> {
+  const warehouseRepo = ds.getRepository(WarehouseEntity)
+  const machineRepo = ds.getRepository(MachineEntity)
+  const specRepo = ds.getRepository(GreigeSpecEntity)
+
+  // —— 物料：40S 棉纱 + 全棉坯布 ——
+  const cotton40s = await ensureMaterial(ds, tenantId, companyId, {
+    code: 'Y-COTTON-40S', name: '棉纱 40S', category: 'yarn', specification: '40S（NeS）',
+  })
+  await ensureMaterial(ds, tenantId, companyId, {
+    code: 'G-COTTON-PLAIN', name: '全棉坯布', category: 'greige', specification: '本色',
+  })
+  console.log('[seed] 演示物料就绪（棉纱40S / 全棉坯布）')
+
+  // —— 仓库 ——
+  const warehouses = [
+    { code: 'WH-GREIGE', name: '坯布仓', type: 'greige' as const },
+    { code: 'WH-FINISHED', name: '成品仓', type: 'finished' as const },
+  ]
+  for (const w of warehouses) {
+    const exists = await warehouseRepo.findOne({ where: { companyId, code: w.code } })
+    if (exists) continue
+    await warehouseRepo.save(
+      warehouseRepo.create({ id: randomUUID(), tenantId, companyId, ...w, address: null, status: 'active' }),
+    )
+  }
+  console.log(`[seed] 演示仓库就绪（${warehouses.length} 个）`)
+
+  // —— 机台（车间大屏/报工需要） ——
+  const machines = [
+    { code: 'LOOM-01', name: '1 号织机', model: '剑杆织机' },
+    { code: 'LOOM-02', name: '2 号织机', model: '剑杆织机' },
+    { code: 'LOOM-03', name: '3 号织机', model: '喷气织机' },
+  ]
+  for (const m of machines) {
+    const exists = await machineRepo.findOne({ where: { companyId, code: m.code } })
+    if (exists) continue
+    await machineRepo.save(
+      machineRepo.create({ id: randomUUID(), tenantId, companyId, ...m, status: 'idle', remark: null }),
+    )
+  }
+  console.log(`[seed] 演示机台就绪（${machines.length} 台）`)
+
+  // —— 坯布规格：经纬密单位为「根/英寸」——
+  // 全棉府绸 120×72 根/英寸 40S 幅宽150cm → 克重 111.6 g/m²（shared 单测基准）
+  const specs = [
+    { code: 'FUC-120-72', name: '全棉府绸 120×72', finishedWidth: 150, warpDensity: 120, weftDensity: 72, weaveType: 'plain' as const, warpCount: { value: 40, system: 'NeS' as const }, weftCount: { value: 40, system: 'NeS' as const }, warpMaterialId: cotton40s.id, weftMaterialId: cotton40s.id },
+  ]
+  let created = 0
+  for (const s of specs) {
+    const exists = await specRepo.findOne({ where: { companyId, code: s.code } })
+    if (exists) continue
+    await materialService.createSpec(tenantId, companyId, s)
+    created++
+  }
+  console.log(`[seed] 演示坯布规格就绪（新增 ${created} 个）`)
+}
+
+/** 幂等建物料 */
+async function ensureMaterial(
+  ds: DataSource, tenantId: string, companyId: string,
+  m: { code: string; name: string; category: 'yarn' | 'greige'; specification: string },
+) {
+  const repo = ds.getRepository(MaterialEntity)
+  const exists = await repo.findOne({ where: { companyId, code: m.code } })
+  if (exists) return exists
+  return repo.save(
+    repo.create({
+      id: randomUUID(), tenantId, companyId,
+      code: m.code, name: m.name, category: m.category, specification: m.specification,
+      measureMode: m.category === 'yarn' ? 'weight' : 'length',
+      primaryUnit: m.category === 'yarn' ? 'kg' : 'm',
+      allowedUnits: m.category === 'yarn' ? ['kg', 't'] : ['m', 'kg'],
+      status: 'active',
+    }),
+  )
 }

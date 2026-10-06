@@ -1,7 +1,7 @@
 // 认证 + 权限边界 + 多租户隔离
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { login, get, post, expectReject } from './helpers.mjs'
+import { login, get, post, expectReject, BASE } from './helpers.mjs'
 
 test('登录返回令牌与三件套上下文', async () => {
   const c = await login('factory')
@@ -66,7 +66,7 @@ test('缺少 X-Company-Id 被拒', async () => {
 test('权限拒绝返回 403 + FORBIDDEN(1003)，不误判登录失效', async () => {
   // loom(挡车工) 无 cost.view；打需 cost.view 的端点应被拒
   const c = await login('loom')
-  const res = await fetch('http://127.0.0.1:3180/api/analytics/trends?days=7', { headers: c.headers })
+  const res = await fetch(BASE + '/api/analytics/trends?days=7', { headers: c.headers })
   assert.equal(res.status, 403, '权限不足应返回 HTTP 403(而非 401)')
   const b = await res.json()
   assert.equal(b.code, 1003, '业务码应为 FORBIDDEN(1003)')
