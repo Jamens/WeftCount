@@ -343,6 +343,17 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - 盘点调整是「已解释」的差异：过账后对账把 `count_gain`/`count_loss` 计入恒等式对应侧，不会被误报「去向不明」。
 - 接口 `GET/POST /stocktakes`、`GET /stocktakes/:id`、`POST /stocktakes/:id/{counts,complete,cancel}`（权限 `inventory.manage`）；前端 `/stocktakes` 盘点页（建单选仓库、录实盘数、差异着色、账实相符/盘盈/盘亏标签、完成过账），菜单按 `warehouse.view` 门控。
 
+### 全链路追溯
+
+「一件事三算」的护城河兑现：一匹布倒查它的来历——经了哪台织机、哪张工单、哪个供应商的纱。**纯只读穿透查询，不新建表**——数据早已通过 `sourceDocId` / `orderId` / `batchId` / `docId` 串成链，这里只把链条拼出来。
+
+- `GET /traceability/sales/:docId`：销售单倒查 → 客户/销售订单 → 消耗的批次 → 每批来源：
+  - **织造产出**批次 → 报工（日期/产出/停机）→ 生产工单（状态/计划/已产）→ **机台**（名称/型号）
+  - **采购入库**批次 → 供应商 + 采购订单 + 入库单
+  - **调拨**批次 → 递归追溯到最初来源（防环，最多 5 层）
+- `GET /traceability/batch/:batchId`：批次双向追溯——来源链 + 被哪些单据消耗（正向）。
+- 权限 `report.view`；前端 `/traceability` 追溯页（销售单倒查 / 批次追溯双模式，来源链树状展示，规格工艺卡片），菜单按 `report.view` 门控。
+
 ### 成本报表（阶段六 · 成本核算）
 
 **制造成本 = 纱线成本 + 加工费**。纱线用量（每百米经/纬纱 kg）由工艺内核快照给出，成本只做「用量 × 单价」的确定性乘法——数字不会错。
@@ -425,7 +436,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `cost.view` / `inventory.view` / `warehouse.view` / `inventory.manage` / `user.view` / `role.view`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `cost.view` / `report.view` / `inventory.view` / `warehouse.view` / `inventory.manage` / `user.view` / `role.view`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
@@ -443,6 +454,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 | 三算对账 | `/inventory/reconcile` | 闭环恒等式 + 容差预警 + 分规格明细 |
 | 仓库管理 | `/warehouses` | 仓库主数据 CRUD（类型/仓管员/启停用） |
 | 库存盘点 | `/stocktakes` | 建盘点单（快照账面量）、录实盘数、差异过账（盘盈/盘亏自动调批次与流水） |
+| 全链路追溯 | `/traceability` | 销售单倒查（客户/订单→批次→工单/机台 或 采购/供应商）、批次双向追溯（来源+去向） |
 
 > 后端 `decimal` 列经 JSON 序列化为**字符串**，前端统一用 `apps/admin/src/lib/erp.ts` 的 `dec()` 解析，不盲用 shared 中把 decimal 标成 `number` 的接口声明。
 

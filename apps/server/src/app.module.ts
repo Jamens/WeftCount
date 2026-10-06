@@ -16,6 +16,7 @@ import { ProductionModule } from './modules/production/production.module'
 import { CostModule } from './modules/cost/cost.module'
 import { WarehouseModule } from './modules/warehouse/warehouse.module'
 import { StocktakeModule } from './modules/stocktake/stocktake.module'
+import { TraceabilityModule } from './modules/traceability/traceability.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -54,6 +55,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     CostModule,
     WarehouseModule,
     StocktakeModule,
+    TraceabilityModule,
   ],
   controllers: [HealthController],
   providers: [

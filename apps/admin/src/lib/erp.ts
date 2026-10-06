@@ -331,6 +331,7 @@ export const PERM = {
   INVENTORY_MANAGE: 'inventory.manage',
   WAREHOUSE_VIEW: 'warehouse.view',
   WAREHOUSE_MANAGE: 'warehouse.manage',
+  REPORT_VIEW: 'report.view',
   PURCHASE_VIEW: 'purchase.view',
   PURCHASE_MANAGE: 'purchase.manage',
   SALES_VIEW: 'sales.view',
@@ -575,6 +576,78 @@ export const STOCKTAKE_STATUS_LABEL: Record<StocktakeStatusValue, { text: string
   draft: { text: '盘点中', color: 'processing' },
   completed: { text: '已完成', color: 'green' },
   cancelled: { text: '已取消', color: 'default' },
+}
+
+// ---------------------------------------------------------------------------
+// 全链路追溯
+// ---------------------------------------------------------------------------
+
+export interface SpecBrief {
+  id: string
+  code: string
+  name: string
+  finishedWidth: string
+  warpCount: string
+  weftCount: string
+  totalGsm: number
+}
+
+/** 批次来源链的一环（生产工单 / 采购 / 调拨递归 / 未知） */
+export type BatchOrigin =
+  | {
+      kind: 'production'
+      report: { id: string; reportDate: string; outputM: string; stopReason: string | null }
+      workOrder: { id: string; orderNo: string; status: string; plannedQuantityM: string; producedQuantityM: string; dueDate: string | null }
+      machine: { id: string; code: string; name: string; model: string | null } | null
+    }
+  | {
+      kind: 'purchase'
+      purchaseDoc: { id: string; docNo: string }
+      purchaseOrder: { id: string; orderNo: string; status: string } | null
+      supplier: { id: string; name: string } | null
+    }
+  | { kind: 'transfer'; fromBatchNo: string; origin: BatchOrigin | null }
+  | { kind: 'unknown'; sourceType: string; sourceDocId: string }
+
+export interface SalesTrace {
+  salesDoc: {
+    id: string
+    docNo: string
+    docType: string
+    partnerName: string | null
+    quantityM: string
+    weightKg: string
+    areaM2: string
+    createdAt: string
+  }
+  salesOrder: { id: string; orderNo: string; status: string } | null
+  customer: { id: string; name: string } | null
+  spec: SpecBrief | null
+  consumedBatches: Array<{
+    batchNo: string
+    warehouseName: string | null
+    consumedM: number
+    consumedKg: number
+    origin: BatchOrigin
+  }>
+}
+
+export interface BatchTrace {
+  batch: {
+    id: string
+    batchNo: string
+    materialId: string
+    quantity: string
+    remaining: string
+    weightKg: string
+    areaM2: string
+    sourceType: string
+    status: string
+    inboundAt: string
+  }
+  spec: SpecBrief | null
+  origin: BatchOrigin | null
+  consumedBy: Array<{ docNo: string; docType: string; outM: number; partnerName: string | null; date: string }>
 }
 
 export const COUNT_SYSTEM_LABEL: Record<CountSystem, string> = {

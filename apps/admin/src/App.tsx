@@ -17,6 +17,7 @@ import {
   PieChartOutlined,
   BankOutlined,
   FileDoneOutlined,
+  NodeIndexOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -33,6 +34,7 @@ import ProductionPage from './pages/ProductionPage'
 import CostPage from './pages/CostPage'
 import WarehousePage from './pages/WarehousePage'
 import StocktakePage from './pages/StocktakePage'
+import TracePage from './pages/TracePage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -101,6 +103,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.COST_VIEW)
       ? [{ key: '/cost', icon: <PieChartOutlined />, label: '成本报表' }]
+      : []),
+    ...(hasPermission(PERM.REPORT_VIEW)
+      ? [{ key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' }]
       : []),
     ...(hasPermission(PERM.USER_VIEW)
       ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }]
@@ -314,6 +319,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <StocktakePage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/traceability"
+          element={
+            <RequireAuth>
+              <Shell>
+                <TracePage />
               </Shell>
             </RequireAuth>
           }
