@@ -128,7 +128,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ height: '100vh' }}>
       <Layout.Header
         style={{
           background: mode === 'dark' ? '#141414' : '#fff',
@@ -207,7 +207,15 @@ function Shell({ children }: { children: React.ReactNode }) {
             }}
           />
         </Layout.Sider>
-        <Layout.Content style={{ padding: 24, background: mode === 'dark' ? '#000' : '#f5f5f5' }}>
+        <Layout.Content
+          style={{
+            padding: 24,
+            background: mode === 'dark' ? '#000' : '#f5f5f5',
+            // 外壳固定视口、不产生整页滚动；正常列表由表格体内滚动，
+            // 这里作为兜底：万一某页内容偏高，只滚 Content 而非整页
+            overflow: 'auto',
+          }}
+        >
           {children}
         </Layout.Content>
       </Layout>

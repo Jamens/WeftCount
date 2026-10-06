@@ -790,7 +790,8 @@ export const YARN_PRICE_SOURCE_LABEL: Record<YarnPriceSource, { text: string; co
  *
  * 给 antd Table 的 scroll.y：表格**体内**上下滚动（列头与分页固定），
  * 页面高度被约束在视口内、不会整页撑出屏幕，需拖动整页。
- * 360px ≈ 顶栏(64) + 内容内边距(48) + 页标题(64) + 筛选卡(68) + 表头/分页/内边距(120) 的合计，
- * 留有余量，不同页面零星浮动不会溢出。
+ * 400px ≈ 顶栏(64) + 内容内边距(48) + 页标题(46) + 筛选卡(60) + 表头/分页/卡片内边距(119)
+ * 的合计再留约 60px 余量——宁可表格略矮，也不要让整页/内容区出现滚动条。
+ * 外壳(html/body)已固定视口不滚动，这里只保证表格能在内容区内放得下。
  */
-export const LIST_TABLE_SCROLL_Y = 'calc(100vh - 360px)'
+export const LIST_TABLE_SCROLL_Y = 'calc(100vh - 400px)'

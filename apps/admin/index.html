@@ -14,6 +14,12 @@
         }
       } catch (e) {}
     </script>
+    <style>
+      /* 应用外壳固定视口高度：最外层(html/body)不滚动，
+         列表页的滚动交给表格体内(scroll.y)，避免整页被撑出滚动条。
+         #root 由 React 填充，antd Layout 用 height:100vh 撑满。 */
+      html, body, #root { height: 100%; margin: 0; overflow: hidden; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
