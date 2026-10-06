@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { Type } from 'class-transformer'
+import { IsArray, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'
@@ -8,6 +9,16 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { Audit } from '../audit/audit.interceptor'
 import { InventoryService, type CreateDocInput } from './inventory.service'
 import type { InventoryDocType } from './entities/inventory-document.entity'
+
+class PickItemDto {
+  @IsString()
+  batchId!: string
+
+  /** 拣货数量（米，主单位） */
+  @IsNumber({}, { message: '拣货数量必须为数字' })
+  @Min(0.001, { message: '拣货数量必须大于 0' })
+  quantityM!: number
+}
 
 class CreateDocDto implements CreateDocInput {
   @IsString()
@@ -42,6 +53,13 @@ class CreateDocDto implements CreateDocInput {
   @IsOptional()
   @IsString()
   warehouseId?: string | null
+
+  /** 扫码拣货（仅出库）：指定发货批次与数量(米)，传了则按这些批次消耗而非 FIFO */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PickItemDto)
+  pickedItems?: PickItemDto[] | null
 
   @IsOptional()
   @IsString()

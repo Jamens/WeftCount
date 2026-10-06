@@ -45,6 +45,11 @@ export interface CreateDocInput {
   orderId?: string | null
   /** 入库仓库 id（不传则落第一个启用仓） */
   warehouseId?: string | null
+  /**
+   * 扫码拣货（仅出库）：指定要发货的批次与数量（米）。传了则按这些批次消耗（发什么扫什么），
+   * 不传则走 FIFO 自动拣货。生产领用/入库不适用。
+   */
+  pickedItems?: { batchId: string; quantityM: number }[] | null
   remark?: string | null
 }
 
@@ -570,6 +575,10 @@ export class InventoryService {
     snapshot: SpecCalculationSnapshot,
     widthCm: number,
   ): Promise<ConsumptionPlan> {
+    // 扫码拣货模式：发什么扫什么，按指定批次消耗，不走 FIFO
+    if (input.pickedItems && input.pickedItems.length > 0) {
+      return this.planPickedConsumption(manager, ctx, input, snapshot, widthCm)
+    }
     const c = this.ctxOf(snapshot, widthCm)
     let need: number
     try {
@@ -612,6 +621,57 @@ export class InventoryService {
       remainingNeed -= take
     }
     return { need, portions, totalM, totalKg, totalM2 }
+  }
+
+  /**
+   * 扫码拣货消耗规划：按传入的「批次+数量」逐个校验并消耗（发什么扫什么）。
+   *
+   * 校验：批次属本公司、状态正常、**规格与单据一致**（防止扫错布种发出去）、剩余足够。
+   * 出库量 = 各扫码批次数量之和（不依赖录入的 enteredValue）。
+   */
+  private async planPickedConsumption(
+    manager: EntityManager,
+    ctx: { tenantId: string; companyId: string; userId: string },
+    input: CreateDocInput,
+    snapshot: SpecCalculationSnapshot,
+    widthCm: number,
+  ): Promise<ConsumptionPlan> {
+    const c = this.ctxOf(snapshot, widthCm)
+    const portions: ConsumptionPlan['portions'] = []
+    let totalM = 0
+    let totalKg = 0
+    let totalM2 = 0
+    for (const pick of input.pickedItems ?? []) {
+      const batch = await manager.findOne(InventoryBatchEntity, { where: { id: pick.batchId, companyId: ctx.companyId } })
+      if (!batch) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '扫码批次不存在' })
+      if (batch.status !== 'normal') {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `批次 ${batch.batchNo} 不可用（已耗尽/冻结）` })
+      }
+      if (batch.specId !== input.specId) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `扫码批次 ${batch.batchNo} 规格与单据规格不一致` })
+      }
+      const take = pick.quantityM
+      if (take <= 0) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `批次 ${batch.batchNo} 拣货数量必须大于 0` })
+      }
+      const rem = Number(batch.remainingQuantity)
+      if (take > rem + 1e-6) {
+        throw new BadRequestException({
+          code: ErrorCode.INSUFFICIENT_QUANTITY,
+          message: `批次 ${batch.batchNo} 剩余 ${rem.toFixed(2)}m，拣货 ${take.toFixed(2)}m 超出`,
+        })
+      }
+      const kg = this.metersToWeight(take, c)
+      const m2 = this.metersToArea(take, c)
+      portions.push({ batchId: batch.id, take, kg, m2 })
+      totalM += take
+      totalKg += kg
+      totalM2 += m2
+    }
+    if (totalM <= 0) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '扫码拣货合计必须大于 0' })
+    }
+    return { need: totalM, portions, totalM, totalKg, totalM2 }
   }
 
   private async executeConsumption(

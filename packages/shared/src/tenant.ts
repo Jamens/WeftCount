@@ -133,7 +133,7 @@ export const BUILTIN_ROLES = [
     code: 'warehouse_keeper',
     name: '仓管员',
     description: '出入库、盘点、移库、库存预警处理',
-    permissions: ['material.view', 'warehouse.*', 'inventory.*', 'purchase.view', 'production.view', 'report.view'],
+    permissions: ['material.view', 'partner.view', 'warehouse.*', 'inventory.*', 'purchase.view', 'production.view', 'report.view'],
   },
   {
     code: 'sales_clerk',

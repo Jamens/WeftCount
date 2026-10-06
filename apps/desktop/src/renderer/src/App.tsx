@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { App as AntdApp, Layout, Menu, Space, Tag, Typography } from 'antd'
-import { FundOutlined, DashboardOutlined, LogoutOutlined, PrinterOutlined, BarcodeOutlined } from '@ant-design/icons'
+import { FundOutlined, DashboardOutlined, LogoutOutlined, PrinterOutlined, BarcodeOutlined, SendOutlined } from '@ant-design/icons'
 import { authStore } from './lib/api'
 import LoginPage from './pages/LoginPage'
 import ReportPage from './pages/ReportPage'
 import BoardPage from './pages/BoardPage'
 import LabelPage from './pages/LabelPage'
 import ScanPage from './pages/ScanPage'
+import PickPage from './pages/PickPage'
 
 const { Text } = Typography
 
-type View = 'report' | 'board' | 'label' | 'scan'
+type View = 'report' | 'board' | 'label' | 'scan' | 'pick'
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())
@@ -58,6 +59,7 @@ export default function App() {
             items={[
               { key: 'report', icon: <FundOutlined />, label: '织机报工' },
               { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
+              { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
               { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
               { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
             ]}
@@ -65,7 +67,7 @@ export default function App() {
           />
         </Layout.Sider>
         <Layout.Content style={{ background: view === 'board' ? '#0f1115' : '#f5f5f5' }}>
-          {view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : <ScanPage />}
+          {view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'pick' ? <PickPage /> : <ScanPage />}
         </Layout.Content>
       </Layout>
     </Layout>

@@ -51,6 +51,14 @@ export interface MaterialWire {
   name: string
 }
 
+export interface PartnerWire {
+  id: string
+  code: string
+  name: string
+  type: 'supplier' | 'customer' | 'both'
+  status: 'active' | 'disabled'
+}
+
 export interface BatchWire {
   id: string
   batchNo: string
