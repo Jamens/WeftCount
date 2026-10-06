@@ -41,6 +41,16 @@ export class AlertEntity {
   @Column({ type: 'char', length: 36 })
   refId!: string
 
+  /**
+   * 结构化附加数据（JSON）
+   *
+   * 预警不只是文字：低库存预警里带补货建议的结构化字段
+   * （建议补货量/补货点/日均用量/依据），便于前端单独展示，
+   * 后续也能直接据此生成采购单。
+   */
+  @Column({ type: 'json', nullable: true })
+  data!: Record<string, string> | null
+
   @Column({ type: 'boolean', default: false })
   acknowledged!: boolean
 

@@ -62,6 +62,10 @@ class CreateMaterialDto {
   @IsOptional() @IsNumber()
   safetyStock?: number
 
+  /** 采购提前期/采购周期（天）：补货点 = 日均用量×(提前期+周期)+安全库存 */
+  @IsOptional() @IsNumber() @Min(0, { message: '采购提前期不能为负' })
+  leadTimeDays?: number
+
   @IsOptional() @IsNumber()
   standardPrice?: number
 
@@ -93,6 +97,10 @@ class UpdateMaterialDto {
 
   @IsOptional() @IsNumber()
   safetyStock?: number | null
+
+  /** 采购提前期/采购周期（天） */
+  @IsOptional() @IsNumber() @Min(0, { message: '采购提前期不能为负' })
+  leadTimeDays?: number | null
 
   @IsOptional() @IsNumber()
   standardPrice?: number | null

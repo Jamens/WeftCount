@@ -2,15 +2,26 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
 import dayjs from 'dayjs'
+import {
+  computeReorderSuggestion,
+  DEFAULT_LEAD_TIME_DAYS,
+  DEFAULT_USAGE_WINDOW_DAYS,
+} from '@weftcount/shared'
 import { AlertEntity, type AlertSeverity, type AlertType } from './entities/alert.entity'
 import { MaterialEntity } from '../material/entities/material.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity'
+import { InventoryTransactionEntity } from '../inventory/entities/inventory-transaction.entity'
 
 /** 呆滞批次阈值：入库超此天数且仍有剩余未动 */
 const STALE_DAYS = 60
 /** 低库存判定：库存 < 安全库存（仅对设了安全库存的物料生效） */
 const LOW_STOCK_RATIO = 1
+
+/** 数量展示统一 1 位小数 */
+function fmtQty(v: number): string {
+  return (Math.round(v * 10) / 10).toFixed(1)
+}
 
 export interface AlertScanResult {
   created: number
@@ -40,6 +51,8 @@ export class AlertService {
     private readonly prodOrders: Repository<ProductionOrderEntity>,
     @InjectRepository(InventoryBatchEntity)
     private readonly batches: Repository<InventoryBatchEntity>,
+    @InjectRepository(InventoryTransactionEntity)
+    private readonly txns: Repository<InventoryTransactionEntity>,
   ) {}
 
   async list(companyId: string, onlyOpen = true): Promise<AlertEntity[]> {
@@ -64,8 +77,38 @@ export class AlertService {
   }
 
   /** 扫描并生成预警（去重：已有未确认的同类同对象预警则跳过） */
+  /**
+   * 物料在观察窗口内的**出库总量**（主单位）
+   *
+   * 数据来源：出库流水（sales_out 销售出库 + material_issue 生产领用）的 change_quantity
+   * 绝对值之和——这才是真实消耗。不用常数、不用拍脑袋。
+   * 注意只统计 `after` 之后仍有效的批次不限——流水是既成事实，即使批次已耗尽也计。
+   */
+  private async consumedInWindow(companyId: string, materialId: string, days: number): Promise<number> {
+    const since = new Date(Date.now() - days * 86400000)
+    const row = await this.txns
+      .createQueryBuilder('t')
+      .select('COALESCE(SUM(ABS(t.change_quantity)), 0)', 'qty')
+      .where('t.company_id = :companyId', { companyId })
+      .andWhere('t.material_id = :materialId', { materialId })
+      .andWhere("t.direction = 'out'")
+      .andWhere("t.txn_type IN ('sales_out','material_issue')")
+      .andWhere('t.created_at >= :since', { since })
+      .getRawOne<{ qty: string }>()
+    return Number(row?.qty ?? 0)
+  }
+
   async scan(tenantId: string, companyId: string): Promise<AlertScanResult> {
-    const candidates: { type: AlertType; severity: AlertSeverity; title: string; message: string; refType: string; refId: string }[] = []
+    const candidates: {
+      type: AlertType
+      severity: AlertSeverity
+      title: string
+      message: string
+      refType: string
+      refId: string
+      /** 结构化附加数据（低库存预警带补货建议） */
+      data?: Record<string, string> | null
+    }[] = []
 
     // 1) 交期逾期生产工单
     const today = dayjs().startOf('day')
@@ -102,14 +145,41 @@ export class AlertService {
         .andWhere("b.status = 'normal'")
         .getRawOne<{ qty: string }>()
       const have = Number(stock?.qty ?? 0)
-      if (have < safety * LOW_STOCK_RATIO) {
+      // **补货建议**：日均用量取自真实出库流水，不拍脑袋。
+      // 只看安全库存只能报「低了」，采购员真正要的是「补多少、什么时候补」。
+      const consumed = await this.consumedInWindow(companyId, m.id, DEFAULT_USAGE_WINDOW_DAYS)
+      const suggestion = computeReorderSuggestion({
+        currentStock: have,
+        safetyStock: safety,
+        consumedQty: consumed,
+        windowDays: DEFAULT_USAGE_WINDOW_DAYS,
+        leadTimeDays: m.leadTimeDays == null ? DEFAULT_LEAD_TIME_DAYS : Number(m.leadTimeDays),
+        orderCycleDays: m.leadTimeDays == null ? DEFAULT_LEAD_TIME_DAYS : Number(m.leadTimeDays),
+      })
+      // 触发条件用**补货点**（含提前期消耗）而非仅安全库存——
+      // 采购在途/提前期内的缺口同样要提前发现，等跌到安全库存已经晚了。
+      if (suggestion.shouldReorder || have < safety * LOW_STOCK_RATIO) {
         candidates.push({
           type: 'low_stock',
           severity: have <= 0 ? 'critical' : 'warning',
-          title: `库存低位 ${m.name}`,
-          message: `当前 ${have.toFixed(1)} ${m.primaryUnit}，安全库存 ${safety} ${m.primaryUnit}，缺口 ${(safety - have).toFixed(1)}`,
+          title: suggestion.shouldReorder ? `建议补货 ${m.name}` : `库存低位 ${m.name}`,
+          message: suggestion.shouldReorder
+            ? `建议补 ${fmtQty(suggestion.suggestQty)} ${m.primaryUnit}｜当前 ${fmtQty(have)}，` +
+              `补货点 ${fmtQty(suggestion.reorderPoint)}（覆盖 ${suggestion.coverDays} 天用量）｜${suggestion.basis}`
+            : `当前 ${fmtQty(have)} ${m.primaryUnit}，安全库存 ${safety} ${m.primaryUnit}，缺口 ${fmtQty(Math.max(0, safety - have))}`,
           refType: 'material',
           refId: m.id,
+          // 附带结构化建议，便于前端单独展示与后续接采购单
+          data: {
+            suggestQty: String(suggestion.suggestQty),
+            reorderPoint: String(suggestion.reorderPoint),
+            dailyUsage: String(suggestion.dailyUsage),
+            coverDays: String(suggestion.coverDays),
+            currentStock: String(have),
+            safetyStock: String(safety),
+            unit: m.primaryUnit,
+            basis: suggestion.basis,
+          },
         })
       }
     }

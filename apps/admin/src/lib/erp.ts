@@ -28,6 +28,8 @@ export interface MaterialWire {
   allowedUnits: string[]
   batchManaged: boolean
   safetyStock: string | null
+  /** 采购提前期/采购周期（天），补货点计算用 */
+  leadTimeDays: string | null
   standardPrice: string | null
   status: 'active' | 'discontinued'
   remark: string | null
@@ -429,6 +431,8 @@ export interface AlertWire {
   refId: string
   acknowledged: boolean
   createdAt: string
+  /** 结构化附加数据（低库存预警带补货建议） */
+  data: Record<string, string> | null
 }
 
 export interface TrendData {

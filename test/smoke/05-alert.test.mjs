@@ -1,7 +1,7 @@
 // 预警中心：扫描生成 / 去重 / 确认
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { login, get, post, activeSpec, activeGreigeMaterial, assertNear, firstMachine } from './helpers.mjs'
+import { login, get, post, activeSpec, activeGreigeMaterial, assertNear, firstMachine, supplierOf, customerOf } from './helpers.mjs'
 
 test('预警扫描可执行并返回统计', async () => {
   const c = await login('factory')
@@ -141,4 +141,47 @@ test('报工不带幂等键时仍可正常报工(向后兼容)', async () => {
   await post(c, `/production-orders/${wo.id}/start`, {})
   const r = await post(c, `/production-orders/${wo.id}/reports`, { outputM: 30 })
   assert.ok(r.report.id, '不传幂等键也应能报工')
+})
+
+// ---- 补货建议（真实消耗驱动，不拍脑袋） ----
+
+test('补货建议：按真实出库流水算日均用量并给出建议补货量', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  // 建一个**专用物料**并设安全库存+提前期（不碰其它用例用的物料）
+  const mat = await post(c, '/materials', {
+    name: `补货测试料${tag}`, category: 'greige', specification: '测试',
+    safetyStock: 900, leadTimeDays: 10,
+  })
+  // 入库 200m（低于补货点：日均 600/30=20 → 补货点=20*(10+10)+900=1300）
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 200,
+    unitPrice: 8.2, partnerId: sup.id,
+  })
+  // 造出库消耗：先入库 600m，再卖 600m → 观察窗口日均 = 600/30 = 20/天
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 600,
+    unitPrice: 8.2, partnerId: sup.id,
+  })
+  await post(c, '/inventory/sales-outbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 600,
+    unitPrice: 9.5, partnerId: cus.id,
+  })
+  await post(c, '/alerts/scan')
+  const mine = (await get(c, '/alerts')).find((a) => a.type === 'low_stock' && a.refId === mat.id)
+  assert.ok(mine, '该物料应触发低库存/补货预警')
+  assert.ok(mine.data, '预警应带结构化 data（补货建议）')
+  const d = mine.data
+  assert.ok(d.suggestQty != null, '应含建议补货量')
+  assert.ok(d.reorderPoint != null, '应含补货点')
+  assert.ok(d.basis && d.basis.length > 0, '应含可人工核对的依据')
+  assert.ok(!mine.message.includes('undefined'), '文案不应出现 undefined')
+  // 日均 = 600/30 = 20；补货点 = 20*(10+10) + 900 = 1300
+  const daily = 600 / 30
+  assertNear(Number(d.dailyUsage), daily, 0.01, '日均用量应来自真实出库流水')
+  assertNear(Number(d.reorderPoint), daily * 20 + 900, 0.01, '补货点 = 日均×(提前期+周期)+安全库存')
+  assert.ok(Number(d.suggestQty) > 0, '库存低于补货点应给出正的建议补货量')
 })

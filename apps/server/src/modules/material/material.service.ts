@@ -27,6 +27,8 @@ export interface CreateMaterialInput {
   allowedUnits?: string[]
   batchManaged?: boolean
   safetyStock?: number | null
+  /** 采购提前期/采购周期（天），补货点计算用 */
+  leadTimeDays?: number | null
   standardPrice?: number | null
   remark?: string | null
 }
@@ -137,6 +139,7 @@ export class MaterialService {
         allowedUnits,
         batchManaged: input.batchManaged ?? true,
         safetyStock: input.safetyStock != null ? String(input.safetyStock) : null,
+        leadTimeDays: input.leadTimeDays != null ? String(input.leadTimeDays) : null,
         standardPrice: input.standardPrice != null ? String(input.standardPrice) : null,
         status: 'active',
         remark: input.remark ?? null,
@@ -201,6 +204,9 @@ export class MaterialService {
     if (input.remark !== undefined) m.remark = input.remark
     if (input.safetyStock !== undefined) {
       m.safetyStock = input.safetyStock == null ? null : String(input.safetyStock)
+    }
+    if (input.leadTimeDays !== undefined) {
+      m.leadTimeDays = input.leadTimeDays == null ? null : String(input.leadTimeDays)
     }
     if (input.standardPrice !== undefined) {
       m.standardPrice = input.standardPrice == null ? null : String(input.standardPrice)

@@ -46,6 +46,7 @@ interface CreateForm {
   measureMode?: MeasureMode
   standardPrice?: number
   safetyStock?: number
+  leadTimeDays?: number
   remark?: string
 }
 
@@ -91,6 +92,7 @@ export default function MaterialPage() {
         ...values,
         standardPrice: values.standardPrice ?? null,
         safetyStock: values.safetyStock ?? null,
+      leadTimeDays: values.leadTimeDays ?? null,
         remark: values.remark ?? null,
       })
       message.success('物料已创建')
@@ -213,6 +215,13 @@ export default function MaterialPage() {
               render: (v: string | null) => (v == null ? '-' : fmt(v, 2)),
             },
             {
+              title: '采购提前期',
+              dataIndex: 'leadTimeDays',
+              width: 100,
+              align: 'right',
+              render: (v: string | null) => (v == null ? '-' : `${fmt(v, 0)} 天`),
+            },
+            {
               title: '状态',
               dataIndex: 'status',
               width: 80,
@@ -290,8 +299,19 @@ export default function MaterialPage() {
           <Form.Item name="standardPrice" label="参考单价（元）">
             <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="可选" />
           </Form.Item>
-          <Form.Item name="safetyStock" label="安全库存">
+          <Form.Item
+            name="safetyStock"
+            label="安全库存"
+            tooltip="低于此值触发补货预警。补货点还会叠加「日均用量 × (采购提前期 + 采购周期)」，采购在途的缺口能提前发现。"
+          >
             <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="可选" />
+          </Form.Item>
+          <Form.Item
+            name="leadTimeDays"
+            label="采购提前期/周期"
+            tooltip="天数。补货点 = 日均用量 × (提前期 + 采购周期) + 安全库存。留空按 7 天算。"
+          >
+            <InputNumber style={{ width: '100%' }} min={0} precision={1} placeholder="天，默认 7" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={3} maxLength={255} />

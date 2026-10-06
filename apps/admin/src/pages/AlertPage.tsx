@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Badge, Button, Card, Segmented, Space, Table, Tag, Typography } from 'antd'
+import { App as AntdApp, Badge, Button, Card, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import { BellOutlined, CheckOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { PERM, type AlertWire, type AlertSeverity } from '../lib/erp'
+import { PERM, fmt, type AlertWire, type AlertSeverity } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
@@ -106,7 +106,31 @@ export default function AlertPage() {
             },
             { title: '类型', dataIndex: 'type', width: 100, render: (v: string) => TYPE_LABEL[v] ?? v },
             { title: '标题', dataIndex: 'title', width: 220, ellipsis: true },
-            { title: '详情', dataIndex: 'message', ellipsis: true },
+            {
+              title: '详情',
+              dataIndex: 'message',
+              ellipsis: true,
+              // 低库存预警带补货建议：建议量用醒目标签提出，依据折叠在下面供核对
+              render: (v: string, r: AlertWire) => {
+                const d = r.data
+                if (!d || d.suggestQty == null) return v
+                return (
+                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <Space size={6} wrap>
+                      <Tag color="volcano">建议补货 {fmt(d.suggestQty)} {d.unit}</Tag>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        补货点 {fmt(d.reorderPoint)} · 日均 {fmt(d.dailyUsage)}/天 · 覆盖 {fmt(d.coverDays)} 天
+                      </Text>
+                    </Space>
+                    <Tooltip title={d.basis ?? ''}>
+                      <Text type="secondary" style={{ fontSize: 11 }} ellipsis>
+                        {v}
+                      </Text>
+                    </Tooltip>
+                  </Space>
+                )
+              },
+            },
             { title: '状态', dataIndex: 'acknowledged', width: 80, render: (v: boolean) => (v ? <Tag>已确认</Tag> : <Tag color="gold">待处理</Tag>) },
             ...(canManage
               ? [{

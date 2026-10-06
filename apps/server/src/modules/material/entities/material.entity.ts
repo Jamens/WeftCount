@@ -61,6 +61,16 @@ export class MaterialEntity {
   @Column({ type: 'decimal', precision: 14, scale: 4, nullable: true })
   safetyStock!: string | null
 
+  /**
+   * 采购提前期 / 采购周期（天）
+   *
+   * 补货点= 日均用量 × (提前期 + 采购周期) + 安全库存。
+   * 提前期 = 下单到货的天数；采购周期 = 两次下单之间的间隔天数。
+   * 缺省按 7 天处理（`leadTimeDays` 为空时用DEFAULT_LEAD_TIME_DAYS）。
+   */
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  leadTimeDays!: string | null
+
   @Column({ type: 'enum', enum: ['active', 'discontinued'], default: 'active' })
   status!: 'active' | 'discontinued'
 
