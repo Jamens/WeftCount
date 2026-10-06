@@ -536,6 +536,18 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 
 > ✅ 并发单号已修复：所有 `next*`（单号/批号/编码）改为**撞号重取号重试**（`common/util/unique-no.ts` 的 `withUniqueNo`：唯一键冲突 1062 → 递增退避+抖动 → 重取号重试）。库存/订单/合同/生产工单/往来单位的创建均已包裹。冒烟里「并发建单不撞号」用例守护该修复（并发 6 单全部成功且单号互异）。
 
+### 打印模板（浏览器打印，零依赖）
+
+`admin/src/lib/print.tsx` 提供打印基建：`usePrint()` 把 ReactNode 用 Portal 渲进专用 `.print-root`
+容器（`flushSync` 保证打印前 DOM 就绪），配 `@media print` 隐藏页面其余部分，调 `window.print()`。
+配套 `SheetHeader/MetaGrid/DetailTable/SheetFooter` 单据组件，A4 纵向、黑白细边框。
+
+已接入的单据（`admin/src/components/print-docs.tsx`）：
+- **规格单**：工艺参数（克重/用纱单耗/日产能/损耗系数），数据取 `GET /greige-specs/:id/snapshot`
+  ——**工艺快照为确定性计算，打印不含 AI 推测**。入口：规格列表「详情」抽屉 → 打印规格单。
+- **生产工单**：机台随工单（挡车工用），含织造参数与签字栏，数据取工单内嵌 `specSnapshot`。
+  入口：生产工单列表操作列「工单」按钮。
+
 ### 趋势分析（零依赖 SVG 图表）
 
 `GET /analytics/trends?days=N`（7~180，缺省 30，权限 `cost.view`）——**确定性聚合，不做预测**：

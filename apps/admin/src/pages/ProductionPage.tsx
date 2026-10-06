@@ -19,9 +19,11 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
+import { usePrint } from '../lib/print'
+import { WorkOrderSheet } from '../components/print-docs'
 import { useLookups } from '../lib/lookups'
 import {
   MACHINE_STATUS_LABEL,
@@ -264,8 +266,15 @@ export default function ProductionPage() {
   }
 
   // 工单操作按钮（按状态）
+  const print = usePrint()
+  const printOrder = (o: ProductionOrderWire) => {
+    const matName = materials.find((m) => m.id === o.materialId)?.name ?? '-'
+    print(<WorkOrderSheet order={o} machineName={machineName(o.machineId)} specName={specName(o.specId)} materialName={matName} />)
+  }
+
   const orderActions = (o: ProductionOrderWire) => (
     <Space size={2} onClick={(e) => e.stopPropagation()}>
+      <Button type="link" size="small" icon={<PrinterOutlined />} onClick={() => printOrder(o)}>工单</Button>
       {o.status === 'draft' && (
         <>
           <Button type="link" size="small" onClick={() => openEdit(o)}>编辑</Button>

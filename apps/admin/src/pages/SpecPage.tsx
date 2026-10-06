@@ -17,8 +17,10 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { PlusOutlined, ReloadOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { PlusOutlined, PrinterOutlined, ReloadOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
+import { usePrint } from '../lib/print'
+import { SpecSheet } from '../components/print-docs'
 import {
   COUNT_SYSTEM_LABEL,
   COUNT_SYSTEM_OPTIONS,
@@ -85,6 +87,16 @@ export default function SpecPage() {
       setLoading(false)
     }
   }, [keyword, message])
+
+  const print = usePrint()
+  const printSpec = async (spec: GreigeSpecWire) => {
+    try {
+      const res = await api.get<SpecCalculationSnapshot>(`/greige-specs/${spec.id}/snapshot`)
+      print(<SpecSheet spec={spec} snapshot={res.data.data} />)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '取工艺快照失败，无法打印')
+    }
+  }
 
   useEffect(() => {
     void load()
@@ -259,7 +271,19 @@ export default function SpecPage() {
         />
       </Card>
 
-      <Drawer title="规格详情" width={520} open={detail !== null} onClose={() => setDetail(null)}>
+      <Drawer
+        title="规格详情"
+        width={520}
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+        extra={
+          detail && (
+            <Button icon={<PrinterOutlined />} onClick={() => void printSpec(detail)}>
+              打印规格单
+            </Button>
+          )
+        }
+      >
         {detail && (
           <Descriptions column={2} size="small" bordered>
             <Descriptions.Item label="编码">{detail.code}</Descriptions.Item>
