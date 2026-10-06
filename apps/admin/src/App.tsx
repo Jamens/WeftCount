@@ -256,6 +256,8 @@ export default function App() {
         .then((res) => {
           const d = res.data.data
           useAuthStore.setState({
+            // 刷新后恢复用户信息：否则右上角显示 undefined(undefined)
+            user: { id: d.userId, username: d.username, realName: d.realName, phone: null, email: null },
             permissions: d.permissions,
             currentCompanyId: d.companyId,
           })

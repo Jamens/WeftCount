@@ -68,6 +68,10 @@ export default function App() {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '0 16px',
+            // antd Layout.Header 默认深色底(#001529)，亮色模式必须给浅色底，
+            // 否则深色文字压在深色底上会被「遮住」
+            background: mode === 'dark' ? '#141414' : '#ffffff',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
           <Text strong style={{ color: headerText, fontSize: 16 }}>
