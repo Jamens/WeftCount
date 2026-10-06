@@ -49,6 +49,7 @@ export interface MaterialWire {
   id: string
   code: string
   name: string
+  category: string
 }
 
 export interface PartnerWire {
@@ -65,6 +66,9 @@ export interface BatchWire {
   materialId: string
   specId: string
   warehouseId: string | null
+  /** 来源单据（入库/调拨/生产领用等），用于按单据定位新建批次 */
+  sourceDocId: string | null
+  sourceType: string
   quantity: string
   remainingQuantity: string
   weightKg: string
@@ -76,7 +80,7 @@ export interface BatchWire {
 /** 批次来源链（简化，用于扫码查询页展示） */
 export type BatchOrigin =
   | { kind: 'production'; workOrder: { orderNo: string; status: string }; machine: { name: string; model: string | null } | null; report: { reportDate: string; outputM: string } }
-  | { kind: 'purchase'; purchaseDoc: { docNo: string }; supplier: { name: string } | null; purchaseOrder: { orderNo: string } | null }
+  | { kind: 'purchase'; purchaseDoc: { docNo: string }; supplier: { id: string; name: string } | null; purchaseOrder: { orderNo: string } | null }
   | { kind: 'transfer'; fromBatchNo: string; origin: BatchOrigin | null }
   | { kind: 'unknown'; sourceType: string }
 

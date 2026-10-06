@@ -19,6 +19,7 @@ import {
   SendOutlined,
   SunOutlined,
   MoonOutlined,
+  InboxOutlined,
 } from '@ant-design/icons'
 import { authStore } from './lib/api'
 import { useThemeStore } from './stores/theme.store'
@@ -28,10 +29,11 @@ import BoardPage from './pages/BoardPage'
 import LabelPage from './pages/LabelPage'
 import ScanPage from './pages/ScanPage'
 import PickPage from './pages/PickPage'
+import PickInPage from './pages/PickInPage'
 
 const { Text } = Typography
 
-type View = 'report' | 'board' | 'label' | 'scan' | 'pick'
+type View = 'report' | 'board' | 'label' | 'scan' | 'pick' | 'pickin'
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())
@@ -97,6 +99,7 @@ export default function App() {
                 { key: 'report', icon: <FundOutlined />, label: '织机报工' },
                 { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
                 { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
+                { key: 'pickin', icon: <InboxOutlined />, label: '扫码入库' },
                 { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
                 { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
               ]}
@@ -118,7 +121,7 @@ export default function App() {
   }
 
   const page =
-    view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'pick' ? <PickPage /> : <ScanPage />
+    view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'pick' ? <PickPage /> : view === 'pickin' ? <PickInPage /> : <ScanPage />
 
   return shell(page)
 }
