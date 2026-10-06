@@ -43,6 +43,8 @@ export interface CreateDocInput {
   partnerId?: string | null
   /** 关联订单 id（采购/销售可挂已确认订单，满额自动完成；领用不传） */
   orderId?: string | null
+  /** 履约的订单明细行 id（多明细订单按行算进度；不传则按规格自动归到首个未满行） */
+  orderItemId?: string | null
   /** 入库仓库 id（不传则落第一个启用仓） */
   warehouseId?: string | null
   /**
@@ -205,7 +207,8 @@ export class InventoryService {
 
   /**
    * 校验「单据挂订单」：生产领用不挂订单（多传报错）；采购/销售传了就必须是
-   * 可履约的已确认订单，且往来单位/物料/规格与订单一致。返回 orderId 供落库。
+   * 可履约的已确认订单，且往来单位/物料/规格与订单一致。多明细订单解析本单履约的
+   * 明细行（传了 orderItemId 用它、否则按规格自动归到首个未满行）。返回 orderId+orderItemId 供落库。
    */
   private async validateOrderLink(
     ctx: { tenantId: string; companyId: string },
@@ -214,7 +217,8 @@ export class InventoryService {
     partnerId: string,
     materialId: string,
     specId: string,
-  ): Promise<string | null> {
+    orderItemId?: string | null,
+  ): Promise<{ orderId: string | null; orderItemId: string | null }> {
     if (docType === 'production_issue') {
       if (orderId) {
         throw new BadRequestException({
@@ -222,10 +226,10 @@ export class InventoryService {
           message: '生产领用为内部转移，不关联订单',
         })
       }
-      return null
+      return { orderId: null, orderItemId: null }
     }
-    if (!orderId) return null
-    await this.orders.validateLink(
+    if (!orderId) return { orderId: null, orderItemId: null }
+    const { orderItemId: resolvedItemId } = await this.orders.validateLink(
       ctx.tenantId,
       ctx.companyId,
       orderId,
@@ -233,8 +237,9 @@ export class InventoryService {
       partnerId,
       materialId,
       specId,
+      orderItemId,
     )
-    return orderId
+    return { orderId, orderItemId: resolvedItemId }
   }
 
   /** 解析入库仓库：指定则校验可用，否则落第一个启用仓；都没有则 null（未指定仓） */
@@ -279,8 +284,8 @@ export class InventoryService {
     const docNo = await this.nextDocNo(ctx.companyId, 'purchase_inbound')
     const batchNo = await this.nextBatchNo(ctx.companyId)
     const partner = await this.resolvePartner(ctx, input.partnerId, 'purchase_inbound')
-    const orderId = await this.validateOrderLink(
-      ctx, input.orderId, 'purchase_inbound', partner.partnerId as string, input.materialId, input.specId,
+    const { orderId, orderItemId } = await this.validateOrderLink(
+      ctx, input.orderId, 'purchase_inbound', partner.partnerId as string, input.materialId, input.specId, input.orderItemId,
     )
     const warehouseId = await this.resolveWarehouse(ctx, input.warehouseId)
 
@@ -326,6 +331,7 @@ export class InventoryService {
         partnerId: partner.partnerId,
         partnerName: partner.partnerName,
         orderId,
+        orderItemId,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
       })
@@ -726,8 +732,8 @@ export class InventoryService {
     const snapshot = this.materials.getSnapshot(spec)
     const widthCm = Number(spec.finishedWidth)
     const partner = await this.resolvePartner(ctx, input.partnerId, docType)
-    const orderId = await this.validateOrderLink(
-      ctx, input.orderId, docType, partner.partnerId ?? '', input.materialId, input.specId,
+    const { orderId, orderItemId } = await this.validateOrderLink(
+      ctx, input.orderId, docType, partner.partnerId ?? '', input.materialId, input.specId, input.orderItemId,
     )
 
     const saved = await this.dataSource.transaction(async (manager) => {
@@ -752,6 +758,7 @@ export class InventoryService {
         partnerId: partner.partnerId,
         partnerName: partner.partnerName,
         orderId,
+        orderItemId,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
       })

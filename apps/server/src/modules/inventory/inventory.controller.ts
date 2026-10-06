@@ -49,6 +49,11 @@ class CreateDocDto implements CreateDocInput {
   @IsString()
   orderId?: string | null
 
+  /** 履约的订单明细行 id（多明细订单按行算进度；不传按规格自动归到首个未满行） */
+  @IsOptional()
+  @IsString()
+  orderItemId?: string | null
+
   /** 入库仓库（不传则落第一个启用仓） */
   @IsOptional()
   @IsString()

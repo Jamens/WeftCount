@@ -111,6 +111,14 @@ export class InventoryDocumentEntity {
   @Column({ type: 'char', length: 36, nullable: true })
   orderId!: string | null
 
+  /**
+   * 履约的订单明细行 id（trade_order_items.id），可空。
+   * 多明细订单下单据须指明履约哪一行，用于**按行**计算到货/发货进度；
+   * 未指定时服务端按规格自动归到首个未满行。生产领用不挂订单故为空。
+   */
+  @Column({ type: 'char', length: 36, nullable: true })
+  orderItemId!: string | null
+
   /** 经办人 */
   @Column({ type: 'char', length: 36 })
   operatorId!: string

@@ -29,6 +29,7 @@ import {
   type DocWire,
   type InventoryDocType,
   type OrderWire,
+  type OrderItemWire,
   type PartnerWire,
   type TxnWire,
 } from '../lib/erp'
@@ -44,6 +45,7 @@ interface DocForm {
   unitPrice?: number
   partnerId?: string
   orderId?: string
+  orderItemId?: string
   remark?: string
 }
 
@@ -86,6 +88,7 @@ export default function DocPage() {
 
   // 已确认订单下拉（用于把本单挂到订单上累计履约）：采购单挂采购订单、销售单挂销售订单
   const [orders, setOrders] = useState<OrderWire[]>([])
+  const [orderLines, setOrderLines] = useState<{ id: string; specId: string; materialId: string; quantityM: string; remainingM: number }[]>([])
   useEffect(() => {
     api
       .get<OrderWire[]>('/orders?status=confirmed')
@@ -101,12 +104,34 @@ export default function DocPage() {
       .map((o) => ({ value: o.id, label: `${o.orderNo} ${o.partnerName}（${fmt(o.totalQuantityM, 0)}m）` }))
   }, [orders, creating])
 
-  // 选中订单自动带出往来单位；物料/规格仍需用户选(须命中订单某一明细行，服务端会强校验)
-  const onOrderChange = (orderId?: string) => {
-    form.setFieldValue('orderId', orderId)
+  // 选中订单自动带出往来单位并加载其明细行；物料/规格可由「履约明细行」带出
+  // (须命中订单某一明细行，服务端会强校验；不选行则按规格自动归到首个未满行)
+  const onOrderChange = async (orderId?: string) => {
+    form.setFieldsValue({ orderId, orderItemId: undefined })
+    setOrderLines([])
     const o = orders.find((x) => x.id === orderId)
-    if (o) {
-      form.setFieldsValue({ partnerId: o.partnerId })
+    if (!o) return
+    form.setFieldValue('partnerId', o.partnerId)
+    try {
+      const d = await api.get<{ items: OrderItemWire[]; perItem: { itemId: string; fulfilledM: number; orderedM: number }[] }>(`/orders/${o.id}`)
+      setOrderLines(
+        d.data.data.items.map((i) => {
+          const pi = d.data.data.perItem.find((x) => x.itemId === i.id)
+          const ordered = pi?.orderedM ?? Number(i.quantityM)
+          return { id: i.id, specId: i.specId, materialId: i.materialId, quantityM: i.quantityM, remainingM: Math.max(ordered - (pi?.fulfilledM ?? 0), 0) }
+        }),
+      )
+    } catch {
+      /* 加载明细行失败不阻塞，仍可手动选物料规格 */
+    }
+  }
+
+  // 选中履约明细行 → 带出该行物料/规格
+  const onOrderLineChange = (lineId?: string) => {
+    form.setFieldValue('orderItemId', lineId)
+    const line = orderLines.find((x) => x.id === lineId)
+    if (line) {
+      form.setFieldsValue({ specId: line.specId, materialId: line.materialId })
     }
   }
 
@@ -163,6 +188,7 @@ export default function DocPage() {
         unitPrice: v.unitPrice ?? null,
         partnerId: v.partnerId ?? null,
         orderId: v.orderId ?? null,
+        orderItemId: v.orderItemId ?? null,
         remark: v.remark ?? null,
       })
       message.success(`已保存${DOC_TYPE_LABEL[creating].text}单据`)
@@ -419,7 +445,7 @@ export default function DocPage() {
                 <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="可选" />
               </Form.Item>
               {creating && creating !== 'production_issue' && (
-                <Form.Item name="orderId" label="关联订单（可选，选后自动带出往来单位/物料/规格）">
+                <Form.Item name="orderId" label="关联订单（可选，选后自动带出往来单位/明细行）">
                   <Select
                     showSearch
                     allowClear
@@ -427,6 +453,19 @@ export default function DocPage() {
                     optionFilterProp="label"
                     options={orderOptions}
                     onChange={onOrderChange}
+                  />
+                </Form.Item>
+              )}
+              {creating && creating !== 'production_issue' && orderLines.length > 0 && (
+                <Form.Item name="orderItemId" label="履约明细行（多明细订单选本单履约哪一行）">
+                  <Select
+                    allowClear
+                    placeholder="选一行带出物料/规格（不选则按规格自动归行）"
+                    onChange={onOrderLineChange}
+                    options={orderLines.map((l) => ({
+                      value: l.id,
+                      label: `${specName(l.specId)} · 计划 ${fmt(l.quantityM, 0)}m · 剩余 ${fmt(l.remainingM, 0)}m`,
+                    }))}
                   />
                 </Form.Item>
               )}

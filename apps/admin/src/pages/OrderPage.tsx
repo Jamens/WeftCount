@@ -10,6 +10,7 @@ import {
   Input,
   InputNumber,
   Popconfirm,
+  Progress,
   Select,
   Space,
   Table,
@@ -70,7 +71,7 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<OrderWire | null>(null)
-  const [detail, setDetail] = useState<{ order: OrderWire; items: OrderItemWire[]; fulfilledM: number; orderedM: number; progressPct: number } | null>(null)
+  const [detail, setDetail] = useState<{ order: OrderWire; items: OrderItemWire[]; fulfilledM: number; orderedM: number; progressPct: number; perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[] } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm<OrderForm>()
 
@@ -218,7 +219,7 @@ export default function OrderPage() {
 
   const openDetail = async (id: string) => {
     try {
-      const d = await api.get<{ order: OrderWire; items: OrderItemWire[]; fulfilledM: number; orderedM: number; progressPct: number }>(`/orders/${id}`)
+      const d = await api.get<{ order: OrderWire; items: OrderItemWire[]; fulfilledM: number; orderedM: number; progressPct: number; perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[] }>(`/orders/${id}`)
       setDetail(d.data.data)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载详情失败')
@@ -295,6 +296,19 @@ export default function OrderPage() {
                 columns={[
                   { title: '物料', dataIndex: 'materialId', width: 120, render: (v: string) => materialName(v) },
                   { title: '规格', dataIndex: 'specId', width: 120, render: (v: string) => specName(v) },
+                  {
+                    title: '履约进度', dataIndex: 'id', width: 150,
+                    render: (_: string, r: OrderItemWire) => {
+                      const pi = detail.perItem.find((x) => x.itemId === r.id)
+                      if (!pi) return '-'
+                      return (
+                        <Progress
+                          percent={Math.round(pi.progressPct)} size="small"
+                          format={() => `${fmt(pi.fulfilledM, 0)}/${fmt(pi.orderedM, 0)}m`}
+                        />
+                      )
+                    },
+                  },
                   { title: '数量', dataIndex: 'orderedValue', width: 90, align: 'right', render: (v: string, r) => `${fmt(v, 0)} ${r.orderedUnit}` },
                   { title: '折米', dataIndex: 'quantityM', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
                   { title: '单价', dataIndex: 'unitPrice', width: 90, align: 'right', render: (v: string | null) => (v == null ? '-' : fmt(v, 2)) },
@@ -304,7 +318,12 @@ export default function OrderPage() {
               />
             </Card>
             <Card size="small" title="履约进度">
-              <Text>已履约 {fmt(detail.fulfilledM, 0)} m / 订单 {fmt(detail.orderedM, 0)} m（{detail.progressPct.toFixed(0)}%）</Text>
+              <Space direction="vertical" size={4}>
+                <Text>已履约 {fmt(detail.fulfilledM, 0)} m / 订单 {fmt(detail.orderedM, 0)} m（{detail.progressPct.toFixed(0)}%）</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  明细行完成 {detail.perItem.filter((x) => x.progressPct >= 99.9).length} / {detail.perItem.length} 行
+                </Text>
+              </Space>
             </Card>
           </Space>
         )}

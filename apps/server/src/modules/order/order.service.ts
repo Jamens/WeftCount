@@ -280,7 +280,8 @@ export class OrderService {
     partnerId: string,
     materialId: string,
     specId: string,
-  ): Promise<TradeOrderEntity> {
+    orderItemId?: string | null,
+  ): Promise<{ order: TradeOrderEntity; orderItemId: string }> {
     const o = await this.findOne(tenantId, companyId, orderId)
     if (FULFILL_DOC_TYPE[o.orderType] !== docType) {
       throw new BadRequestException({
@@ -300,16 +301,41 @@ export class OrderService {
         message: `往来单位与订单不一致（订单为「${o.partnerName}」）`,
       })
     }
-    // 多明细：匹配任一行
+    // 多明细：解析本单履约哪一行
     const items = await this.listItems(tenantId, companyId, orderId)
-    const match = items.some((i) => i.specId === specId && i.materialId === materialId)
-    if (!match) {
+    const candidates = items.filter((i) => i.specId === specId && i.materialId === materialId)
+    if (candidates.length === 0) {
       throw new BadRequestException({
         code: ErrorCode.VALIDATION_FAILED,
         message: '物料/规格不在订单明细行中',
       })
     }
-    return o
+    if (orderItemId) {
+      const item = candidates.find((i) => i.id === orderItemId)
+      if (!item) {
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '指定的履约明细行与本单物料/规格不匹配',
+        })
+      }
+      return { order: o, orderItemId: item.id }
+    }
+    // 未指定行：自动归到「同规格且尚未履约满」的首行；都满了则归到首个同规格行(进度封顶100%)
+    const fulfilledByItem = await this.fulfilledByItem(tenantId, companyId, orderId)
+    const notFull = candidates.find((i) => Number(i.quantityM) - (fulfilledByItem.get(i.id) ?? 0) > 0.01)
+    const target = notFull ?? candidates[0]
+    return { order: o, orderItemId: target.id }
+  }
+
+  /** 按明细行归集已履约米数（只统计挂了 orderItemId 的单据） */
+  private async fulfilledByItem(tenantId: string, companyId: string, orderId: string): Promise<Map<string, number>> {
+    const documents = await this.docs.find({ where: { tenantId, companyId, orderId } })
+    const map = new Map<string, number>()
+    for (const d of documents) {
+      if (!d.orderItemId) continue
+      map.set(d.orderItemId, (map.get(d.orderItemId) ?? 0) + Number(d.quantityM))
+    }
+    return map
   }
 
   /**
@@ -320,23 +346,40 @@ export class OrderService {
     tenantId: string,
     companyId: string,
     orderId: string,
-  ): Promise<{ fulfilledM: number; orderedM: number; progressPct: number; documents: InventoryDocumentEntity[] }> {
+  ): Promise<{
+    fulfilledM: number
+    orderedM: number
+    progressPct: number
+    documents: InventoryDocumentEntity[]
+    perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[]
+  }> {
     const o = await this.findOne(tenantId, companyId, orderId)
-    const documents = await this.docs.find({
-      where: { tenantId, companyId, orderId },
-      order: { createdAt: 'ASC' },
-    })
+    const [items, documents] = await Promise.all([
+      this.listItems(tenantId, companyId, orderId),
+      this.docs.find({ where: { tenantId, companyId, orderId }, order: { createdAt: 'ASC' } }),
+    ])
     const fulfilledM = documents.reduce((sum, d) => sum + Number(d.quantityM), 0)
     const orderedM = Number(o.totalQuantityM)
     const progressPct = orderedM > 0 ? Math.min((fulfilledM / orderedM) * 100, 100) : 0
+    // 按行进度：单据按 orderItemId 归集
+    const byItem = new Map<string, number>()
+    for (const d of documents) {
+      if (!d.orderItemId) continue
+      byItem.set(d.orderItemId, (byItem.get(d.orderItemId) ?? 0) + Number(d.quantityM))
+    }
+    const perItem = items.map((i) => {
+      const f = byItem.get(i.id) ?? 0
+      const om = Number(i.quantityM)
+      return { itemId: i.id, fulfilledM: f, orderedM: om, progressPct: om > 0 ? Math.min((f / om) * 100, 100) : 0 }
+    })
     if (o.status === 'confirmed' && fulfilledM >= orderedM - 0.01) {
       o.status = 'completed'
       await this.orders.save(o)
     }
-    return { fulfilledM, orderedM, progressPct, documents }
+    return { fulfilledM, orderedM, progressPct, documents, perItem }
   }
 
-  /** 订单详情：含明细行、已关联履约单据与进度 */
+  /** 订单详情：含明细行、已关联履约单据、总体与**按行**进度 */
   async getDetail(tenantId: string, companyId: string, id: string) {
     const order = await this.findOne(tenantId, companyId, id)
     const [items, fulfillment] = await Promise.all([
