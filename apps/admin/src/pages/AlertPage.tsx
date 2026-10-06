@@ -1,0 +1,124 @@
+import { useCallback, useEffect, useState } from 'react'
+import { App as AntdApp, Badge, Button, Card, Segmented, Space, Table, Tag, Typography } from 'antd'
+import { BellOutlined, CheckOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { api } from '../lib/api'
+import { PERM, type AlertWire, type AlertSeverity } from '../lib/erp'
+import { useAuthStore } from '../stores/auth.store'
+
+const { Title, Text } = Typography
+
+const TYPE_LABEL: Record<string, string> = {
+  order_overdue: '交期逾期',
+  low_stock: '库存低位',
+  stale_batch: '呆滞批次',
+}
+const SEV: Record<AlertSeverity, { color: string; label: string }> = {
+  critical: { color: 'red', label: '严重' },
+  warning: { color: 'orange', label: '警告' },
+  info: { color: 'blue', label: '提示' },
+}
+
+/** 预警中心：交期逾期 / 库存低位 / 呆滞批次（确定性规则扫描） */
+export default function AlertPage() {
+  const { message } = AntdApp.useApp()
+  const canManage = useAuthStore((s) => s.hasPermission(PERM.INVENTORY_MANAGE))
+  const [rows, setRows] = useState<AlertWire[]>([])
+  const [open, setOpen] = useState<number>(0)
+  const [scope, setScope] = useState<'open' | 'all'>('open')
+  const [loading, setLoading] = useState(false)
+  const [scanning, setScanning] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [list, sum] = await Promise.all([
+        api.get<AlertWire[]>(`/alerts${scope === 'all' ? '?all=true' : ''}`),
+        api.get<{ open: number }>('/alerts/summary'),
+      ])
+      setRows(list.data.data)
+      setOpen(sum.data.data.open)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '加载预警失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [scope, message])
+
+  useEffect(() => { void load() }, [load])
+
+  const scan = async () => {
+    setScanning(true)
+    try {
+      const r = await api.post<{ created: number; stats: Record<string, number> }>('/alerts/scan')
+      const { created, stats } = r.data.data
+      message.success(`扫描完成，新增 ${created} 条（逾期 ${stats.orderOverdue} / 低库存 ${stats.lowStock} / 呆滞 ${stats.staleBatch}）`)
+      await load()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '扫描失败')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const ack = async (id: string) => {
+    try {
+      await api.post(`/alerts/${id}/ack`)
+      message.success('已确认')
+      await load()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '确认失败')
+    }
+  }
+
+  return (
+    <div>
+      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>
+            <Badge count={open} size="small" offset={[10, 0]}><BellOutlined /></Badge>{' '}
+            预警中心
+          </Title>
+          <Text type="secondary" style={{ fontSize: 12 }}>交期逾期 / 库存低于安全库存 / 呆滞批次——规则扫描，确定性不猜测</Text>
+        </div>
+        <Space>
+          {canManage && <Button type="primary" icon={<ThunderboltOutlined />} loading={scanning} onClick={() => void scan()}>扫描预警</Button>}
+          <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>刷新</Button>
+        </Space>
+      </Space>
+
+      <Card size="small">
+        <Segmented
+          value={scope}
+          onChange={(v) => setScope(v as 'open' | 'all')}
+          options={[
+            { label: `未确认 (${open})`, value: 'open' },
+            { label: '全部', value: 'all' },
+          ]}
+          style={{ marginBottom: 12 }}
+        />
+        <Table<AlertWire>
+          rowKey="id" size="small" loading={loading} dataSource={rows}
+          pagination={{ pageSize: 20, showSizeChanger: false }}
+          columns={[
+            {
+              title: '级别', dataIndex: 'severity', width: 80,
+              render: (v: AlertSeverity) => <Tag color={SEV[v].color}>{SEV[v].label}</Tag>,
+            },
+            { title: '类型', dataIndex: 'type', width: 100, render: (v: string) => TYPE_LABEL[v] ?? v },
+            { title: '标题', dataIndex: 'title', width: 220, ellipsis: true },
+            { title: '详情', dataIndex: 'message', ellipsis: true },
+            { title: '状态', dataIndex: 'acknowledged', width: 80, render: (v: boolean) => (v ? <Tag>已确认</Tag> : <Tag color="gold">待处理</Tag>) },
+            ...(canManage
+              ? [{
+                  title: '操作', width: 90,
+                  render: (_: unknown, r: AlertWire) => (r.acknowledged ? null : (
+                    <Button size="small" type="link" icon={<CheckOutlined />} onClick={() => void ack(r.id)}>确认</Button>
+                  )),
+                }]
+              : []),
+          ]}
+        />
+      </Card>
+    </div>
+  )
+}

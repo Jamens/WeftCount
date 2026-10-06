@@ -19,6 +19,7 @@ import { StocktakeModule } from './modules/stocktake/stocktake.module'
 import { TraceabilityModule } from './modules/traceability/traceability.module'
 import { ContractModule } from './modules/contract/contract.module'
 import { AiModule } from './modules/ai/ai.module'
+import { AlertModule } from './modules/alert/alert.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -60,6 +61,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     TraceabilityModule,
     ContractModule,
     AiModule,
+    AlertModule,
   ],
   controllers: [HealthController],
   providers: [

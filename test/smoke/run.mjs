@@ -53,7 +53,7 @@ async function main() {
     console.log('[smoke] 后端就绪')
   }
 
-  const testFiles = ['01-auth', '02-inventory', '03-order-contract', '04-ai']
+  const testFiles = ['01-auth', '02-inventory', '03-order-contract', '04-ai', '05-alert']
     .map((n) => join(__dirname, `${n}.test.mjs`))
   // --test-concurrency=1：测试文件串行。node --test 默认并行跑文件，而这些用例共享同一个
   // 数据库、都会创建单据，并行会撞 nextDocNo 的单号（唯一键冲突）。串行也符合冒烟的真实语义。

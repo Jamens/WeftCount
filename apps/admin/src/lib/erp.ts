@@ -404,6 +404,20 @@ export interface ScheduleData {
   machineCount: number
 }
 
+export type AlertType = 'order_overdue' | 'low_stock' | 'stale_batch'
+export type AlertSeverity = 'info' | 'warning' | 'critical'
+export interface AlertWire {
+  id: string
+  type: AlertType
+  severity: AlertSeverity
+  title: string
+  message: string
+  refType: string
+  refId: string
+  acknowledged: boolean
+  createdAt: string
+}
+
 // ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------

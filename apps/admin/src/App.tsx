@@ -23,6 +23,7 @@ import {
   ExperimentOutlined,
   ThunderboltOutlined,
   BarcodeOutlined,
+  BellOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -46,6 +47,7 @@ import AiLossPage from './pages/AiLossPage'
 import AiCoefficientPage from './pages/AiCoefficientPage'
 import SupplierCodePage from './pages/SupplierCodePage'
 import AiProductionPage from './pages/AiProductionPage'
+import AlertPage from './pages/AlertPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -111,6 +113,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
           { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
         ]
+      : []),
+    ...(hasPermission(PERM.INVENTORY_VIEW)
+      ? [{ key: '/alerts', icon: <BellOutlined />, label: '预警中心' }]
       : []),
     ...(hasPermission(PERM.PARTNER_VIEW)
       ? [{ key: '/supplier-codes', icon: <BarcodeOutlined />, label: '供应商条码映射' }]
@@ -328,6 +333,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ContractPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/alerts"
+          element={
+            <RequireAuth>
+              <Shell>
+                <AlertPage />
               </Shell>
             </RequireAuth>
           }
