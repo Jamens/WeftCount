@@ -12,6 +12,8 @@ import { GreigeSpecEntity } from '../modules/material/entities/greige-spec.entit
 import { WarehouseEntity } from '../modules/warehouse/entities/warehouse.entity'
 import { MachineEntity } from '../modules/production/entities/machine.entity'
 import { InventoryDocumentEntity } from '../modules/inventory/entities/inventory-document.entity'
+import { InventoryBatchEntity } from '../modules/inventory/entities/inventory-batch.entity'
+import { RollEntity } from '../modules/inventory/entities/roll.entity'
 import { MaterialService } from '../modules/material/material.service'
 import { InventoryService } from '../modules/inventory/inventory.service'
 
@@ -297,12 +299,11 @@ async function seedDemoRolls(
     console.log('[seed] 跳过演示件卡（规格/物料/供应商缺失）')
     return
   }
-  const rolls = [
-    { rollNo: 'PC-DEMO-001', meters: 100 },
-    { rollNo: 'PC-DEMO-002', meters: 100 },
-    { rollNo: 'PC-DEMO-003', meters: 100 },
-  ]
-  await inventoryService.createPurchaseInbound(
+  // 件卡号**跟随实际生成的批次号**（`<批次号>-01/02/03`），与系统自身编号体系一致——
+  // 不用另起一套「PC-DEMO-xxx」，否则演示数据看起来像外来的、与真实流程对不上。
+  // 批次号入库后才确定，故先用临时名建匹，再统一改名为「批次号-序号」。
+  const rollsMeta = [1, 2, 3].map((i) => ({ meters: 100, rollNo: `__SEED_ROLL_${i}__` }))
+  const doc = await inventoryService.createPurchaseInbound(
     { tenantId, companyId, userId },
     {
       materialId: greige.id,
@@ -312,11 +313,22 @@ async function seedDemoRolls(
       unitPrice: 8.5,
       partnerId: supplier.id,
       remark: '演示件卡（逐匹入库）',
-      rolls,
+      rolls: rollsMeta,
     } as never,
   )
+  // 由入库单反查批次号，再把件卡改成「批次号-序号」
+  const batch = await ds.getRepository(InventoryBatchEntity).findOne({ where: { sourceDocId: doc.id } })
+  const rollRepo = ds.getRepository(RollEntity)
+  const created: string[] = []
+  for (let i = 0; i < rollsMeta.length; i++) {
+    const r = await rollRepo.findOne({ where: { rollNo: rollsMeta[i].rollNo, companyId } })
+    if (!r || !batch) continue
+    r.rollNo = `${batch.batchNo}-${String(i + 1).padStart(2, '0')}`
+    await rollRepo.save(r)
+    created.push(r.rollNo)
+  }
   void yarnMaterialId
-  console.log(`[seed] 演示件卡就绪（${rolls.length} 匹 PC-DEMO-001~003，可直接扫码测试）`)
+  console.log(`[seed] 演示件卡就绪（批次 ${batch?.batchNo ?? '-'}：${created.join('、')}）`)
 }
 
 /** 幂等建物料 */
