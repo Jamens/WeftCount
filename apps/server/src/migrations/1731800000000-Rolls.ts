@@ -16,6 +16,7 @@ export class Rolls1731800000000 implements MigrationInterface {
         \`weight_kg\` decimal(14,3) DEFAULT NULL,
         \`status\` enum('in_stock','consumed','sold') NOT NULL DEFAULT 'in_stock',
         \`source_doc_id\` char(36) DEFAULT NULL,
+        \`outbound_doc_id\` char(36) DEFAULT NULL COMMENT '出库单(发货/领用写入)',
         \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
         PRIMARY KEY (\`id\`),
         UNIQUE KEY \`idx_rolls_rollno\` (\`company_id\`,\`roll_no\`),

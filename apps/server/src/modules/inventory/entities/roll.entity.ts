@@ -44,6 +44,10 @@ export class RollEntity {
   @Column({ type: 'char', length: 36, nullable: true })
   sourceDocId!: string | null
 
+  /** 出库单（发货/领用时写入，售出后可知去向） */
+  @Column({ type: 'char', length: 36, nullable: true })
+  outboundDocId!: string | null
+
   @CreateDateColumn()
   createdAt!: Date
 }

@@ -7,6 +7,7 @@ import {
   Col,
   Input,
   InputNumber,
+  Radio,
   Row,
   Select,
   Space,
@@ -30,6 +31,15 @@ interface Pick {
   remaining: number
 }
 
+/** 件卡发货清单项（扫件卡条码，整匹发货） */
+interface RollPick {
+  rollNo: string
+  meters: number
+  specId: string
+  specName: string
+  batchNo: string
+}
+
 /**
  * 扫码拣货出库（销售）
  *
@@ -49,6 +59,9 @@ export default function PickPage() {
   const [customerId, setCustomerId] = useState<string | undefined>()
   const [unitPrice, setUnitPrice] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // 件卡模式：扫件卡发货（整匹出库，走 pickedRolls）
+  const [rollMode, setRollMode] = useState(false)
+  const [rollPicks, setRollPicks] = useState<RollPick[]>([])
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -71,6 +84,7 @@ export default function PickPage() {
   const onScan = () => {
     const c = code.trim().toUpperCase()
     if (!c) return
+    if (rollMode) { void onScanRoll(c); return }
     const b = activeBatches.find((x) => x.batchNo.toUpperCase() === c)
     if (!b) {
       message.warning(`未找到可用批次「${c}」`)
@@ -96,12 +110,47 @@ export default function PickPage() {
   }
 
   const totalM = useMemo(() => picks.reduce((s, p) => s + (p.quantityM || 0), 0), [picks])
+  const totalRollM = useMemo(() => rollPicks.reduce((s, p) => s + p.meters, 0), [rollPicks])
+
+  /** 件卡扫码：查件卡 → 加入发货清单（整匹） */
+  const onScanRoll = async (rollNo: string) => {
+    try {
+      const info = await api.get<{ rollNo: string; meters: string; status: string; specId: string; specName: string; batchNo: string }>(
+        `/inventory/rolls/lookup?rollNo=${encodeURIComponent(rollNo)}`
+      )
+      if (info.status !== 'in_stock') {
+        message.warning(`件卡 ${info.rollNo} 不可用（已出库）`)
+        setCode('')
+        return
+      }
+      if (rollPicks.some((p) => p.rollNo === info.rollNo)) {
+        message.info(`件卡 ${info.rollNo} 已在发货清单`)
+        setCode('')
+        return
+      }
+      if (rollPicks.length > 0 && rollPicks[0].specId !== info.specId) {
+        message.warning(`件卡 ${info.rollNo} 规格与首件不一致（本单限一个规格）`)
+        setCode('')
+        return
+      }
+      setRollPicks((p) => [
+        ...p,
+        { rollNo: info.rollNo, meters: num(info.meters), specId: info.specId, specName: info.specName, batchNo: info.batchNo },
+      ])
+      setCode('')
+      inputRef.current?.focus()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '件卡查询失败')
+      setCode('')
+    }
+  }
 
   const onSubmit = async () => {
     if (!customerId) {
       message.warning('请选择客户')
       return
     }
+    if (rollMode) return submitRolls()
     if (picks.length === 0 || totalM <= 0) {
       message.warning('拣货清单为空')
       return
@@ -129,6 +178,34 @@ export default function PickPage() {
   }
 
   const removePick = (batchId: string) => setPicks((p) => p.filter((x) => x.batchId !== batchId))
+  const removeRoll = (rollNo: string) => setRollPicks((p) => p.filter((x) => x.rollNo !== rollNo))
+
+  /** 件卡发货提交：整匹出库（pickedRolls） */
+  const submitRolls = async () => {
+    if (rollPicks.length === 0 || totalRollM <= 0) {
+      message.warning('件卡发货清单为空')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await api.post<{ docNo: string }>('/inventory/sales-outbound', {
+        materialId: batches.find((b) => b.specId === rollPicks[0].specId)?.materialId,
+        specId: rollPicks[0].specId,
+        enteredUnit: 'm',
+        enteredValue: totalRollM,
+        unitPrice: unitPrice,
+        partnerId: customerId,
+        pickedRolls: rollPicks.map((p) => ({ rollNo: p.rollNo })),
+      })
+      message.success(`已发货：单据 ${res.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m`)
+      setRollPicks([])
+      setUnitPrice(null)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '件卡发货失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div style={{ padding: 16 }}>
@@ -137,13 +214,17 @@ export default function PickPage() {
           <Card size="small">
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Title level={4} style={{ margin: 0 }}>扫码出库（拣货发货）</Title>
-              <Text type="secondary">扫布匹标签条码加入拣货清单，确认后按扫到的批次发货（发什么扫什么）。单据限一个规格。</Text>
+              <Space>
+                <Radio.Group value={rollMode ? 'roll' : 'batch'} onChange={(e) => { setRollMode((e.target.value as string) === 'roll'); setCode('') }} optionType="button" size="small" buttonStyle="solid"
+                  options={[{ label: '按批次', value: 'batch' }, { label: '按件卡(整匹)', value: 'roll' }]} />
+              </Space>
+              <Text type="secondary">{rollMode ? '扫件卡条码整匹发货（发什么扫什么），单据限一个规格。' : '扫布匹标签条码加入拣货清单，确认后按扫到的批次发货（发什么扫什么）。单据限一个规格。'}</Text>
               <Space.Compact style={{ width: 420 }}>
                 <Input
                   ref={inputRef}
                   size="large"
                   prefix={<BarcodeOutlined />}
-                  placeholder="扫描或输入批次号后回车"
+                  placeholder={rollMode ? '扫描或输入件卡号后回车' : '扫描或输入批次号后回车'}
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   onPressEnter={onScan}
@@ -155,8 +236,24 @@ export default function PickPage() {
         </Col>
 
         <Col span={15}>
-          <Card size="small" title={`拣货清单（${picks.length} 个批次）`}>
-            {picks.length === 0 ? (
+          <Card size="small" title={rollMode ? `件卡发货清单（${rollPicks.length} 匹）` : `拣货清单（${picks.length} 个批次）`}>
+            {rollMode ? (
+              rollPicks.length === 0 ? (
+                <Text type="secondary">扫件卡码加入清单（整匹发货）</Text>
+              ) : (
+                <Table<RollPick>
+                  rowKey="rollNo" size="small" pagination={false} dataSource={rollPicks}
+                  columns={[
+                    { title: '件卡号', dataIndex: 'rollNo', width: 150 },
+                    { title: '规格', dataIndex: 'specName', width: 130 },
+                    { title: '所属批次', dataIndex: 'batchNo', width: 130 },
+                    { title: '米数', dataIndex: 'meters', width: 90, align: 'right', render: (v: number) => fmt(v, 1) },
+                    { title: '操作', width: 60, render: (_, r) => <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeRoll(r.rollNo)} /> },
+                  ]}
+                  footer={() => <Text strong>合计：{fmt(totalRollM, 1)} m（{rollPicks.length} 匹）</Text>}
+                />
+              )
+            ) : picks.length === 0 ? (
               <Text type="secondary">扫批次码加入清单</Text>
             ) : (
               <Table<Pick>
@@ -199,10 +296,10 @@ export default function PickPage() {
                 <Text type="secondary">单价（元/米，可选）</Text>
                 <div><InputNumber style={{ width: '100%' }} min={0} precision={4} value={unitPrice ?? undefined} onChange={(v) => setUnitPrice(v ?? null)} /></div>
               </div>
-              <Button type="primary" block icon={<SendOutlined />} loading={submitting} disabled={picks.length === 0} onClick={() => void onSubmit()}>
-                确认出库
+              <Button type="primary" block icon={<SendOutlined />} loading={submitting} disabled={rollMode ? rollPicks.length === 0 : picks.length === 0} onClick={() => void onSubmit()}>
+                {rollMode ? `确认出库（${rollPicks.length} 匹 / ${fmt(totalRollM, 1)}m）` : '确认出库'}
               </Button>
-              <Alert type="info" showIcon message="拣货后按扫到的批次扣减库存（替代先进先出）。批次规格须一致、剩余须充足，否则后端会拒绝。" />
+              <Alert type="info" showIcon message={rollMode ? '按件卡整匹发货：件卡状态置为已售出，扫过/已售的件卡不可重复发；件卡规格须与单据一致，否则后端拒绝。' : '拣货后按扫到的批次扣减库存（替代先进先出）。批次规格须一致、剩余须充足，否则后端会拒绝。'} />
             </Space>
           </Card>
         </Col>

@@ -179,3 +179,79 @@ test('同件卡号重复被拒(防重扫)', async () => {
     partnerId: sup.id, rolls: [{ rollNo: no, meters: 10 }, { rollNo: no, meters: 10 }],
   })
 })
+
+// ---- 件卡全生命周期：入库逐匹 → 逐匹发货 → 单匹追溯 ----
+
+test('件卡逐匹发货：扫件卡发整匹并置已售', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  // 先入库两匹
+  const rolls = [{ rollNo: `S${tag}-1`, meters: 30 }, { rollNo: `S${tag}-2`, meters: 20 }]
+  const inDoc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 50,
+    partnerId: sup.id, unitPrice: 8.5, rolls,
+  })
+  // 逐匹发货：只发第一匹(30m)
+  const outDoc = await post(c, '/inventory/sales-outbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 30,
+    partnerId: cus.id, unitPrice: 9, pickedRolls: [{ rollNo: rolls[0].rollNo }],
+  })
+  assert.ok(outDoc.docNo, '应建出库单')
+  // 追溯：件卡状态=sold，去向有出库单
+  const tr = await get(c, `/inventory/rolls/trace?rollNo=${rolls[0].rollNo}`)
+  assert.equal(tr.roll.status, 'sold', '发货后件卡应 sold')
+  assert.equal(tr.roll.meters, '30.000', '件卡米数应为 30')
+  assert.ok(tr.destination && tr.destination.docNo === outDoc.docNo, '去向应是该出库单')
+  assert.ok(tr.source && tr.source.docNo === inDoc.docNo, '来源应是该入库单')
+  assert.ok(tr.source.partnerName, '来源应带供应商')
+  assert.ok(tr.spec.specName, '应带规格名')
+  void tag
+})
+
+test('已售件卡不可重复发货(防重发)', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  const rollNo = `RE${tag}`
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 10,
+    partnerId: sup.id, unitPrice: 8.5, rolls: [{ rollNo, meters: 10 }],
+  })
+  await post(c, '/inventory/sales-outbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 10,
+    partnerId: cus.id, unitPrice: 9, pickedRolls: [{ rollNo }],
+  })
+  // 再发一次应被拒（件卡已 sold）
+  await expectReject(c, 'POST', '/inventory/sales-outbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 10,
+    partnerId: cus.id, pickedRolls: [{ rollNo }],
+  })
+})
+
+test('件卡规格不符被拒(发错布种)', async () => {
+  const c = await login('factory')
+  const specs = (await get(c, '/greige-specs')).filter((s) => s.status !== 'discontinued')
+  if (specs.length < 2) return
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  const tag = Date.now()
+  const rollNo = `M${tag}`
+  // 件卡属于 specs[0]
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: specs[0].id, enteredUnit: 'm', enteredValue: 10,
+    partnerId: sup.id, unitPrice: 8.5, rolls: [{ rollNo, meters: 10 }],
+  })
+  // 用 specs[1] 的单据发这件卡 → 规格不符
+  await expectReject(c, 'POST', '/inventory/sales-outbound', {
+    materialId: mat.id, specId: specs[1].id, enteredUnit: 'm', enteredValue: 10,
+    partnerId: cus.id, pickedRolls: [{ rollNo }],
+  })
+})

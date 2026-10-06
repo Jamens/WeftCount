@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { DataSource, EntityManager, Like, Repository } from 'typeorm'
+import { DataSource, EntityManager, In, Like, Repository } from 'typeorm'
 import {
   contextFromSnapshot,
   convertQuantity,
@@ -55,6 +55,11 @@ export interface CreateDocInput {
    */
   pickedItems?: { batchId: string; quantityM: number }[] | null
   /**
+   * 逐匹出库（销售/领用）：扫件卡发货，发什么扫什么。件卡整匹出库，
+   * 出库量 = 各件卡米数之和（不依赖 enteredValue）。件卡状态置 sold/consumed。
+   */
+  pickedRolls?: { rollNo: string }[] | null
+  /**
    * 逐匹入库（仅采购入库）：扫件卡逐匹登记，rollNo 公司内唯一防重扫。
    * 传了则按各匹米数校验总量并生成件卡记录（批次米数应 = 各匹之和）。
    */
@@ -69,6 +74,8 @@ interface ConsumptionPlan {
   totalM: number
   totalKg: number
   totalM2: number
+  /** 件卡逐匹发货时，待置为已出库的件卡 id */
+  rollIds?: string[]
 }
 
 @Injectable()
@@ -646,6 +653,10 @@ export class InventoryService {
     if (input.pickedItems && input.pickedItems.length > 0) {
       return this.planPickedConsumption(manager, ctx, input, snapshot, widthCm)
     }
+    // 件卡逐匹发货：扫件卡发整匹
+    if (input.pickedRolls && input.pickedRolls.length > 0) {
+      return this.planRollConsumption(manager, ctx, input, snapshot, widthCm)
+    }
     const c = this.ctxOf(snapshot, widthCm)
     let need: number
     try {
@@ -741,6 +752,65 @@ export class InventoryService {
     return { need: totalM, portions, totalM, totalKg, totalM2 }
   }
 
+  /**
+   * 件卡逐匹发货规划：按扫到的件卡整匹出库（发什么扫什么）。
+   *
+   * 校验：件卡存在、属本公司、**状态 in_stock**（防重发）、所属批次规格与单据一致、
+   * 批次剩余足够。出库量 = 各件卡米数之和（不依赖 enteredValue）。
+   */
+  private async planRollConsumption(
+    manager: EntityManager,
+    ctx: { tenantId: string; companyId: string; userId: string },
+    input: CreateDocInput,
+    snapshot: SpecCalculationSnapshot,
+    widthCm: number,
+  ): Promise<ConsumptionPlan> {
+    const c = this.ctxOf(snapshot, widthCm)
+    const portions: ConsumptionPlan['portions'] = []
+    const rollIds: string[] = []
+    const seen = new Set<string>()
+    let totalM = 0
+    let totalKg = 0
+    let totalM2 = 0
+    for (const pick of input.pickedRolls ?? []) {
+      const rollNo = String(pick.rollNo).trim()
+      if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
+      if (seen.has(rollNo)) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 重复扫码` })
+      }
+      seen.add(rollNo)
+      const roll = await manager.findOne(RollEntity, { where: { rollNo, companyId: ctx.companyId } })
+      if (!roll) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
+      if (roll.status !== 'in_stock') {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 不可用（已出库/已耗）` })
+      }
+      const batch = await manager.findOne(InventoryBatchEntity, { where: { id: roll.batchId } })
+      if (!batch) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 所属批次不存在` })
+      if (batch.specId !== input.specId) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 规格与单据规格不一致` })
+      }
+      const take = Number(roll.meters)
+      const rem = Number(batch.remainingQuantity)
+      if (take > rem + 1e-6) {
+        throw new BadRequestException({
+          code: ErrorCode.INSUFFICIENT_QUANTITY,
+          message: `件卡 ${rollNo}(${take.toFixed(2)}m) 超出批次 ${batch.batchNo} 剩余 ${rem.toFixed(2)}m`,
+        })
+      }
+      const kg = this.metersToWeight(take, c)
+      const m2 = this.metersToArea(take, c)
+      portions.push({ batchId: batch.id, take, kg, m2 })
+      rollIds.push(roll.id)
+      totalM += take
+      totalKg += kg
+      totalM2 += m2
+    }
+    if (totalM <= 0) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡发货合计必须大于 0' })
+    }
+    return { need: totalM, portions, totalM, totalKg, totalM2, rollIds }
+  }
+
   private async executeConsumption(
     manager: EntityManager,
     ctx: { tenantId: string; companyId: string; userId: string },
@@ -779,6 +849,14 @@ export class InventoryService {
           operatorId: ctx.userId,
           remark: input.remark ?? null,
         }),
+      )
+    }
+    // 件卡逐匹发货：把扫到的件卡置为已出库（销售=sold，售出；领用=consumed），记录出库单
+    if (plan.rollIds && plan.rollIds.length > 0) {
+      await manager.update(
+        RollEntity,
+        { id: In(plan.rollIds) },
+        { status: txnType === 'sales_out' ? 'sold' : 'consumed', outboundDocId: docId },
       )
     }
   }
@@ -853,6 +931,99 @@ export class InventoryService {
   // ---------------------------------------------------------------------------
   // 查询
   // ---------------------------------------------------------------------------
+
+  /** 件卡轻量查询（扫码发货用）：件卡→米数/规格/批次/状态，不含单据追溯 */
+  async lookupRoll(tenantId: string, companyId: string, rollNo: string) {
+    const roll = await this.rolls.findOne({ where: { rollNo, companyId } })
+    if (!roll) {
+      throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
+    }
+    const batch = await this.batches.findOne({ where: { id: roll.batchId } })
+    const spec = batch ? await this.materials.findSpec(tenantId, companyId, batch.specId).catch(() => null) : null
+    return {
+      rollNo: roll.rollNo,
+      meters: roll.meters,
+      status: roll.status,
+      specId: batch?.specId ?? null,
+      specName: spec?.name ?? null,
+      materialId: batch?.materialId ?? null,
+      batchNo: batch?.batchNo ?? null,
+    }
+  }
+
+  /**
+   * 件卡全链路追溯
+   *
+   * 一匹布的完整来历与去向：
+   *   件卡(rollNo/米数/状态) → 所属批次(规格/克重/幅宽快照) →
+   *   入库单(供应商 + 采购订单) → [若已出库] 出库单(客户 + 销售订单)
+   * 全部为**已落库的确定性事实**，不含推测。
+   */
+  async traceRoll(tenantId: string, companyId: string, rollNo: string) {
+    const roll = await this.rolls.findOne({ where: { rollNo, companyId } })
+    if (!roll) {
+      throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
+    }
+    const batch = await this.batches.findOne({ where: { id: roll.batchId } })
+    if (!batch) {
+      throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '件卡所属批次不存在' })
+    }
+    const snap = batch.specSnapshot
+    const spec = await this.materials.findSpec(tenantId, companyId, batch.specId).catch(() => null)
+    const material = batch.materialId
+      ? await this.materials
+          .findOne(tenantId, companyId, batch.materialId)
+          .catch(() => null)
+      : null
+
+    // 来源：入库单（供应商 + 采购订单）
+    const inDoc = roll.sourceDocId
+      ? await this.docs.findOne({ where: { id: roll.sourceDocId, companyId } })
+      : null
+
+    // 去向：出库单（客户 + 销售订单）
+    const outDoc = roll.outboundDocId
+      ? await this.docs.findOne({ where: { id: roll.outboundDocId, companyId } })
+      : null
+
+    return {
+      roll: {
+        id: roll.id,
+        rollNo: roll.rollNo,
+        meters: roll.meters,
+        weightKg: roll.weightKg,
+        status: roll.status,
+        inboundAt: roll.createdAt,
+      },
+      spec: {
+        specId: batch.specId,
+        specName: spec?.name ?? batch.specId,
+        finishedWidth: batch.widthCm,
+        totalGsm: snap?.totalGsm ?? null,
+        totalKgPer100m: snap?.totalKgPer100m ?? null,
+      },
+      material: material ? { id: material.id, name: material.name, code: material.code } : null,
+      batch: { id: batch.id, batchNo: batch.batchNo, remainingM: batch.remainingQuantity },
+      source: inDoc
+        ? {
+            docNo: inDoc.docNo,
+            docType: inDoc.docType,
+            partnerName: inDoc.partnerName,
+            orderId: inDoc.orderId,
+            date: inDoc.createdAt,
+          }
+        : null,
+      destination: outDoc
+        ? {
+            docNo: outDoc.docNo,
+            docType: outDoc.docType,
+            partnerName: outDoc.partnerName,
+            orderId: outDoc.orderId,
+            date: outDoc.createdAt,
+          }
+        : null,
+    }
+  }
 
   async listBatches(
     tenantId: string,

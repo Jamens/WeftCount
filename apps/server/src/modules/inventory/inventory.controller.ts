@@ -31,6 +31,12 @@ class RollDto {
   meters!: number
 }
 
+class PickRollDto {
+  @IsString()
+  @IsNotEmpty({ message: '件卡号不能为空' })
+  rollNo!: string
+}
+
 class CreateDocDto implements CreateDocInput {
   @IsString()
   materialId!: string
@@ -76,6 +82,13 @@ class CreateDocDto implements CreateDocInput {
   @ValidateNested({ each: true })
   @Type(() => PickItemDto)
   pickedItems?: PickItemDto[] | null
+
+  /** 件卡逐匹发货（仅出库）：扫件卡发整匹，件卡状态置已出库 */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PickRollDto)
+  pickedRolls?: PickRollDto[] | null
 
   /** 逐匹入库（仅采购入库）：扫件卡逐匹登记(rollNo+米数)，防重扫 */
   @IsOptional()
@@ -137,6 +150,22 @@ export class InventoryController {
   @ApiOperation({ summary: '销售出库（按面积录入，m2/ft2/...）' })
   salesOutbound(@CurrentUser() ctx: RequestContext, @Body() dto: CreateDocDto) {
     return this.inventory.createSalesOutbound(ctx, dto)
+  }
+
+  /** 件卡轻量查询（扫码发货用） */
+  @Get('rolls/lookup')
+  @RequirePermission(Permission.INVENTORY_MANAGE)
+  @ApiOperation({ summary: '按件卡号查米数/规格/批次/状态(发货扫码用)' })
+  lookupRoll(@CurrentUser() ctx: RequestContext, @Query('rollNo') rollNo: string) {
+    return this.inventory.lookupRoll(ctx.tenantId, ctx.companyId, rollNo)
+  }
+
+  /** 件卡全链路追溯：件卡→批次→入库单(供应商/采购订单)→出库单(客户/销售订单) */
+  @Get('rolls/trace')
+  @RequirePermission(Permission.REPORT_VIEW)
+  @ApiOperation({ summary: '按件卡号追溯全链路(来源批次/供应商/采购订单/售出去向)' })
+  traceRoll(@CurrentUser() ctx: RequestContext, @Query('rollNo') rollNo: string) {
+    return this.inventory.traceRoll(ctx.tenantId, ctx.companyId, rollNo)
   }
 
   @Get('batches')
