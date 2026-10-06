@@ -323,6 +323,21 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 接口：`POST /inventory/{purchase-inbound,production-issue,sales-outbound}`、
 `GET /inventory/{batches,documents,transactions,reconcile}`。
 
+### 前端 admin（阶段二界面）
+
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `inventory.view` / `inventory.manage`）门控：
+
+| 页面 | 路由 | 能力 |
+| --- | --- | --- |
+| 物料主数据 | `/materials` | 列表（关键字/大类/状态筛选）、抽屉新建、停用 |
+| 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |
+| 库存批次 | `/inventory/batches` | 列表（规格/状态筛选），米 + 公斤 + 平方米三视图 |
+| 三算单据 | `/inventory/documents` | 采购入库 / 生产领用 / 销售出库 三种单据新建 + 详情（折算三视图与关联交易流水） |
+| 事务流水 | `/inventory/transactions` | 列表（规格/方向筛选），变化量带正负三视图 |
+| 三算对账 | `/inventory/reconcile` | 闭环恒等式 + 容差预警 + 分规格明细 |
+
+> 后端 `decimal` 列经 JSON 序列化为**字符串**，前端统一用 `apps/admin/src/lib/erp.ts` 的 `dec()` 解析，不盲用 shared 中把 decimal 标成 `number` 的接口声明。
+
 ### 阶段三 ~ 八 · 待推进
 
 库存批次 → 采购销售 → 生产工单排产报工 → AI 引擎 → 成本报表追溯 → 桌面端离线与打印
