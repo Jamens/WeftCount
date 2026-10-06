@@ -39,6 +39,11 @@ function num(n: number, scale: number): string {
 }
 
 export interface CreateDocInput {
+  /**
+   * 客户端幂等键（可选）：桌面端离线队列重放时复用同一个值，
+   * 服务端据此去重，避免同一笔单据被重复过账。
+   */
+  clientRequestId?: string | null
   materialId: string
   specId: string
   /** 录入单位：采购=kg 类、领用=m 类、销售=m2 类 */
@@ -296,10 +301,24 @@ export class InventoryService {
     return withUniqueNo(() => this.doPurchaseInbound(ctx, input))
   }
 
+
+  /**
+   * **幂等去重**：同一 clientRequestId 已建过单 → 直接返回首次的单据，不重复过账。
+   *
+   * 桌面端离线队列会在恢复后重放断网期间的单据；没有幂等保护会**重复出入库**
+   * （重复扣库存/重复建批次/重复记账），后果比报工重复计量更严重。
+   */
+  private async findDocByIdempotency(companyId: string, clientRequestId?: string | null) {
+    if (!clientRequestId) return null
+    return this.docs.findOne({ where: { companyId, clientRequestId } })
+  }
+
   private async doPurchaseInbound(
     ctx: { tenantId: string; companyId: string; userId: string },
     input: CreateDocInput,
   ): Promise<InventoryDocumentEntity> {
+    const dupDoc = await this.findDocByIdempotency(ctx.companyId, input.clientRequestId)
+    if (dupDoc) return dupDoc
     const spec = await this.materials.findSpec(ctx.tenantId, ctx.companyId, input.specId)
     const snapshot = this.materials.getSnapshot(spec)
     const widthCm = Number(spec.finishedWidth)
@@ -350,6 +369,7 @@ export class InventoryService {
       const savedBatch = await manager.save(batch)
 
       const doc = manager.create(InventoryDocumentEntity, {
+        clientRequestId: input.clientRequestId ?? null,
         tenantId: ctx.tenantId,
         companyId: ctx.companyId,
         docNo,
@@ -955,6 +975,8 @@ export class InventoryService {
     txnType: 'material_issue' | 'sales_out',
     input: CreateDocInput,
   ): Promise<InventoryDocumentEntity> {
+    const dupDoc = await this.findDocByIdempotency(ctx.companyId, input.clientRequestId)
+    if (dupDoc) return dupDoc
     const spec = await this.materials.findSpec(ctx.tenantId, ctx.companyId, input.specId)
     const snapshot = this.materials.getSnapshot(spec)
     const widthCm = Number(spec.finishedWidth)
@@ -967,6 +989,7 @@ export class InventoryService {
       const plan = await this.planConsumption(manager, ctx, input, snapshot, widthCm)
       const docNo = await this.nextDocNo(ctx.companyId, docType)
       const doc = manager.create(InventoryDocumentEntity, {
+        clientRequestId: input.clientRequestId ?? null,
         tenantId: ctx.tenantId,
         companyId: ctx.companyId,
         docNo,

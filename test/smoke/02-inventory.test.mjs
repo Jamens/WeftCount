@@ -407,3 +407,57 @@ test('件卡级盘点：账实相符时不产生盘盈盘亏流水', async () =>
   const rollsAfter = await get(c, `/inventory/rolls?batchId=${batch.id}`)
   assertNear(Number(rollsAfter[0].remainingM), 100, 0.01, '账实相符件卡 remaining 不变')
 })
+
+// ---- 单据幂等（离线队列重放的前置保障） ----
+
+test('单据幂等：同 clientRequestId 重放入库只扣一次库存', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cid = `smoke-doc-${Date.now()}`
+  const payload = {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 150,
+    unitPrice: 8.2, partnerId: sup.id, clientRequestId: cid,
+  }
+  const d1 = await post(c, '/inventory/purchase-inbound', payload)
+  const d2 = await post(c, '/inventory/purchase-inbound', payload)
+  assert.equal(d1.docNo, d2.docNo, '重放应返回首次那張单，不新建')
+  // 库存只应增加一次 150m
+  const batches = await get(c, '/inventory/batches')
+  const total = batches.filter(b => b.sourceDocId === d1.id).reduce((s, b) => s + Number(b.remainingQuantity), 0)
+  assertNear(total, 150, 0.01, '重放后该入库单对应批次应为 150m，不能变300m')
+})
+
+test('单据幂等：同 clientRequestId 重放销售出库只扣一次', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const cus = await customerOf(c)
+  await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100,
+    unitPrice: 8.2, partnerId: sup.id,
+  })
+  // 出库走 FIFO，扣的是**最早入库**的批次，未必是刚建的那个——
+  // 故按「该规格全部批次剩余之和」比较，与 FIFO 分配无关。
+  const sumSpec = async () => {
+    const bs = await get(c, `/inventory/batches?specId=${spec.id}`)
+    return bs.reduce((s, b) => s + Number(b.remainingQuantity), 0)
+  }
+  const before = await sumSpec()
+  const cid = `smoke-docout-${Date.now()}`
+  const payload = {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 40,
+    unitPrice: 9.5, partnerId: cus.id, clientRequestId: cid,
+  }
+  const o1 = await post(c, '/inventory/sales-outbound', payload)
+  const afterFirst = await sumSpec()
+  const o2 = await post(c, '/inventory/sales-outbound', payload)
+  const afterReplay = await sumSpec()
+
+  assert.equal(o1.docNo, o2.docNo, '重放应返回首次那张出库单，不新建')
+  assert.equal(o1.id, o2.id, '应是同一张单据')
+  assertNear(before - afterFirst, 40, 0.01, '首次出库应扣 40m')
+  assertNear(afterReplay, afterFirst, 0.01, '重放不应再扣库存（不能变 -80m）')
+})

@@ -42,6 +42,16 @@ export class InventoryDocumentEntity {
   @Column({ type: 'char', length: 36 })
   companyId!: string
 
+  /**
+   * 客户端幂等键（可空=不启用）
+   *
+   * 桌面端离线队列会在恢复后**重放**断网期间的单据；没有幂等保护会重复出入库
+   * （重复扣库存/重复建批次/重复记账），后果比报工重复计量更严重。
+   * 客户端重放时须复用同一个值，服务端据此去重、返回首次的单据。
+   */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  clientRequestId!: string | null
+
   /** 单据号，规则：类型前缀 + 8 位日期 + 4 位流水 */
   @Column({ type: 'varchar', length: 32 })
   docNo!: string

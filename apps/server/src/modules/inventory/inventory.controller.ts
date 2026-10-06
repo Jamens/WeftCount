@@ -49,6 +49,13 @@ class PickRollDto {
 }
 
 class CreateDocDto implements CreateDocInput {
+  /**
+   * 客户端幂等键（可选）：桌面端离线队列重放时复用同一个值，
+   * 服务端据此去重，避免同一笔单据被重复过账。
+   */
+  @IsOptional() @IsString() @MaxLength(64)
+  clientRequestId?: string | null
+
   @IsString()
   materialId!: string
 
