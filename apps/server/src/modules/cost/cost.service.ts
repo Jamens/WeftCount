@@ -169,6 +169,15 @@ export class CostService {
    * 单规格成本明细（供智能核价复用）。
    * 与 analysis 同一套确定性算法，只是只算一个规格。
    */
+  /**
+   * 某规格单位成本（**元/米**，规格级而非匹级）
+   *
+   * 拆匹发货下的成本口径：本方法产出的是**每米成本**，出库单金额 = 米数 × 单价。
+   * 故一匹分多次发货时，每次确认 `本次发货米数 × costPerM`；全部发完累计
+   * = `原匹米数 × costPerM` = 整匹成本。**天然按米数分期确认，不重复不遗漏**——
+   * 无需为拆匹做任何特殊处理（切勿改成按「匹」一次性确认成本，会导致残匹在库时
+   * 成本已全额结转、利润虚高）。
+   */
   async specCost(tenantId: string, companyId: string, specId: string): Promise<SpecCostRow | null> {
     const spec = await this.materials.findSpec(tenantId, companyId, specId)
     const yarnIds = [spec.warpMaterialId, spec.weftMaterialId].filter((v): v is string => !!v)

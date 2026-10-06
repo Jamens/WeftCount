@@ -31,10 +31,15 @@ interface Pick {
   remaining: number
 }
 
-/** 件卡发货清单项（扫件卡条码，整匹发货） */
+/** 件卡发货清单项（扫件卡条码；**支持拆匹**：可只发部分米数，残匹留库） */
 interface RollPick {
   rollNo: string
+  /** 该匹原始米数 */
   meters: number
+  /** 该匹当前剩余米数（拆匹前=米数） */
+  remainM: number
+  /** 本次实际发货米数（默认整匹=remainM，可改小=拆匹） */
+  shipM: number
   specId: string
   specName: string
   batchNo: string
@@ -110,12 +115,12 @@ export default function PickPage() {
   }
 
   const totalM = useMemo(() => picks.reduce((s, p) => s + (p.quantityM || 0), 0), [picks])
-  const totalRollM = useMemo(() => rollPicks.reduce((s, p) => s + p.meters, 0), [rollPicks])
+  const totalRollM = useMemo(() => rollPicks.reduce((s, p) => s + p.shipM, 0), [rollPicks])
 
   /** 件卡扫码：查件卡 → 加入发货清单（整匹） */
   const onScanRoll = async (rollNo: string) => {
     try {
-      const info = await api.get<{ rollNo: string; meters: string; status: string; specId: string; specName: string; batchNo: string }>(
+      const info = await api.get<{ rollNo: string; meters: string; remainingM: string; status: string; specId: string; specName: string; batchNo: string }>(
         `/inventory/rolls/lookup?rollNo=${encodeURIComponent(rollNo)}`
       )
       if (info.status !== 'in_stock') {
@@ -135,7 +140,15 @@ export default function PickPage() {
       }
       setRollPicks((p) => [
         ...p,
-        { rollNo: info.rollNo, meters: num(info.meters), specId: info.specId, specName: info.specName, batchNo: info.batchNo },
+        {
+        rollNo: info.rollNo,
+        meters: num(info.meters),
+        remainM: num(info.remainingM ?? info.meters),
+        shipM: num(info.remainingM ?? info.meters), // 默认整匹发
+        specId: info.specId,
+        specName: info.specName,
+        batchNo: info.batchNo,
+      },
       ])
       setCode('')
       inputRef.current?.focus()
@@ -195,9 +208,15 @@ export default function PickPage() {
         enteredValue: totalRollM,
         unitPrice: unitPrice,
         partnerId: customerId,
-        pickedRolls: rollPicks.map((p) => ({ rollNo: p.rollNo })),
+        // shipM < remainM 即拆匹发货，服务端会校验不得超剩余量
+        pickedRolls: rollPicks.map((p) => ({ rollNo: p.rollNo, meters: p.shipM })),
       })
-      message.success(`已发货：单据 ${res.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m`)
+      const splitCnt = rollPicks.filter((p) => p.shipM < p.remainM - 1e-6).length
+      message.success(
+        splitCnt > 0
+          ? `已发货：单据 ${res.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m（其中 ${splitCnt} 匹拆匹发，残匹留库）`
+          : `已发货：单据 ${res.docNo}，${rollPicks.length} 匹共 ${fmt(totalRollM, 1)}m`
+      )
       setRollPicks([])
       setUnitPrice(null)
     } catch (e) {
@@ -239,18 +258,54 @@ export default function PickPage() {
           <Card size="small" title={rollMode ? `件卡发货清单（${rollPicks.length} 匹）` : `拣货清单（${picks.length} 个批次）`}>
             {rollMode ? (
               rollPicks.length === 0 ? (
-                <Text type="secondary">扫件卡码加入清单（整匹发货）</Text>
+                <Text type="secondary">扫件卡码加入清单（默认整匹发货；可改小=拆匹发，残匹留库）</Text>
               ) : (
                 <Table<RollPick>
                   rowKey="rollNo" size="small" pagination={false} dataSource={rollPicks}
                   columns={[
-                    { title: '件卡号', dataIndex: 'rollNo', width: 150 },
-                    { title: '规格', dataIndex: 'specName', width: 130 },
-                    { title: '所属批次', dataIndex: 'batchNo', width: 130 },
-                    { title: '米数', dataIndex: 'meters', width: 90, align: 'right', render: (v: number) => fmt(v, 1) },
+                    { title: '件卡号', dataIndex: 'rollNo', width: 140 },
+                    { title: '规格', dataIndex: 'specName', width: 120 },
+                    { title: '所属批次', dataIndex: 'batchNo', width: 120 },
+                    {
+                      title: '剩余(米)', dataIndex: 'remainM', width: 88, align: 'right',
+                      render: (v: number) => fmt(v, 1),
+                    },
+                    {
+                      title: '发货(米)', dataIndex: 'shipM', width: 130,
+                      render: (v: number, r) => (
+                        <InputNumber
+                          style={{ width: 104 }} min={0.001} max={r.remainM} precision={1} value={v}
+                          onChange={(nv) =>
+                            setRollPicks((p) =>
+                              p.map((x) => (x.rollNo === r.rollNo ? { ...x, shipM: Math.min(nv ?? 0, x.remainM) } : x))
+                            )
+                          }
+                        />
+                      ),
+                    },
+                    {
+                      title: '', width: 66, align: 'center',
+                      // 一键在「整匹」与「拆匹」间切换
+                      render: (_: unknown, r: RollPick) =>
+                        r.shipM < r.remainM - 1e-6 ? (
+                          <Button type="link" size="small" onClick={() => setRollPicks((p) => p.map((x) => (x.rollNo === r.rollNo ? { ...x, shipM: x.remainM } : x)))}>
+                            整匹
+                          </Button>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: 11 }}>整匹</Text>
+                        ),
+                    },
                     { title: '操作', width: 60, render: (_, r) => <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeRoll(r.rollNo)} /> },
                   ]}
-                  footer={() => <Text strong>合计：{fmt(totalRollM, 1)} m（{rollPicks.length} 匹）</Text>}
+                  footer={() => {
+                    const split = rollPicks.filter((p) => p.shipM < p.remainM - 1e-6).length
+                    return (
+                      <Text strong>
+                        合计：{fmt(totalRollM, 1)} m（{rollPicks.length} 匹
+                        {split > 0 ? `，其中 ${split} 匹拆匹发` : ''}）
+                      </Text>
+                    )
+                  }}
                 />
               )
             ) : picks.length === 0 ? (

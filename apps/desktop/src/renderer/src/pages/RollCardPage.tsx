@@ -12,6 +12,8 @@ interface RollWire {
   id: string
   rollNo: string
   meters: string
+  /** 剩余米数（拆匹后 < meters） */
+  remainingM: string
   status: string
   batchId: string
   batchNo: string
@@ -65,7 +67,8 @@ export default function RollCardPage() {
     () =>
       printable.map((r) => ({
         rollNo: r.rollNo,
-        meters: fmt(r.meters, 1),
+        // 拆匹后标签应印**剩余量**（原始米数会误导拣货工）
+        meters: fmt(r.remainingM ?? r.meters, 1),
         specName: r.specName,
         batchNo: r.batchNo,
         widthCm: r.widthCm ? fmt(r.widthCm, 0) : '-',
@@ -125,7 +128,8 @@ export default function RollCardPage() {
                 rowKey="id" size="small" dataSource={rolls} pagination={{ pageSize: 8, showSizeChanger: false }}
                 columns={[
                   { title: '件卡号', dataIndex: 'rollNo', width: 130 },
-                  { title: '米数', dataIndex: 'meters', width: 70, align: 'right', render: (v: string) => fmt(v, 1) },
+                  { title: '剩余(米)', dataIndex: 'remainingM', width: 84, align: 'right', render: (v: string, r) => fmt(v ?? r.meters, 1) },
+                  { title: '原米数', dataIndex: 'meters', width: 78, align: 'right', render: (v: string) => fmt(v, 1) },
                   { title: '状态', dataIndex: 'status', width: 80, render: (s: string) => <Tag color={s === 'in_stock' ? 'blue' : 'default'}>{s === 'in_stock' ? '在库' : s === 'sold' ? '已售' : '已耗'}</Tag> },
                 ]}
               />
