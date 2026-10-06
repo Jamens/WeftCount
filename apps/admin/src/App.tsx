@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { App as AntdApp, Layout, Menu, Typography, Dropdown, Space, Tag, Avatar, Switch } from 'antd'
+import { App as AntdApp, Layout, Menu, Typography, Dropdown, Space, Tag, Avatar, Switch, type MenuProps } from 'antd'
+type ItemType = NonNullable<MenuProps['items']>[number]
 import {
   DashboardOutlined,
   FileSearchOutlined,
   LogoutOutlined,
-  SettingOutlined,
+
   ShopOutlined,
   SwapOutlined,
   UserOutlined,
@@ -84,81 +85,97 @@ function Shell({ children }: { children: React.ReactNode }) {
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
 
-  const menuItems = [
-    { key: '/', icon: <DashboardOutlined />, label: '工作台' },
-    ...(hasPermission(PERM.MATERIAL_VIEW)
-      ? [
-          { key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' },
-          { key: '/greige-specs', icon: <AppstoreOutlined />, label: '坯布规格' },
-        ]
-      : []),
-    ...(hasPermission(PERM.INVENTORY_VIEW)
-      ? [
-          { key: '/inventory/batches', icon: <AppstoreOutlined />, label: '库存批次' },
-          { key: '/inventory/documents', icon: <AppstoreOutlined />, label: '三算单据' },
-          { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
-          { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
-        ]
-      : []),
-    ...(hasPermission(PERM.WAREHOUSE_VIEW)
-      ? [
-          { key: '/warehouses', icon: <BankOutlined />, label: '仓库管理' },
-          { key: '/stocktakes', icon: <FileDoneOutlined />, label: '库存盘点' },
-        ]
-      : []),
-    ...(hasPermission(PERM.AUDIT_VIEW)
-      ? [{ key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' }]
-      : []),
-    ...(hasPermission(PERM.PARTNER_VIEW)
-      ? [{ key: '/partners', icon: <TeamOutlined />, label: '往来单位' }]
-      : []),
-    ...(hasPermission(PERM.PURCHASE_VIEW) || hasPermission(PERM.SALES_VIEW)
-      ? [
-          { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
-          { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
-        ]
-      : []),
-    ...(hasPermission(PERM.INVENTORY_VIEW)
-      ? [{ key: '/alerts', icon: <BellOutlined />, label: '预警中心' }]
-      : []),
-    ...(hasPermission(PERM.COST_VIEW)
-      ? [{ key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' }]
-      : []),
-    ...(hasPermission(PERM.PARTNER_VIEW)
-      ? [{ key: '/supplier-codes', icon: <BarcodeOutlined />, label: '供应商条码映射' }]
-      : []),
-    ...(hasPermission(PERM.SALES_VIEW)
-      ? [{ key: '/ai-quote', icon: <RobotOutlined />, label: '智能核价(AI)' }]
-      : []),
-    ...(hasPermission(PERM.COST_VIEW)
-      ? [{ key: '/ai-loss', icon: <ExperimentOutlined />, label: '损耗归因(AI)' }]
-      : []),
-    ...(hasPermission(PERM.PRODUCTION_VIEW)
-      ? [
-          { key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习(AI)' },
-          { key: '/ai-production', icon: <ExperimentOutlined />, label: 'AI 生产助手' },
-        ]
-      : []),
-    ...(hasPermission(PERM.MATERIAL_VIEW)
-      ? [{ key: '/import-export', icon: <InboxOutlined />, label: '导入导出' }]
-      : []),
-    ...(hasPermission(PERM.PRODUCTION_VIEW)
-      ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
-      : []),
-    ...(hasPermission(PERM.COST_VIEW)
-      ? [{ key: '/cost', icon: <PieChartOutlined />, label: '成本报表' }]
-      : []),
-    ...(hasPermission(PERM.REPORT_VIEW)
-      ? [{ key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' }]
-      : []),
-    ...(hasPermission(PERM.USER_VIEW)
-      ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }]
-      : []),
-    ...(hasPermission(PERM.ROLE_VIEW)
-      ? [{ key: '/roles', icon: <KeyOutlined />, label: '角色管理' }]
-      : []),
-    { key: 'placeholder-m2', icon: <SettingOutlined />, label: '系统设置（更多建设中）', disabled: true },
-  ]
+  // 菜单按业务分组（antd Menu type:'group'）：26 项平铺太深，「用户/角色管理」这类
+  // 系统入口容易被埋掉找不到。分组后每组可折叠、可扫读。
+  const g = (label: string, children: ItemType[]) => ({ key: label, label, type: 'group' as const, children })
+  // 过滤空分组：某用户若无某组全部权限，不显示该组空标题
+
+  const menuItems: ItemType[] = [
+    g('概览', [
+      { key: '/', icon: <DashboardOutlined />, label: '工作台' },
+      ...(hasPermission(PERM.PRODUCTION_VIEW)
+        ? [{ key: '/production', icon: <ClusterOutlined />, label: '生产管理' }]
+        : []),
+      ...(hasPermission(PERM.INVENTORY_VIEW)
+        ? [{ key: '/alerts', icon: <BellOutlined />, label: '预警中心' }]
+        : []),
+    ]),
+    g('基础资料', [
+      ...(hasPermission(PERM.MATERIAL_VIEW)
+        ? [
+            { key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' },
+            { key: '/greige-specs', icon: <AppstoreOutlined />, label: '坯布规格' },
+          ]
+        : []),
+      ...(hasPermission(PERM.PARTNER_VIEW)
+        ? [{ key: '/partners', icon: <TeamOutlined />, label: '往来单位' }]
+        : []),
+      ...(hasPermission(PERM.PARTNER_VIEW)
+        ? [{ key: '/supplier-codes', icon: <BarcodeOutlined />, label: '供应商条码映射' }]
+        : []),
+      ...(hasPermission(PERM.WAREHOUSE_VIEW)
+        ? [{ key: '/warehouses', icon: <BankOutlined />, label: '仓库管理' }]
+        : []),
+      ...(hasPermission(PERM.MATERIAL_VIEW)
+        ? [{ key: '/import-export', icon: <InboxOutlined />, label: '导入导出' }]
+        : []),
+    ]),
+    g('采购销售', [
+      ...(hasPermission(PERM.PURCHASE_VIEW) || hasPermission(PERM.SALES_VIEW)
+        ? [
+            { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
+            { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
+          ]
+        : []),
+    ]),
+    g('库存与三算', [
+      ...(hasPermission(PERM.INVENTORY_VIEW)
+        ? [
+            { key: '/inventory/batches', icon: <AppstoreOutlined />, label: '库存批次' },
+            { key: '/inventory/documents', icon: <AppstoreOutlined />, label: '三算单据' },
+            { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
+            { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
+            { key: '/stocktakes', icon: <FileDoneOutlined />, label: '库存盘点' },
+          ]
+        : []),
+    ]),
+    g('成本与报表', [
+      ...(hasPermission(PERM.COST_VIEW)
+        ? [{ key: '/cost', icon: <PieChartOutlined />, label: '成本报表' }]
+        : []),
+      ...(hasPermission(PERM.COST_VIEW)
+        ? [{ key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' }]
+        : []),
+      ...(hasPermission(PERM.REPORT_VIEW)
+        ? [{ key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' }]
+        : []),
+    ]),
+    g('AI 智能', [
+      ...(hasPermission(PERM.SALES_VIEW)
+        ? [{ key: '/ai-quote', icon: <RobotOutlined />, label: '智能核价' }]
+        : []),
+      ...(hasPermission(PERM.COST_VIEW)
+        ? [{ key: '/ai-loss', icon: <ExperimentOutlined />, label: '损耗归因' }]
+        : []),
+      ...(hasPermission(PERM.PRODUCTION_VIEW)
+        ? [
+            { key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习' },
+            { key: '/ai-production', icon: <ExperimentOutlined />, label: 'AI 生产助手' },
+          ]
+        : []),
+    ]),
+    g('系统管理', [
+      ...(hasPermission(PERM.USER_VIEW)
+        ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }]
+        : []),
+      ...(hasPermission(PERM.ROLE_VIEW)
+        ? [{ key: '/roles', icon: <KeyOutlined />, label: '角色管理' }]
+        : []),
+      ...(hasPermission(PERM.AUDIT_VIEW)
+        ? [{ key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' }]
+        : []),
+    ]),
+  ].filter((it) => (it as { children?: unknown[] }).children?.length) as ItemType[]
 
   const onLogout = () => {
     void api.post('/auth/logout').catch(() => undefined)
