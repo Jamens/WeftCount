@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   App as AntdApp,
+  Alert,
   Button,
   Card,
   Drawer,
   Form,
   Input,
+  Modal,
   Popconfirm,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
   Typography,
@@ -17,6 +20,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import {
   PERM,
+  WORKSHOP_VIEW_LABEL,
   USER_STATUS_LABEL,
   type CompanyOption,
   type RoleWire,
@@ -49,6 +53,9 @@ export default function UserPage() {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<UserWire | null>(null)
+  // 账号有效权限（多角色并集）
+  const [permUser, setPermUser] = useState<UserWire | null>(null)
+  const [permData, setPermData] = useState<{ roles: { code: string; name: string; permissions: string[] }[]; effective: string[]; workshopViews: string[] } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm<UserForm>()
 
@@ -78,6 +85,19 @@ export default function UserPage() {
     form.resetFields()
     form.setFieldsValue({ companyIds: [], roleCodes: [], status: 'active' })
     setOpen(true)
+  }
+
+  const openPermissions = async (u: UserWire) => {
+    setPermUser(u)
+    setPermData(null)
+    try {
+      const res = await api.get<{ roles: { code: string; name: string; permissions: string[] }[]; effective: string[]; workshopViews: string[] }>(
+        `/users/${u.id}/permissions`
+      )
+      setPermData(res.data.data)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '加载账号权限失败')
+    }
   }
 
   const openEdit = (u: UserWire) => {
@@ -197,11 +217,14 @@ export default function UserPage() {
             },
             {
               title: '操作',
-              width: 140,
+              width: 200,
               fixed: 'right',
               render: (_, u) =>
                 canManage ? (
                   <Space size={4}>
+                    <Button type="link" size="small" onClick={() => void openPermissions(u)}>
+                      权限
+                    </Button>
                     <Button type="link" size="small" onClick={() => openEdit(u)}>
                       编辑
                     </Button>
@@ -215,7 +238,9 @@ export default function UserPage() {
                     </Popconfirm>
                   </Space>
                 ) : (
-                  <Text type="secondary">-</Text>
+                  <Button type="link" size="small" onClick={() => void openPermissions(u)}>
+                    权限
+                  </Button>
                 ),
             },
           ]}
@@ -288,6 +313,66 @@ export default function UserPage() {
           )}
         </Form>
       </Drawer>
+
+      <Modal
+        open={permUser !== null}
+        onCancel={() => setPermUser(null)}
+        footer={null}
+        width={720}
+        title={permUser ? `账号有效权限 · ${permUser.realName || permUser.username}` : ''}
+      >
+        {!permData ? (
+          <div style={{ padding: 24, textAlign: 'center' }}>
+            <Spin />
+          </div>
+        ) : (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Alert
+              type="info"
+              showIcon
+              message={`共 ${permData.effective.length} 项有效权限（由 ${permData.roles.length} 个角色的权限取并集）`}
+              description="账号可挂多个角色，实际权限是各角色权限的并集。调整权限请到「角色管理」改角色。"
+            />
+            <div>
+              <Text strong>车间工作台可见页面</Text>
+              <div style={{ marginTop: 6 }}>
+                {permData.workshopViews.length ? (
+                  <Space size={[4, 4]} wrap>
+                    {permData.workshopViews.map((v) => (
+                      <Tag color="blue" key={v}>{WORKSHOP_VIEW_LABEL[v] ?? v}</Tag>
+                    ))}
+                  </Space>
+                ) : (
+                  <Text type="secondary">无（该账号看不到任何车间页面）</Text>
+                )}
+              </div>
+            </div>
+            <div>
+              <Text strong>角色来源</Text>
+              <Space direction="vertical" size={6} style={{ width: '100%', marginTop: 6 }}>
+                {permData.roles.map((r) => (
+                  <div key={r.code}>
+                    <Tag color="blue">{r.name}</Tag>
+                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                      {r.permissions.join('、') || '（无权限）'}
+                    </Text>
+                  </div>
+                ))}
+              </Space>
+            </div>
+            <div>
+              <Text strong>有效权限明细（{permData.effective.length}）</Text>
+              <div style={{ marginTop: 6, maxHeight: 200, overflow: 'auto' }}>
+                <Space size={[4, 4]} wrap>
+                  {permData.effective.map((p) => (
+                    <Tag key={p}>{p}</Tag>
+                  ))}
+                </Space>
+              </div>
+            </div>
+          </Space>
+        )}
+      </Modal>
     </div>
   )
 }

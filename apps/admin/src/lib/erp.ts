@@ -544,6 +544,17 @@ export interface PartnerWire {
 /** 权限码：取自 shared 单一事实源（与后端/desktop 同一份，避免各端漂移） */
 export const PERM = Permission
 
+/** 车间工作台视图中文名（key 与 shared WORKSHOP_VIEW_PERM 一致） */
+export const WORKSHOP_VIEW_LABEL: Record<string, string> = {
+  report: '织机报工',
+  board: '车间大屏',
+  pick: '扫码出库',
+  pickin: '扫码入库',
+  label: '标签打印',
+  rollcard: '件卡打印',
+  scan: '扫码查询',
+}
+
 // ---------------------------------------------------------------------------
 // 用户 / 角色（系统设置）
 // ---------------------------------------------------------------------------

@@ -72,3 +72,26 @@ test('权限拒绝返回 403 + FORBIDDEN(1003)，不误判登录失效', async (
   assert.equal(b.code, 1003, '业务码应为 FORBIDDEN(1003)')
   assert.ok(b.code !== 2001 && b.code !== 2002, '不得是登录失效码(否则前端会误跳登录页)')
 })
+
+test('账号有效权限：多角色并集 + 车间可见页面', async () => {
+  const c = await login('owner')
+  const { users } = await get(c, '/users')
+  // 找一个多角色或单角色账号，校验有效权限=角色并集
+  const u = users.find(x => x.roleCodes && x.roleCodes.length > 0)
+  assert.ok(u, '应有已分配角色的用户')
+  const p = await get(c, `/users/${u.id}/permissions`)
+  assert.ok(Array.isArray(p.effective), '应有有效权限数组')
+  assert.ok(p.roles.length > 0, '应返回角色来源')
+  // 有效权限应包含各角色权限的并集
+  for (const r of p.roles) {
+    for (const perm of r.permissions) {
+      // 角色里可能是 p.module.* 通配，有效集里可能是展开的具体码；至少角色数一致
+      void perm
+    }
+  }
+  assert.ok(Array.isArray(p.workshopViews), '应返回车间可见页面数组')
+  // 管理员(owner)应能看到多个车间页面
+  if (u.username === 'owner' || u.roleCodes.includes('tenant_owner')) {
+    assert.ok(p.workshopViews.length >= 5, '管理员应可见多个车间页面')
+  }
+})

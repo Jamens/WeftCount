@@ -5,7 +5,7 @@ import { AuthGuard } from './guards/auth.guard'
 import { CurrentUser, type RequestContext } from './auth-context'
 import { Permission } from './permissions'
 import { RequirePermission } from './decorators/require-permission.decorator'
-import { Audit } from '../audit/audit.interceptor'
+import { Audit, NoAudit } from '../audit/audit.interceptor'
 import { CreateUserDto, ResetPasswordDto, UpdateUserDto } from './dtos/admin.dto'
 
 @ApiTags('用户管理')
@@ -28,6 +28,14 @@ export class UserController {
   @ApiOperation({ summary: '新建用户' })
   create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateUserDto) {
     return this.auth.createUser(ctx.tenantId, dto)
+  }
+
+  @Get(':id/permissions')
+  @RequirePermission(Permission.USER_VIEW)
+  @NoAudit()
+  @ApiOperation({ summary: '账号有效权限：各角色权限 + 多角色并集 + 该账号在车间工作台可见页面' })
+  permissions(@CurrentUser() ctx: RequestContext, @Param('id') id: string) {
+    return this.auth.userEffectivePermissions(ctx.tenantId, id)
   }
 
   @Patch(':id')

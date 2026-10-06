@@ -19,7 +19,7 @@ import { RoleEntity } from './entities/role.entity'
 import { CompanyEntity } from '../tenant/entities/company.entity'
 import { TenantEntity } from '../tenant/entities/tenant.entity'
 import type { AuthUserPayload, LoginResult } from './types'
-import { expandPermissions } from './permissions'
+import { expandPermissions, hasPermission, WORKSHOP_VIEW_PERM } from './permissions'
 
 const MAX_FAILED_ATTEMPTS = 5
 
@@ -162,6 +162,36 @@ export class AuthService {
       })),
       currentCompanyId: activeCompanies[0].id,
       permissions,
+    }
+  }
+
+  /**
+   * 账号有效权限（账号权限管理的关键一环）
+   *
+   * 返回：各角色及其权限 + **多角色并集后的有效权限** + 该账号在车间工作台能看到的页面。
+   * 角色是授权模板，一个账号可挂多个角色，实际权限是**并集**——不显式算出并集，
+   * 管理员无法确认「这个人到底能干什么」。全部为已落库的确定性事实。
+   */
+  async userEffectivePermissions(tenantId: string, userId: string) {
+    const user = await this.users.findOne({ where: { id: userId, tenantId } })
+    if (!user) {
+      throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '用户不存在' })
+    }
+    const roleEntities = user.roleCodes.length
+      ? await this.roles.find({
+          where: user.roleCodes.map((code) => ({ tenantId, code })),
+        })
+      : []
+    const effective = expandPermissions(roleEntities.map((r) => r.permissions))
+    // 该账号在车间工作台(desktop)可见的页面（按 shared 的视图→权限映射）
+    const workshopViews = Object.entries(WORKSHOP_VIEW_PERM)
+      .filter(([, perm]) => hasPermission(effective, perm))
+      .map(([view]) => view)
+    return {
+      user: { id: user.id, username: user.username, realName: user.realName, status: user.status },
+      roles: roleEntities.map((r) => ({ code: r.code, name: r.name, permissions: r.permissions })),
+      effective,
+      workshopViews,
     }
   }
 
