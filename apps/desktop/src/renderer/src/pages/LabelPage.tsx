@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { App as AntdApp, Button, Card, Col, Empty, Row, Select, Space, Table, Tag, Typography } from 'antd'
+import { App as AntdApp, Button, Card, Col, Empty, Row, Select, Space, Table, Tag, Typography, theme } from 'antd'
 import { PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
@@ -11,6 +11,7 @@ const { Title, Text } = Typography
 /** 布匹标签打印（仓管员，离线打印：条码与版式均在本地生成） */
 export default function LabelPage() {
   const { message } = AntdApp.useApp()
+  const { token } = theme.useToken()
   const [warehouses, setWarehouses] = useState<WarehouseWire[]>([])
   const [batches, setBatches] = useState<BatchWire[]>([])
   const [materials, setMaterials] = useState<MaterialWire[]>([])
@@ -103,7 +104,7 @@ export default function LabelPage() {
                 size="small"
                 pagination={{ pageSize: 8, showSizeChanger: false }}
                 dataSource={filtered}
-                onRow={(r) => ({ onClick: () => setTarget(r), style: { cursor: 'pointer', background: target?.id === r.id ? '#e6f4ea' : undefined } })}
+                onRow={(r) => ({ onClick: () => setTarget(r), style: { cursor: 'pointer', background: target?.id === r.id ? token.colorPrimaryBg : undefined } })}
                 columns={[
                   { title: '批次号', dataIndex: 'batchNo', width: 140 },
                   { title: '物料', dataIndex: 'materialId', width: 130, render: (v: string) => materials.find((m) => m.id === v)?.name ?? '-' },
@@ -131,7 +132,7 @@ export default function LabelPage() {
                 <iframe
                   title="label-preview"
                   srcDoc={labelHtml}
-                  style={{ width: '100%', height: 380, border: '1px solid #eee', borderRadius: 4 }}
+                  style={{ width: '100%', height: 380, border: `1px solid ${token.colorBorder}`, borderRadius: 4 }}
                 />
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   打印走本地系统打印机（离线可用）；扫标签上的条码可在「扫码查询」查这批布的档案与来源。

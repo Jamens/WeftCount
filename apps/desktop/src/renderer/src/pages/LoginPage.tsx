@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { App as AntdApp, Button, Card, Form, Input, Typography } from 'antd'
+import { App as AntdApp, Button, Card, Form, Input, Typography, theme } from 'antd'
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
 import { api, authStore } from '../lib/api'
 
@@ -12,6 +12,7 @@ interface LoginForm {
 
 export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const { message } = AntdApp.useApp()
+  const { token } = theme.useToken()
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm<LoginForm>()
 
@@ -34,7 +35,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: token.colorBgLayout }}>
       <Card style={{ width: 360 }} variant="outlined">
         <Title level={4} style={{ textAlign: 'center' }}>
           纬数 · 车间工作台

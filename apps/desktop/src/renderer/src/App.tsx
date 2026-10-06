@@ -1,7 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Layout, Menu, Space, Tag, Typography } from 'antd'
-import { FundOutlined, DashboardOutlined, LogoutOutlined, PrinterOutlined, BarcodeOutlined, SendOutlined } from '@ant-design/icons'
+import {
+  App as AntdApp,
+  Button,
+  Layout,
+  Menu,
+  Space,
+  Tag,
+  Tooltip,
+  Typography,
+  theme,
+} from 'antd'
+import {
+  FundOutlined,
+  DashboardOutlined,
+  LogoutOutlined,
+  PrinterOutlined,
+  BarcodeOutlined,
+  SendOutlined,
+  SunOutlined,
+  MoonOutlined,
+} from '@ant-design/icons'
 import { authStore } from './lib/api'
+import { useThemeStore } from './stores/theme.store'
 import LoginPage from './pages/LoginPage'
 import ReportPage from './pages/ReportPage'
 import BoardPage from './pages/BoardPage'
@@ -18,6 +38,10 @@ export default function App() {
   const [view, setView] = useState<View>('report')
   const [env, setEnv] = useState<{ version: string; platform: string } | null>(null)
 
+  const mode = useThemeStore((s) => s.mode)
+  const toggleTheme = useThemeStore((s) => s.toggle)
+  const { token } = theme.useToken()
+
   useEffect(() => {
     if (!window.weftDesktop) return
     void Promise.all([window.weftDesktop.getVersion(), window.weftDesktop.getPlatform()]).then(
@@ -30,6 +54,61 @@ export default function App() {
     setAuthed(false)
   }, [])
 
+  // 头部/侧栏跟随主题，文字用对比色
+  const headerText = mode === 'dark' ? '#fff' : token.colorText
+
+  const shell = (children: React.ReactNode) => (
+    <AntdApp>
+      <Layout style={{ minHeight: '100vh' }}>
+        <Layout.Header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 16px',
+          }}
+        >
+          <Text strong style={{ color: headerText, fontSize: 16 }}>
+            纬数 · 车间工作台
+          </Text>
+          <Space>
+            <Tooltip title={mode === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'}>
+              <Button
+                type="text"
+                aria-label="切换明暗模式"
+                icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+                onClick={toggleTheme}
+                style={{ color: headerText }}
+              />
+            </Tooltip>
+            {env && <Tag style={{ margin: 0 }}>v{env.version}</Tag>}
+            <Text style={{ color: headerText, cursor: 'pointer' }} onClick={onLogout}>
+              <LogoutOutlined /> 退出
+            </Text>
+          </Space>
+        </Layout.Header>
+        <Layout>
+          <Layout.Sider width={160} theme={mode}>
+            <Menu
+              theme={mode}
+              mode="inline"
+              selectedKeys={[view]}
+              items={[
+                { key: 'report', icon: <FundOutlined />, label: '织机报工' },
+                { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
+                { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
+                { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
+                { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
+              ]}
+              onClick={({ key }) => setView(key as View)}
+            />
+          </Layout.Sider>
+          <Layout.Content>{children}</Layout.Content>
+        </Layout>
+      </Layout>
+    </AntdApp>
+  )
+
   if (!authed) {
     return (
       <AntdApp>
@@ -38,39 +117,8 @@ export default function App() {
     )
   }
 
-  return (
-    <AntdApp>
-      <Layout style={{ minHeight: '100vh' }}>
-      <Layout.Header style={{ background: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}>
-        <Text strong style={{ color: '#fff', fontSize: 16 }}>纬数 · 车间工作台</Text>
-        <Space>
-          {env && <Tag style={{ margin: 0 }}>v{env.version}</Tag>}
-          <Text style={{ color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }} onClick={onLogout}>
-            <LogoutOutlined /> 退出
-          </Text>
-        </Space>
-      </Layout.Header>
-      <Layout>
-        <Layout.Sider width={160} theme="dark">
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[view]}
-            items={[
-              { key: 'report', icon: <FundOutlined />, label: '织机报工' },
-              { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
-              { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
-              { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
-              { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
-            ]}
-            onClick={({ key }) => setView(key as View)}
-          />
-        </Layout.Sider>
-        <Layout.Content style={{ background: view === 'board' ? '#0f1115' : '#f5f5f5' }}>
-          {view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'pick' ? <PickPage /> : <ScanPage />}
-        </Layout.Content>
-      </Layout>
-    </Layout>
-    </AntdApp>
-  )
+  const page =
+    view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'pick' ? <PickPage /> : <ScanPage />
+
+  return shell(page)
 }

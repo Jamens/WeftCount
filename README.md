@@ -366,6 +366,7 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 - **扫码出库**（挡车工/仓管核心）：扫布匹标签条码加入拣货清单（可改数量）→ 确认发货，按**扫到的批次**扣减库存（替代 FIFO 自动拣货，发什么扫什么）。单据限一个规格（首扫批次决定），后端校验批次规格一致、剩余充足。
 - **扫码查询**：输入框自动聚焦（扫码枪以键盘楔入），扫/输批次码 → 查该批布的档案（物料/规格/数量/仓库/克重）+ **一键看全链路来源**（复用 `traceability/batch/:id`）。与标签打印形成「打印→扫码→追溯」闭环。
 - 渲染层 `apps/desktop/src/renderer`，`pnpm dev:desktop` 启动（需后端在线）。条码用 `jsbarcode`(CODE128)。
+- **主题（明/暗）**：桌面端自带明暗主题，默认跟随系统 `prefers-color-scheme`，点头部太阳/月亮按钮切换并持久化(localStorage)。ConfigProvider 按模式切 `darkAlgorithm`/`defaultAlgorithm`，品牌主色金 `#BA7517`。所有页面去硬编码配色、一律用 `theme.useToken()` token，Header/Sider/Menu 跟随主题——**此前只写死 darkAlgorithm + 浅色内容背景导致深色组件瘫在浅底上，现已统一**。标签打印预览(标签 HTML)刻意保持浅色，因其打印在白纸上。
 
 > **扫码拣货（出库）**：库存出库接口 `sales-outbound` 支持可选 `pickedItems`（扫码批次+数量），传了按指定批次消耗，不传仍走 FIFO。
 >
