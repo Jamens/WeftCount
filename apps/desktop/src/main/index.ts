@@ -6,9 +6,29 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 function registerIpcHandlers(): void {
   ipcMain.handle('app:getVersion', () => app.getVersion())
   ipcMain.handle('app:getPlatform', () => process.platform)
-  ipcMain.handle('app:printLabel', (_event, payload: unknown) => {
-    // 阶段八实现本地打印模板，此处先回执成功
-    return { ok: true, payload }
+
+  /**
+   * 本地标签打印（离线）
+   *
+   * 渲染进程把自包含的标签 HTML（含内联条码 SVG）传进来，这里开一个隐藏窗口加载后
+   * 调系统 print()，**不依赖后端/网络**——车间断网也能打标签。
+   */
+  ipcMain.handle('app:printLabel', (_event, payload: { html?: string } | undefined) => {
+    const html = payload?.html ?? ''
+    return new Promise<{ ok: boolean; reason?: string }>((resolve) => {
+      if (!html) {
+        resolve({ ok: false, reason: 'empty label html' })
+        return
+      }
+      const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true, javascript: false } })
+      void win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+      win.webContents.once('did-finish-load', () => {
+        win.webContents.print({ silent: false, printBackground: true }, (success, reason) => {
+          win.destroy()
+          resolve({ ok: success, reason: success ? undefined : reason })
+        })
+      })
+    })
   })
 }
 

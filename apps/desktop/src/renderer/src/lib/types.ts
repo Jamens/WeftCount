@@ -39,6 +39,46 @@ export interface ReportableOrder {
   dueDate: string | null
 }
 
+export interface WarehouseWire {
+  id: string
+  code: string
+  name: string
+}
+
+export interface MaterialWire {
+  id: string
+  code: string
+  name: string
+}
+
+export interface BatchWire {
+  id: string
+  batchNo: string
+  materialId: string
+  specId: string
+  warehouseId: string | null
+  quantity: string
+  remainingQuantity: string
+  weightKg: string
+  areaM2: string
+  status: string
+  inboundAt: string
+}
+
+/** 批次来源链（简化，用于扫码查询页展示） */
+export type BatchOrigin =
+  | { kind: 'production'; workOrder: { orderNo: string; status: string }; machine: { name: string; model: string | null } | null; report: { reportDate: string; outputM: string } }
+  | { kind: 'purchase'; purchaseDoc: { docNo: string }; supplier: { name: string } | null; purchaseOrder: { orderNo: string } | null }
+  | { kind: 'transfer'; fromBatchNo: string; origin: BatchOrigin | null }
+  | { kind: 'unknown'; sourceType: string }
+
+export interface BatchTrace {
+  batch: BatchWire & { sourceType: string }
+  spec: { code: string; name: string; totalGsm: number } | null
+  origin: BatchOrigin | null
+  consumedBy: Array<{ docNo: string; docType: string; outM: number; partnerName: string | null }>
+}
+
 /** decimal 字符串 → number */
 export function num(v: string | number | null | undefined): number {
   if (v == null || v === '') return 0
