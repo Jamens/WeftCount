@@ -22,6 +22,7 @@ import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
 import ReconcilePage from './pages/ReconcilePage'
+import DocPage from './pages/DocPage'
 import { PERM } from './lib/erp'
 
 const { Text } = Typography
@@ -57,7 +58,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     ...(hasPermission(PERM.INVENTORY_VIEW)
       ? [
           { key: '/inventory/batches', icon: <AppstoreOutlined />, label: '库存批次' },
-          { key: 'placeholder-doc', icon: <AppstoreOutlined />, label: '三算单据（建设中）', disabled: true },
+          { key: '/inventory/documents', icon: <AppstoreOutlined />, label: '三算单据' },
           { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
           { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
         ]
@@ -227,6 +228,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ReconcilePage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/inventory/documents"
+          element={
+            <RequireAuth>
+              <Shell>
+                <DocPage />
               </Shell>
             </RequireAuth>
           }
