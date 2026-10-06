@@ -253,28 +253,23 @@ function Shell({ children }: { children: React.ReactNode }) {
           theme={mode}
           style={{
             borderRight: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.12)' : '#f0f0f0'}`,
-            // 菜单分组后项数变多，需要在 Sider 内部滚动而不是被外层裁掉
-            height: '100%',
+            // 菜单分组后项数多：在 Sider 内用一层 div 做滚动容器(不依赖 antd Menu 内部结构)
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
           }}
         >
-          <Menu
-            mode="inline"
-            selectedKeys={[location.pathname]}
-            items={menuItems}
-            style={{
-              borderInlineEnd: 'none',
-              // flex:1 + minHeight:0：让 Menu 在 Sider 里可滚动(flex 子项默认 min-height:auto 会撑破)
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-            }}
-            onClick={({ key }) => {
-              if (!key.startsWith('placeholder-')) navigate(key)
-            }}
-          />
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <Menu
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              items={menuItems}
+              style={{ borderInlineEnd: 'none' }}
+              onClick={({ key }) => {
+                if (!key.startsWith('placeholder-')) navigate(key)
+              }}
+            />
+          </div>
         </Layout.Sider>
         <Layout.Content
           style={{
