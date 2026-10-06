@@ -36,7 +36,9 @@ export default function BatchPage() {
   const [data, setData] = useState<BatchWire[]>([])
   const [loading, setLoading] = useState(false)
   const [specId, setSpecId] = useState<string | undefined>()
-  const [status, setStatus] = useState<BatchWire['status'] | undefined>()
+  // 默认只显示「正常」批次：耗尽批次是**历史凭证**(对账/追溯要用)，不是垃圾数据，
+  // 但混在在用批次里会干扰日常查询，故默认折叠、需显式筛选才展示。
+  const [status, setStatus] = useState<BatchWire['status'] | 'all' | undefined>('normal')
   const [warehouseId, setWarehouseId] = useState<string | undefined>()
   const [warehouses, setWarehouses] = useState<WarehouseWire[]>([])
   const [transferring, setTransferring] = useState<BatchWire | null>(null)
@@ -56,7 +58,7 @@ export default function BatchPage() {
     try {
       const params = new URLSearchParams()
       if (specId) params.set('specId', specId)
-      if (status) params.set('status', status)
+      if (status && status !== 'all') params.set('status', status)
       if (warehouseId) params.set('warehouseId', warehouseId)
       const res = await api.get<BatchWire[]>(`/inventory/batches?${params.toString()}`)
       setData(res.data.data)
@@ -126,13 +128,17 @@ export default function BatchPage() {
           <Select
             allowClear
             placeholder="状态"
-            style={{ width: 120 }}
+            style={{ width: 150 }}
             value={status}
             onChange={setStatus}
-            options={(Object.keys(BATCH_STATUS_LABEL) as BatchWire['status'][]).map((k) => ({
-              value: k,
-              label: BATCH_STATUS_LABEL[k].text,
-            }))}
+            options={[
+              ...(Object.keys(BATCH_STATUS_LABEL) as BatchWire['status'][]).map((k) => ({
+                value: k,
+                // 耗尽批次文案点明它仍可查——避免被误解为「垃圾数据」而想删
+                label: k === 'depleted' ? `${BATCH_STATUS_LABEL[k].text}（已归档，仍可追溯）` : BATCH_STATUS_LABEL[k].text,
+              })),
+              { value: 'all', label: '全部（含已归档）' },
+            ]}
           />
           <Select
             allowClear
