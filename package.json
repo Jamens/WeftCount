@@ -19,6 +19,7 @@
     "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "verify": "pnpm run typecheck && pnpm run test && pnpm run build"
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "test:smoke": "node test/smoke/run.mjs"
   }
 }
