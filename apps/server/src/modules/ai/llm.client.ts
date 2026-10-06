@@ -9,7 +9,7 @@ export interface LlmMessage {
 export interface LlmResult {
   ok: boolean
   content: string
-  /** 失败原因：no_api_key / timeout / http_error / network_error / bad_json */
+  /** 失败原因：no_api_key（未配 key）/ disabled（AI_ENABLED=false 总开关关闭）/ timeout / http_error / network_error / bad_json */
   reason?: string
   usage?: { promptTokens?: number; completionTokens?: number }
 }
@@ -29,13 +29,30 @@ export class LlmClient {
 
   constructor(private readonly config: ConfigService) {}
 
+  /**
+   * AI 总开关
+   *
+   * 三种关闭方式（任一命中即关闭），便于演示/离线/排障时一键停用大模型：
+   *   1. `AI_ENABLED=false` 显式关闭（**优先**，即使配了 key 也不调用）
+   *   2. 未配置 `AI_API_KEY`
+   * 关闭时各AI 能力**照常返回确定性结果**（成本/价带/统计都是本地算的），
+   * 只是不调用大模型改写建议——功能降级但不停摆。
+   */
   get enabled(): boolean {
+    const flag = this.config.get<string>('AI_ENABLED')
+    if (flag != null && flag.trim().toLowerCase() === 'false') return false
     return !!this.config.get<string>('AI_API_KEY')
   }
 
   async chat(messages: LlmMessage[], opts?: { temperature?: number; timeoutMs?: number }): Promise<LlmResult> {
-    const apiKey = this.config.get<string>('AI_API_KEY')
-    if (!apiKey) return { ok: false, content: '', reason: 'no_api_key' }
+    if (!this.enabled) {
+      return {
+        ok: false,
+        content: '',
+        reason: this.config.get<string>('AI_API_KEY') ? 'disabled' : 'no_api_key',
+      }
+    }
+    const apiKey = this.config.get<string>('AI_API_KEY')!
     const baseUrl = (this.config.get<string>('AI_BASE_URL') ?? 'https://api.deepseek.com').replace(/\/+$/, '')
     const model = this.config.get<string>('AI_MODEL') ?? 'deepseek-chat'
     const timeoutMs = opts?.timeoutMs ?? 20000

@@ -63,7 +63,15 @@ export class AiController {
   @RequirePermission(Permission.SALES_VIEW)
   @ApiOperation({ summary: 'AI 引擎状态（大模型是否已配置）' })
   status() {
-    return { llmEnabled: this.llm.enabled, note: this.llm.enabled ? '大模型已接入，结论由 AI 生成' : '未配置 AI_API_KEY，结论由确定性规则兜底' }
+    const on = this.llm.enabled
+    return {
+      llmEnabled: on,
+      note: on
+        ? '大模型已接入，结论由 AI 生成'
+        : process.env.AI_ENABLED?.toLowerCase() === 'false'
+          ? 'AI 已通过 AI_ENABLED=false 关闭，结论由确定性规则兜底'
+          : '未配置 AI_API_KEY，结论由确定性规则兜底',
+    }
   }
 
   @Post('quote')
