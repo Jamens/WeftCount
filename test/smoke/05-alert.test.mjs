@@ -1,7 +1,7 @@
 // 预警中心：扫描生成 / 去重 / 确认
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { login, get, post, activeSpec, activeGreigeMaterial } from './helpers.mjs'
+import { login, get, post, activeSpec, activeGreigeMaterial, assertNear } from './helpers.mjs'
 
 test('预警扫描可执行并返回统计', async () => {
   const c = await login('factory')
@@ -81,4 +81,27 @@ test('趋势聚合：结构完整且数值非负', async () => {
   }
   assert.ok(t.totals, '应有合计')
   assert.ok(Array.isArray(t.specShare), '应有规格占比数组')
+})
+
+// ---- 趋势图表深化：损耗趋势 + 匹维度 ----
+
+test('趋势：损耗段(投料vs产出vs累计损耗)与匹维度段结构完整', async () => {
+  const c = await login('factory')
+  const t = await get(c, '/analytics/trends?days=30')
+  // 损耗段
+  assert.ok(t.loss, '应有 loss 段')
+  assert.equal(t.loss.daily.length, 30, '损耗应有30个日点')
+  for (const p of t.loss.daily) {
+    assert.ok(typeof p.inputM === 'number' && typeof p.outputM === 'number' && typeof p.cumulativeExcessM === 'number', '损耗点应含 inputM/outputM/cumulativeExcessM')
+    assertNear(p.excessM, p.inputM - p.outputM, 0.01, '当日损耗应=投料-产出')
+  }
+  assert.ok(typeof t.loss.totalExcessM === 'number', '应有窗口累计损耗')
+  // 匹维度段
+  assert.ok(t.rolls, '应有 rolls 段')
+  assert.equal(t.rolls.daily.length, 30, '匹数应有30个日点')
+  for (const p of t.rolls.daily) {
+    assert.ok(typeof p.produced === 'number' && typeof p.shipped === 'number', '匹数点应含 produced/shipped')
+  }
+  assert.ok(typeof t.rolls.inStock === 'number', '应有在库匹数')
+  assert.ok(Array.isArray(t.rolls.machineTop), '应有机台产出Top数组')
 })

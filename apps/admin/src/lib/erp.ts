@@ -435,6 +435,19 @@ export interface TrendData {
   daily: { date: string; meters: number; weightKg: number; purchaseAmount: number; salesAmount: number }[]
   specShare: { specId: string; specName: string; meters: number }[]
   totals: { meters: number; purchaseAmount: number; salesAmount: number }
+  /** 损耗趋势：投料(领用) vs 产出 vs 当日/累计损耗（米） */
+  loss: {
+    daily: { date: string; inputM: number; outputM: number; excessM: number; cumulativeExcessM: number }[]
+    totalExcessM: number
+    windowInputM: number
+    windowOutputM: number
+  }
+  /** 匹维度：日产出/发货匹数、在库匹数、机台产出 Top */
+  rolls: {
+    daily: { date: string; produced: number; shipped: number }[]
+    inStock: number
+    machineTop: { machineId: string; machineName: string; rolls: number; meters: number }[]
+  }
 }
 
 // ---------------------------------------------------------------------------
