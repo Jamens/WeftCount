@@ -30,6 +30,7 @@ export type InventoryDocType = 'purchase_inbound' | 'production_issue' | 'sales_
 @Index('idx_docs_type', ['companyId', 'docType'])
 @Index('idx_docs_no_company', ['docNo', 'companyId'], { unique: true })
 @Index('idx_docs_spec', ['companyId', 'specId'])
+@Index('idx_docs_partner', ['companyId', 'partnerId'])
 export class InventoryDocumentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string
@@ -89,9 +90,17 @@ export class InventoryDocumentEntity {
   @Column({ type: 'decimal', precision: 16, scale: 2, nullable: true })
   totalAmount!: string | null
 
-  /** 往来单位（供应商 / 客户），可选 */
+  /**
+   * 往来单位（供应商 / 客户），关联 partners.id。
+   * 采购入库=供应商，销售出库=客户，生产领用为内部转移不适用（null）。
+   * 停用/删除 partner 不会影响已开单据——这里只存 id + 名称快照。
+   */
+  @Column({ type: 'char', length: 36, nullable: true })
+  partnerId!: string | null
+
+  /** 往来单位名称快照，锁死开单时的抬头（partner 改名不影响历史单据） */
   @Column({ type: 'varchar', length: 128, nullable: true })
-  counterparty!: string | null
+  partnerName!: string | null
 
   /** 经办人 */
   @Column({ type: 'char', length: 36 })

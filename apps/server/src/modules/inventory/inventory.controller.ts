@@ -31,8 +31,7 @@ class CreateDocDto implements CreateDocInput {
 
   @IsOptional()
   @IsString()
-  @MaxLength(128)
-  counterparty?: string | null
+  partnerId?: string | null
 
   @IsOptional()
   @IsString()

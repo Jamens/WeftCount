@@ -102,7 +102,8 @@ export interface DocWire {
   areaM2: string
   unitPrice: string | null
   totalAmount: string | null
-  counterparty: string | null
+  partnerId: string | null
+  partnerName: string | null
   operatorId: string
   remark: string | null
   createdAt: string

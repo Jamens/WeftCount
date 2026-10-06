@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   App as AntdApp,
@@ -27,6 +27,7 @@ import {
   SUGGESTED_UNITS,
   type DocWire,
   type InventoryDocType,
+  type PartnerWire,
   type TxnWire,
 } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
@@ -39,7 +40,7 @@ interface DocForm {
   enteredUnit: string
   enteredValue: number
   unitPrice?: number
-  counterparty?: string
+  partnerId?: string
   remark?: string
 }
 
@@ -61,7 +62,24 @@ export default function DocPage() {
   const [detail, setDetail] = useState<{ doc: DocWire; transactions: TxnWire[] } | null>(null)
   const [creating, setCreating] = useState<InventoryDocType | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [partners, setPartners] = useState<PartnerWire[]>([])
   const [form] = Form.useForm<DocForm>()
+
+  // 往来单位下拉：只取启用单位；采购只显示供应商(含兼营)，销售只显示客户(含兼营)
+  useEffect(() => {
+    api
+      .get<PartnerWire[]>('/partners?status=active')
+      .then((res) => setPartners(res.data.data))
+      .catch(() => setPartners([]))
+  }, [])
+
+  const partnerOptions = useMemo(() => {
+    if (!creating || creating === 'production_issue') return []
+    const wantSupplier = creating === 'purchase_inbound'
+    return partners
+      .filter((p) => (wantSupplier ? p.type === 'supplier' || p.type === 'both' : p.type === 'customer' || p.type === 'both'))
+      .map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))
+  }, [partners, creating])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,6 +113,14 @@ export default function DocPage() {
     form.setFieldValue('enteredUnit', u)
   }
 
+  /** 打开新建抽屉：以当前筛选的单据类型为准，并重置表单避免上一次的往来单位残留 */
+  const openCreate = () => {
+    const type = docType ?? 'purchase_inbound'
+    form.resetFields()
+    form.setFieldValue('enteredUnit', SUGGESTED_UNITS[type][0])
+    setCreating(type)
+  }
+
   const onCreate = async () => {
     if (!creating) return
     const v = await form.validateFields()
@@ -106,7 +132,7 @@ export default function DocPage() {
         enteredUnit: v.enteredUnit,
         enteredValue: v.enteredValue,
         unitPrice: v.unitPrice ?? null,
-        counterparty: v.counterparty ?? null,
+        partnerId: v.partnerId ?? null,
         remark: v.remark ?? null,
       })
       message.success(`已保存${DOC_TYPE_LABEL[creating].text}单据`)
@@ -133,7 +159,7 @@ export default function DocPage() {
         </div>
         <Space>
           {canManage && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating('purchase_inbound')}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               新建单据
             </Button>
           )}
@@ -206,7 +232,7 @@ export default function DocPage() {
               align: 'right',
               render: (v: string | null) => (v == null ? '-' : fmtMoney(v)),
             },
-            { title: '往来单位', dataIndex: 'counterparty', width: 120, ellipsis: true, render: (v: string | null) => v ?? '-' },
+            { title: '往来单位', dataIndex: 'partnerName', width: 120, ellipsis: true, render: (v: string | null) => v ?? '-' },
             {
               title: '时间',
               dataIndex: 'createdAt',
@@ -241,7 +267,7 @@ export default function DocPage() {
                 {detail.doc.totalAmount == null ? '-' : fmtMoney(detail.doc.totalAmount)}
               </Descriptions.Item>
               <Descriptions.Item label="往来单位" span={2}>
-                {detail.doc.counterparty ?? '-'}
+                {detail.doc.partnerName ?? '-'}
               </Descriptions.Item>
               <Descriptions.Item label="备注" span={2}>
                 {detail.doc.remark ?? '-'}
@@ -362,9 +388,21 @@ export default function DocPage() {
               <Form.Item name="unitPrice" label="单价（元/米，可选）">
                 <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="可选" />
               </Form.Item>
-              <Form.Item name="counterparty" label="往来单位（可选）">
-                <Input placeholder="供应商 / 客户" maxLength={128} />
-              </Form.Item>
+              {creating && creating !== 'production_issue' && (
+                <Form.Item
+                  name="partnerId"
+                  label={creating === 'purchase_inbound' ? '供应商' : '客户'}
+                  rules={[{ required: true, message: `请选择${creating === 'purchase_inbound' ? '供应商' : '客户'}` }]}
+                >
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder={creating === 'purchase_inbound' ? '选择供应商' : '选择客户'}
+                    optionFilterProp="label"
+                    options={partnerOptions}
+                  />
+                </Form.Item>
+              )}
               <Form.Item name="remark" label="备注">
                 <Input.TextArea rows={2} maxLength={255} />
               </Form.Item>

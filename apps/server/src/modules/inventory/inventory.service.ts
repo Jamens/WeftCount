@@ -11,6 +11,7 @@ import {
   type SpecCalculationSnapshot,
 } from '@weftcount/shared'
 import { MaterialService } from '../material/material.service'
+import { PartnerService } from '../partner/partner.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { InventoryTransactionEntity } from './entities/inventory-transaction.entity'
 import { InventoryDocumentEntity, type InventoryDocType } from './entities/inventory-document.entity'
@@ -36,7 +37,8 @@ export interface CreateDocInput {
   enteredUnit: string
   enteredValue: number
   unitPrice?: number | null
-  counterparty?: string | null
+  /** 往来单位 id（采购=供应商，销售=客户，领用不传） */
+  partnerId?: string | null
   remark?: string | null
 }
 
@@ -59,6 +61,7 @@ export class InventoryService {
     @InjectRepository(InventoryDocumentEntity)
     private readonly docs: Repository<InventoryDocumentEntity>,
     private readonly materials: MaterialService,
+    private readonly partners: PartnerService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -126,6 +129,68 @@ export class InventoryService {
   }
 
   // ---------------------------------------------------------------------------
+  // 往来单位校验
+  // ---------------------------------------------------------------------------
+
+  /**
+   * 校验并解析往来单位，返回落库用的 id + 名称快照。
+   *
+   * 规则（按单据类型约束交易对手）：
+   *   - purchase_inbound 采购入库 → 必须是供应商（supplier / both）
+   *   - sales_outbound  销售出库 → 必须是客户（customer / both）
+   *   - production_issue 生产领用 → 内部转移，不适用（强制 null）
+   *
+   * 采购/销售强制要求选择往来单位：一张没有供应商的入库单无法参与按供应商的
+   * 三算对账，是数据质量漏洞。领用则不接受 partnerId（多传直接报错，避免误填）。
+   * 名称取快照，防止 partner 改名后历史单据「变脸」。
+   */
+  private async resolvePartner(
+    ctx: { tenantId: string; companyId: string },
+    partnerId: string | null | undefined,
+    docType: InventoryDocType,
+  ): Promise<{ partnerId: string | null; partnerName: string | null }> {
+    if (docType === 'production_issue') {
+      if (partnerId) {
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '生产领用为内部转移，不设往来单位',
+        })
+      }
+      return { partnerId: null, partnerName: null }
+    }
+
+    if (!partnerId) {
+      const who = docType === 'purchase_inbound' ? '供应商' : '客户'
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `${docType === 'purchase_inbound' ? '采购入库' : '销售出库'}必须选择${who}`,
+      })
+    }
+
+    // findOne 内部已按 tenantId + companyId 隔离，越权取不到
+    const p = await this.partners.findOne(ctx.tenantId, ctx.companyId, partnerId)
+    if (p.status !== 'active') {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `往来单位「${p.name}」已停用，无法开单`,
+      })
+    }
+    const wantSupplier = docType === 'purchase_inbound'
+    const ok = wantSupplier
+      ? p.type === 'supplier' || p.type === 'both'
+      : p.type === 'customer' || p.type === 'both'
+    if (!ok) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: wantSupplier
+          ? `「${p.name}」不是供应商，不能用于采购入库`
+          : `「${p.name}」不是客户，不能用于销售出库`,
+      })
+    }
+    return { partnerId: p.id, partnerName: p.name }
+  }
+
+  // ---------------------------------------------------------------------------
   // 采购入库（按重量）
   // ---------------------------------------------------------------------------
 
@@ -153,6 +218,7 @@ export class InventoryService {
     const unitCost = input.unitPrice != null ? input.unitPrice / meters : null
     const docNo = await this.nextDocNo(ctx.companyId, 'purchase_inbound')
     const batchNo = await this.nextBatchNo(ctx.companyId)
+    const partner = await this.resolvePartner(ctx, input.partnerId, 'purchase_inbound')
 
     return this.dataSource.transaction(async (manager) => {
       const batch = manager.create(InventoryBatchEntity, {
@@ -192,7 +258,8 @@ export class InventoryService {
         areaM2: num(areaM2, 4),
         unitPrice: input.unitPrice != null ? num(input.unitPrice, 4) : null,
         totalAmount: input.unitPrice != null ? num(input.unitPrice * meters, 2) : null,
-        counterparty: input.counterparty ?? null,
+        partnerId: partner.partnerId,
+        partnerName: partner.partnerName,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
       })
@@ -337,6 +404,7 @@ export class InventoryService {
     const spec = await this.materials.findSpec(ctx.tenantId, ctx.companyId, input.specId)
     const snapshot = this.materials.getSnapshot(spec)
     const widthCm = Number(spec.finishedWidth)
+    const partner = await this.resolvePartner(ctx, input.partnerId, docType)
 
     return this.dataSource.transaction(async (manager) => {
       const plan = await this.planConsumption(manager, ctx, input, snapshot, widthCm)
@@ -357,7 +425,8 @@ export class InventoryService {
         areaM2: num(plan.totalM2, 4),
         unitPrice: input.unitPrice != null ? num(input.unitPrice, 4) : null,
         totalAmount: input.unitPrice != null ? num(input.unitPrice * plan.totalM, 2) : null,
-        counterparty: input.counterparty ?? null,
+        partnerId: partner.partnerId,
+        partnerName: partner.partnerName,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
       })
