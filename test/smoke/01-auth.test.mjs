@@ -62,3 +62,13 @@ test('缺少 X-Company-Id 被拒', async () => {
   }
   assert.ok(rejected, '缺 X-Company-Id 应被拒绝')
 })
+
+test('权限拒绝返回 403 + FORBIDDEN(1003)，不误判登录失效', async () => {
+  // loom(挡车工) 无 cost.view；打需 cost.view 的端点应被拒
+  const c = await login('loom')
+  const res = await fetch('http://127.0.0.1:3180/api/analytics/trends?days=7', { headers: c.headers })
+  assert.equal(res.status, 403, '权限不足应返回 HTTP 403(而非 401)')
+  const b = await res.json()
+  assert.equal(b.code, 1003, '业务码应为 FORBIDDEN(1003)')
+  assert.ok(b.code !== 2001 && b.code !== 2002, '不得是登录失效码(否则前端会误跳登录页)')
+})

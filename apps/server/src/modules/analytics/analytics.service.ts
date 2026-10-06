@@ -80,10 +80,6 @@ export class AnalyticsService {
     private readonly specs: Repository<GreigeSpecEntity>,
     @InjectRepository(RollEntity)
     private readonly rolls: Repository<RollEntity>,
-    @InjectRepository(ProductionReportEntity)
-    private readonly reportRepo: Repository<ProductionReportEntity>,
-    @InjectRepository(ProductionOrderEntity)
-    private readonly orderRepo: Repository<ProductionOrderEntity>,
     @InjectRepository(MachineEntity)
     private readonly machineRepo: Repository<MachineEntity>,
   ) {}

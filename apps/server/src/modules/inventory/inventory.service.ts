@@ -388,38 +388,7 @@ export class InventoryService {
 
       // 逐匹入库：按各匹米数校验总量并生成件卡记录
       if (input.rolls && input.rolls.length > 0) {
-        const rollSum = input.rolls.reduce((s, r) => s + Number(r.meters || 0), 0)
-        // 批次米数应约等于各匹之和（允许小量舍入差），否则计数与总量对不上
-        if (Math.abs(rollSum - meters) > Math.max(0.5, meters * 0.001)) {
-          throw new BadRequestException({
-            code: ErrorCode.VALIDATION_FAILED,
-            message: `逐匹合计 ${rollSum.toFixed(2)}m 与入库总量 ${meters.toFixed(2)}m 不一致，请核对`,
-          })
-        }
-        const seen = new Set<string>()
-        for (const r of input.rolls) {
-          const rollNo = String(r.rollNo).trim()
-          if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
-          if (seen.has(rollNo)) {
-            throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡号 ${rollNo} 重复` })
-          }
-          seen.add(rollNo)
-        }
-        const kgPerM = meters > 0 ? weightKg / meters : 0
-        await manager.save(
-          input.rolls.map((r) =>
-            manager.create(RollEntity, {
-              tenantId: ctx.tenantId,
-              companyId: ctx.companyId,
-              batchId: savedBatch.id,
-              rollNo: String(r.rollNo).trim(),
-              meters: num(Number(r.meters), 3),
-              weightKg: num(kgPerM * Number(r.meters), 3),
-              status: 'in_stock',
-              sourceDocId: savedDoc.id,
-            }),
-          ),
-        )
+        await this.persistRolls(manager, ctx, input.rolls, savedBatch.id, savedDoc.id, meters, weightKg, '入库总量')
       }
 
       return savedDoc
@@ -507,39 +476,61 @@ export class InventoryService {
 
     // 报工按匹：织机产出按件卡登记（每匹一件卡，关联到本次产出批次）
     if (input.rolls && input.rolls.length > 0) {
-      const rollSum = input.rolls.reduce((s, r) => s + Number(r.meters || 0), 0)
-      if (Math.abs(rollSum - meters) > Math.max(0.5, meters * 0.001)) {
-        throw new BadRequestException({
-          code: ErrorCode.VALIDATION_FAILED,
-          message: `逐匹合计 ${rollSum.toFixed(2)}m 与报工产量 ${meters.toFixed(2)}m 不一致，请核对`,
-        })
-      }
-      const seen = new Set<string>()
-      for (const r of input.rolls) {
-        const rollNo = String(r.rollNo).trim()
-        if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
-        if (seen.has(rollNo)) {
-          throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡号 ${rollNo} 重复` })
-        }
-        seen.add(rollNo)
-      }
-      const kgPerM = meters > 0 ? weightKg / meters : 0
-      await manager.save(
-        input.rolls.map((r) =>
-          manager.create(RollEntity, {
-            tenantId: ctx.tenantId,
-            companyId: ctx.companyId,
-            batchId: batch.id,
-            rollNo: String(r.rollNo).trim(),
-            meters: num(Number(r.meters), 3),
-            weightKg: num(kgPerM * Number(r.meters), 3),
-            status: 'in_stock',
-            sourceDocId: input.sourceDocId,
-          }),
-        ),
-      )
+      await this.persistRolls(manager, ctx, input.rolls, batch.id, input.sourceDocId, meters, weightKg, '报工产量')
     }
     return batch
+  }
+
+  /**
+   * 逐匹登记件卡（入库/报工共用）——**唯一口径**
+   *
+   * 校验：
+   *  1) 各匹米数之和 ≈ 总量（容差 max(0.5m, 0.1%)）——否则「数了3匹却按100m入账」，
+   *     计数与账面脱节，破坏可追溯性。
+   *  2) 件卡号非空、单内不重复（防重扫）。
+   * 落库：每匹重量按 `批次kg/m × 该匹m` 折算（批次重量本就是各匹加总，自洽）。
+   *
+   * @param expectedMeters 批次/报工总量(米)；@param label 报错用的口径名(入库总量/报工产量)
+   */
+  private async persistRolls(
+    manager: EntityManager,
+    ctx: { tenantId: string; companyId: string; userId: string },
+    rolls: { rollNo: string; meters: number }[],
+    batchId: string,
+    sourceDocId: string,
+    expectedMeters: number,
+    expectedWeightKg: number,
+    label: string,
+  ): Promise<void> {
+    const rollSum = rolls.reduce((s, r) => s + Number(r.meters || 0), 0)
+    if (Math.abs(rollSum - expectedMeters) > Math.max(0.5, expectedMeters * 0.001)) {
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `逐匹合计 ${rollSum.toFixed(2)}m 与${label} ${expectedMeters.toFixed(2)}m 不一致，请核对`,
+      })
+    }
+    const seen = new Set<string>()
+    const kgPerM = expectedMeters > 0 ? expectedWeightKg / expectedMeters : 0
+    const entities = rolls.map((r) => {
+      const rollNo = String(r.rollNo).trim()
+      if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
+      if (seen.has(rollNo)) {
+        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡号 ${rollNo} 重复` })
+      }
+      seen.add(rollNo)
+      const meters = Number(r.meters)
+      return manager.create(RollEntity, {
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        batchId,
+        rollNo,
+        meters: num(meters, 3),
+        weightKg: num(kgPerM * meters, 3),
+        status: 'in_stock',
+        sourceDocId,
+      })
+    })
+    await manager.save(entities)
   }
 
   /**

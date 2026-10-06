@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common'
@@ -93,13 +94,13 @@ export class AuthGuard implements CanActivate {
 
     // 请求头的 tenantId 必须与令牌一致，防止跨租户访问
     if (base.tenantId !== user.tenantId) {
-      throw new UnauthorizedException({
+      throw new ForbiddenException({
         code: ErrorCode.FORBIDDEN,
         message: '租户标识与登录身份不符',
       })
     }
     if (!user.companyIds.includes(base.companyId)) {
-      throw new UnauthorizedException({
+      throw new ForbiddenException({
         code: ErrorCode.FORBIDDEN,
         message: '无权访问该公司',
       })
@@ -130,7 +131,9 @@ export class AuthGuard implements CanActivate {
         return true
       }
       // 全部不满足时，若只声明了一个权限就报缺哪个；声明多个时报缺少清单
-      throw new UnauthorizedException({
+      // HTTP 403(Forbidden) 而非 401：这是「已认证但无权」，不是「未登录」。
+      // 前端拦截器按 code(1003) 判断，不会误跳登录页。
+      throw new ForbiddenException({
         code: ErrorCode.FORBIDDEN,
         message:
           needed.length === 1
