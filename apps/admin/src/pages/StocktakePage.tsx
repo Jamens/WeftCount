@@ -9,6 +9,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Radio,
   Select,
   Space,
   Table,
@@ -33,6 +34,7 @@ const { Title, Text } = Typography
 
 interface CreateForm {
   warehouseId?: string
+  mode?: 'batch' | 'roll'
   remark?: string
 }
 
@@ -80,7 +82,7 @@ export default function StocktakePage() {
     const v = await form.validateFields()
     setSubmitting(true)
     try {
-      await api.post('/stocktakes', { warehouseId: v.warehouseId, remark: v.remark ?? null })
+      await api.post('/stocktakes', { warehouseId: v.warehouseId, remark: v.remark ?? null, mode: v.mode ?? 'batch' })
       message.success('盘点单已创建（已快照账面量）')
       setOpen(false)
       await load()
@@ -235,6 +237,18 @@ export default function StocktakePage() {
               options={warehouses.map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` }))}
             />
           </Form.Item>
+          <Form.Item name="mode" label="盘点粒度" initialValue="batch">
+            <Radio.Group>
+              <Radio.Button value="batch">按批次（按米数核销）</Radio.Button>
+              <Radio.Button value="roll">按件卡（逐匹核销）</Radio.Button>
+            </Radio.Group>
+            <div style={{ marginTop: 6 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                拆匹发货后同批次混着已发过的匹与在库残匹，
+                <b>按件卡</b>能定位到「缺哪一匹」；按批次只记总米数差异。
+              </Text>
+            </div>
+          </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} maxLength={255} placeholder="如 月度盘点" />
           </Form.Item>
@@ -273,6 +287,23 @@ export default function StocktakePage() {
               dataSource={detail.items}
               columns={[
                 { title: '批次号', dataIndex: 'batchNo', width: 140 },
+                {
+                  title: '件卡号',
+                  dataIndex: 'rollNo',
+                  width: 170,
+                  render: (v: string | null, it: StocktakeItemView) =>
+                    v ? (
+                      <Space size={4}>
+                        <Text code>{v}</Text>
+                        {/* 件卡级：没录实盘= 这一匹没盘到，过账会按剩余量写损 */}
+                        {it.countedQuantityM == null && detail.stocktake.status === 'draft' ? (
+                          <Tag color="warning">未盘到</Tag>
+                        ) : null}
+                      </Space>
+                    ) : (
+                      <Text type="secondary">（批次级）</Text>
+                    ),
+                },
                 {
                   title: '账面量(m)',
                   dataIndex: 'bookQuantityM',

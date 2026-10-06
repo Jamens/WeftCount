@@ -779,6 +779,9 @@ export interface StocktakeItemView {
   id: string
   batchId: string
   batchNo: string
+  /** 件卡（件卡级盘点时有值，批次级为 null） */
+  rollId: string | null
+  rollNo: string | null
   bookQuantityM: number
   countedQuantityM: number | null
   diffQuantityM: number | null
