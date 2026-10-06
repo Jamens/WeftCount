@@ -68,6 +68,7 @@ export interface BatchWire {
   batchNo: string
   materialId: string
   specId: string
+  warehouseId: string | null
   widthCm: string
   specSnapshot: SpecCalculationSnapshot
   quantity: string
@@ -324,6 +325,8 @@ export const PERM = {
   ROLE_MANAGE: 'role.manage',
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_MANAGE: 'inventory.manage',
+  WAREHOUSE_VIEW: 'warehouse.view',
+  WAREHOUSE_MANAGE: 'warehouse.manage',
   PURCHASE_VIEW: 'purchase.view',
   PURCHASE_MANAGE: 'purchase.manage',
   SALES_VIEW: 'sales.view',
@@ -507,6 +510,34 @@ export const BATCH_STATUS_LABEL: Record<BatchWire['status'], { text: string; col
   normal: { text: '正常', color: 'green' },
   frozen: { text: '冻结', color: 'orange' },
   depleted: { text: '已耗尽', color: 'default' },
+}
+
+// ---------------------------------------------------------------------------
+// 仓库
+// ---------------------------------------------------------------------------
+
+export type WarehouseTypeValue = 'raw' | 'greige' | 'finished' | 'auxiliary' | 'scrap' | 'other'
+
+export interface WarehouseWire {
+  id: string
+  code: string
+  name: string
+  type: WarehouseTypeValue
+  address: string | null
+  keeper: string | null
+  status: 'active' | 'disabled'
+  remark: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const WAREHOUSE_TYPE_LABEL: Record<WarehouseTypeValue, { text: string; color: string }> = {
+  raw: { text: '原料库', color: 'geekblue' },
+  greige: { text: '坯布库', color: 'cyan' },
+  finished: { text: '成品库', color: 'green' },
+  auxiliary: { text: '辅料库', color: 'purple' },
+  scrap: { text: '废料库', color: 'red' },
+  other: { text: '其他', color: 'default' },
 }
 
 export const COUNT_SYSTEM_LABEL: Record<CountSystem, string> = {

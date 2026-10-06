@@ -15,6 +15,7 @@ import {
   ShoppingCartOutlined,
   ClusterOutlined,
   PieChartOutlined,
+  BankOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -29,6 +30,7 @@ import RolePage from './pages/RolePage'
 import OrderPage from './pages/OrderPage'
 import ProductionPage from './pages/ProductionPage'
 import CostPage from './pages/CostPage'
+import WarehousePage from './pages/WarehousePage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -76,6 +78,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
           { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
         ]
+      : []),
+    ...(hasPermission(PERM.WAREHOUSE_VIEW)
+      ? [{ key: '/warehouses', icon: <BankOutlined />, label: '仓库管理' }]
       : []),
     ...(hasPermission(PERM.AUDIT_VIEW)
       ? [{ key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' }]
@@ -284,6 +289,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <CostPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/warehouses"
+          element={
+            <RequireAuth>
+              <Shell>
+                <WarehousePage />
               </Shell>
             </RequireAuth>
           }

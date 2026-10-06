@@ -23,6 +23,7 @@ import type { SpecCalculationSnapshot } from '@weftcount/shared'
 @Index('idx_batches_company', ['companyId'])
 @Index('idx_batches_material', ['companyId', 'materialId'])
 @Index('idx_batches_spec', ['companyId', 'specId'])
+@Index('idx_batches_warehouse', ['companyId', 'warehouseId'])
 export class InventoryBatchEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string
@@ -42,6 +43,10 @@ export class InventoryBatchEntity {
 
   @Column({ type: 'char', length: 36 })
   specId!: string
+
+  /** 所属仓库，null 表示未指定（存量批次）。调拨在仓间移动批次归属 */
+  @Column({ type: 'char', length: 36, nullable: true })
+  warehouseId!: string | null
 
   /** 成品门幅 cm，换算面积用 */
   @Column({ type: 'decimal', precision: 8, scale: 2 })

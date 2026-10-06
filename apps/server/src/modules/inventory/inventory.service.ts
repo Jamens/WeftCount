@@ -13,6 +13,7 @@ import {
 import { MaterialService } from '../material/material.service'
 import { PartnerService } from '../partner/partner.service'
 import { OrderService } from '../order/order.service'
+import { WarehouseService } from '../warehouse/warehouse.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { InventoryTransactionEntity } from './entities/inventory-transaction.entity'
 import { InventoryDocumentEntity, type InventoryDocType } from './entities/inventory-document.entity'
@@ -42,6 +43,8 @@ export interface CreateDocInput {
   partnerId?: string | null
   /** 关联订单 id（采购/销售可挂已确认订单，满额自动完成；领用不传） */
   orderId?: string | null
+  /** 入库仓库 id（不传则落第一个启用仓） */
+  warehouseId?: string | null
   remark?: string | null
 }
 
@@ -66,6 +69,7 @@ export class InventoryService {
     private readonly materials: MaterialService,
     private readonly partners: PartnerService,
     private readonly orders: OrderService,
+    private readonly warehouses: WarehouseService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -228,6 +232,19 @@ export class InventoryService {
     return orderId
   }
 
+  /** 解析入库仓库：指定则校验可用，否则落第一个启用仓；都没有则 null（未指定仓） */
+  private async resolveWarehouse(
+    ctx: { tenantId: string; companyId: string },
+    warehouseId: string | null | undefined,
+  ): Promise<string | null> {
+    if (warehouseId) {
+      const w = await this.warehouses.requireActive(ctx.tenantId, ctx.companyId, warehouseId)
+      return w.id
+    }
+    const first = await this.warehouses.firstActive(ctx.tenantId, ctx.companyId)
+    return first?.id ?? null
+  }
+
   // ---------------------------------------------------------------------------
   // 采购入库（按重量）
   // ---------------------------------------------------------------------------
@@ -260,6 +277,7 @@ export class InventoryService {
     const orderId = await this.validateOrderLink(
       ctx, input.orderId, 'purchase_inbound', partner.partnerId as string, input.materialId, input.specId,
     )
+    const warehouseId = await this.resolveWarehouse(ctx, input.warehouseId)
 
     const savedDoc = await this.dataSource.transaction(async (manager) => {
       const batch = manager.create(InventoryBatchEntity, {
@@ -268,6 +286,7 @@ export class InventoryService {
         batchNo,
         materialId: input.materialId,
         specId: input.specId,
+        warehouseId,
         widthCm: num(widthCm, 2),
         specSnapshot: snapshot,
         quantity: num(meters, 3),
@@ -354,7 +373,7 @@ export class InventoryService {
   async createProductionInbound(
     manager: EntityManager,
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { materialId: string; specId: string; quantityM: number; sourceDocId: string; remark?: string | null },
+    input: { materialId: string; specId: string; quantityM: number; sourceDocId: string; warehouseId?: string | null; remark?: string | null },
   ): Promise<InventoryBatchEntity> {
     if (input.quantityM <= 0) {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '入库产量必须为正' })
@@ -368,6 +387,7 @@ export class InventoryService {
     const weightKg = this.metersToWeight(meters, c)
     const areaM2 = this.metersToArea(meters, c)
     const batchNo = await this.nextBatchNo(ctx.companyId)
+    const warehouseId = await this.resolveWarehouse(ctx, input.warehouseId)
 
     const batch = await manager.save(
       manager.create(InventoryBatchEntity, {
@@ -376,6 +396,7 @@ export class InventoryService {
         batchNo,
         materialId: input.materialId,
         specId: input.specId,
+        warehouseId,
         widthCm: num(widthCm, 2),
         specSnapshot: snapshot,
         quantity: num(meters, 3),
@@ -413,6 +434,125 @@ export class InventoryService {
       }),
     )
     return batch
+  }
+
+  /**
+   * 仓间调拨：把源批次的一部分数量移动到目标仓。
+   *
+   * 数量以主单位「米」录入，按源批次自己的规格快照折三视图，保证调拨前后总量守恒。
+   * 全部在一个事务内完成：
+   *   1) 扣减源批次剩余（扣完则标记 depleted）
+   *   2) 在目标仓新建批次（同物料/规格/快照，sourceType=stock_transfer，sourceDocId 指向源批次）
+   *   3) 记两条流水：源批次 stock_transfer 出、新批次 stock_transfer 入
+   * 净效果：源仓 -q、目标仓 +q，全库总量不变，对账恒等式不受影响。
+   */
+  async transfer(
+    ctx: { tenantId: string; companyId: string; userId: string },
+    input: { sourceBatchId: string; toWarehouseId: string; quantityM: number; remark?: string | null },
+  ): Promise<{ sourceBatch: InventoryBatchEntity; targetBatch: InventoryBatchEntity }> {
+    const src = await this.batches.findOne({ where: { id: input.sourceBatchId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    if (!src) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '源批次不存在' })
+    const target = await this.warehouses.requireActive(ctx.tenantId, ctx.companyId, input.toWarehouseId)
+    if (src.warehouseId === target.id) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '源批次已在目标仓，无需调拨' })
+    }
+    const q = input.quantityM
+    if (q <= 0) {
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '调拨数量必须大于 0' })
+    }
+    const remaining = Number(src.remainingQuantity)
+    if (q > remaining + 1e-6) {
+      throw new BadRequestException({
+        code: ErrorCode.INSUFFICIENT_QUANTITY,
+        message: `调拨数量 ${num(q, 2)}m 超过批次剩余 ${num(remaining, 2)}m`,
+      })
+    }
+
+    // 用源批次自己的规格快照折算，保证调拨前后三视图守恒
+    const snapshot = src.specSnapshot as SpecCalculationSnapshot
+    const c = this.ctxOf(snapshot, Number(src.widthCm))
+    const weightKg = this.metersToWeight(q, c)
+    const areaM2 = this.metersToArea(q, c)
+    const batchNo = await this.nextBatchNo(ctx.companyId)
+
+    return this.dataSource.transaction(async (manager) => {
+      // 1) 扣减源批次
+      const srcRemainM = remaining - q
+      src.remainingQuantity = num(srcRemainM, 3)
+      src.remainingWeightKg = num(Number(src.remainingWeightKg) - weightKg, 3)
+      src.remainingAreaM2 = num(Number(src.remainingAreaM2) - areaM2, 4)
+      if (srcRemainM <= 1e-6) src.status = 'depleted'
+      const savedSrc = await manager.save(src)
+
+      // 2) 目标仓新建批次
+      const targetBatch = await manager.save(
+        manager.create(InventoryBatchEntity, {
+          tenantId: ctx.tenantId,
+          companyId: ctx.companyId,
+          batchNo,
+          materialId: src.materialId,
+          specId: src.specId,
+          warehouseId: target.id,
+          widthCm: src.widthCm,
+          specSnapshot: src.specSnapshot,
+          quantity: num(q, 3),
+          weightKg: num(weightKg, 3),
+          areaM2: num(areaM2, 4),
+          remainingQuantity: num(q, 3),
+          remainingWeightKg: num(weightKg, 3),
+          remainingAreaM2: num(areaM2, 4),
+          unitCost: src.unitCost,
+          sourceType: 'stock_transfer',
+          sourceDocId: src.id,
+          status: 'normal',
+        }),
+      )
+
+      // 3) 两条流水：源出、新入
+      await manager.save(
+        manager.create(InventoryTransactionEntity, {
+          tenantId: ctx.tenantId,
+          companyId: ctx.companyId,
+          batchId: savedSrc.id,
+          materialId: src.materialId,
+          specId: src.specId,
+          direction: 'out',
+          txnType: 'stock_transfer',
+          changeQuantity: num(-q, 3),
+          changeWeightKg: num(-weightKg, 3),
+          changeAreaM2: num(-areaM2, 4),
+          afterQuantity: num(srcRemainM, 3),
+          afterWeightKg: src.remainingWeightKg,
+          afterAreaM2: src.remainingAreaM2,
+          unitPrice: null,
+          docId: targetBatch.id,
+          operatorId: ctx.userId,
+          remark: input.remark ?? `调拨至 ${target.name}`,
+        }),
+      )
+      await manager.save(
+        manager.create(InventoryTransactionEntity, {
+          tenantId: ctx.tenantId,
+          companyId: ctx.companyId,
+          batchId: targetBatch.id,
+          materialId: src.materialId,
+          specId: src.specId,
+          direction: 'in',
+          txnType: 'stock_transfer',
+          changeQuantity: num(q, 3),
+          changeWeightKg: num(weightKg, 3),
+          changeAreaM2: num(areaM2, 4),
+          afterQuantity: num(q, 3),
+          afterWeightKg: num(weightKg, 3),
+          afterAreaM2: num(areaM2, 4),
+          unitPrice: null,
+          docId: targetBatch.id,
+          operatorId: ctx.userId,
+          remark: input.remark ?? `由 ${src.batchNo} 调入`,
+        }),
+      )
+      return { sourceBatch: savedSrc, targetBatch }
+    })
   }
 
   // ---------------------------------------------------------------------------
@@ -589,7 +729,7 @@ export class InventoryService {
   async listBatches(
     tenantId: string,
     companyId: string,
-    filter?: { specId?: string; status?: string },
+    filter?: { specId?: string; status?: string; warehouseId?: string },
   ): Promise<InventoryBatchEntity[]> {
     const qb = this.batches
       .createQueryBuilder('b')
@@ -597,6 +737,7 @@ export class InventoryService {
       .andWhere('b.company_id = :companyId', { companyId })
     if (filter?.specId) qb.andWhere('b.spec_id = :specId', { specId: filter.specId })
     if (filter?.status) qb.andWhere('b.status = :status', { status: filter.status })
+    if (filter?.warehouseId) qb.andWhere('b.warehouse_id = :warehouseId', { warehouseId: filter.warehouseId })
     return qb.orderBy('b.inbound_at', 'DESC').getMany()
   }
 

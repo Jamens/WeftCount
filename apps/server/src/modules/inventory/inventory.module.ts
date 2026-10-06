@@ -8,6 +8,7 @@ import { InventoryDocumentEntity } from './entities/inventory-document.entity'
 import { MaterialModule } from '../material/material.module'
 import { PartnerModule } from '../partner/partner.module'
 import { OrderModule } from '../order/order.module'
+import { WarehouseModule } from '../warehouse/warehouse.module'
 import { AuthModule } from '../auth/auth.module'
 
 @Module({
@@ -16,6 +17,8 @@ import { AuthModule } from '../auth/auth.module'
     MaterialModule,
     PartnerModule,
     OrderModule,
+    // 批次归仓 + 调拨需要仓库服务（单向：inventory → warehouse，无循环）
+    WarehouseModule,
     AuthModule,
   ],
   controllers: [InventoryController],

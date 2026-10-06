@@ -326,6 +326,15 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 接口：`POST /inventory/{purchase-inbound,production-issue,sales-outbound}`、
 `GET /inventory/{batches,documents,transactions,reconcile}`。
 
+### 仓库与调拨（多仓基础）
+
+织造厂按物料形态分仓：纱线进原料库、织出的坯布进坯布库、成品进成品库、废布进废料库。
+
+- 迁移 `1731000000000-CreateWarehouse`：`warehouses` 主数据表（编码 `W+流水`，类型 raw/greige/finished/auxiliary/scrap/other）+ `inventory_batches` 加 `warehouse_id`（批次归属仓库，存量批次先为 NULL）。
+- **建批自动归仓**：采购入库 / 生产入库（报工）可指定仓库，不指定则落第一个启用仓。
+- **调拨** `POST /inventory/transfer`（权限 `inventory.manage`）：把源批次的一部分数量移到目标仓，在**同一事务**内完成——扣减源批次剩余（扣完标记 `depleted`）、目标仓按同规格快照新建批次、记 `stock_transfer` 出/入两条流水。数量按源批次自己的快照折三视图，**保证调拨前后全库总量守恒**（仓间移动，不影响对账恒等式）。
+- 接口 `GET/POST /warehouses`、`PATCH /warehouses/:id`（权限 `warehouse.view/manage`）；前端 `/warehouses` 仓库管理页，库存批次页支持**按仓库筛选**与**调拨**操作，菜单按 `warehouse.view` 门控。
+
 ### 成本报表（阶段六 · 成本核算）
 
 **制造成本 = 纱线成本 + 加工费**。纱线用量（每百米经/纬纱 kg）由工艺内核快照给出，成本只做「用量 × 单价」的确定性乘法——数字不会错。
@@ -408,7 +417,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 
 ### 前端 admin（阶段二界面）
 
-`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `cost.view` / `inventory.view` / `inventory.manage` / `user.view` / `role.view`）门控：
+`apps/admin`（React 19 + Vite 6 + Ant Design 5）已覆盖阶段二全部后端能力，可直接点选操作；菜单按权限（`material.view` / `partner.view` / `purchase.view` / `sales.view` / `production.view` / `cost.view` / `inventory.view` / `warehouse.view` / `inventory.manage` / `user.view` / `role.view`）门控：
 
 | 页面 | 路由 | 能力 |
 | --- | --- | --- |
@@ -420,10 +429,11 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 | 用户管理 | `/users` | 列表（含公司/角色名）、新建、编辑资料/状态/公司/角色、重置密码 |
 | 角色管理 | `/roles` | 角色列表（内置/自定义）、新建自定义角色、编辑权限、删除（内置/被引用不可删） |
 | 坯布规格 | `/greige-specs` | 列表、新建；表单内「试算预览」实时看克重/用纱量/日产量（工艺内核计算） |
-| 库存批次 | `/inventory/batches` | 列表（规格/状态筛选），米 + 公斤 + 平方米三视图 |
+| 库存批次 | `/inventory/batches` | 列表（规格/状态/仓库筛选），米 + 公斤 + 平方米三视图，可调拨 |
 | 三算单据 | `/inventory/documents` | 采购入库 / 生产领用 / 销售出库 三种单据新建 + 详情（折算三视图与关联交易流水）；采购选供应商、销售选客户 |
 | 事务流水 | `/inventory/transactions` | 列表（规格/方向筛选），变化量带正负三视图 |
 | 三算对账 | `/inventory/reconcile` | 闭环恒等式 + 容差预警 + 分规格明细 |
+| 仓库管理 | `/warehouses` | 仓库主数据 CRUD（类型/仓管员/启停用） |
 
 > 后端 `decimal` 列经 JSON 序列化为**字符串**，前端统一用 `apps/admin/src/lib/erp.ts` 的 `dec()` 解析，不盲用 shared 中把 decimal 标成 `number` 的接口声明。
 

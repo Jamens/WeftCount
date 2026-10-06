@@ -38,6 +38,29 @@ class CreateDocDto implements CreateDocInput {
   @IsString()
   orderId?: string | null
 
+  /** 入库仓库（不传则落第一个启用仓） */
+  @IsOptional()
+  @IsString()
+  warehouseId?: string | null
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  remark?: string | null
+}
+
+class TransferDto {
+  @IsString()
+  sourceBatchId!: string
+
+  @IsString()
+  toWarehouseId!: string
+
+  /** 调拨数量（米，主单位） */
+  @IsNumber({}, { message: '调拨数量必须为数字' })
+  @Min(0.0001, { message: '调拨数量必须大于 0' })
+  quantityM!: number
+
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -78,8 +101,13 @@ export class InventoryController {
   @Get('batches')
   @RequirePermission(Permission.INVENTORY_VIEW)
   @ApiOperation({ summary: '批次列表' })
-  batches(@CurrentUser() ctx: RequestContext, @Query('specId') specId?: string, @Query('status') status?: string) {
-    return this.inventory.listBatches(ctx.tenantId, ctx.companyId, { specId, status })
+  batches(
+    @CurrentUser() ctx: RequestContext,
+    @Query('specId') specId?: string,
+    @Query('status') status?: string,
+    @Query('warehouseId') warehouseId?: string,
+  ) {
+    return this.inventory.listBatches(ctx.tenantId, ctx.companyId, { specId, status, warehouseId })
   }
 
   @Get('documents')
@@ -125,5 +153,19 @@ export class InventoryController {
     }
     const txns = await this.inventory.listTransactions(ctx.tenantId, ctx.companyId, { docId: id })
     return { doc, transactions: txns }
+  }
+
+  @Post('transfer')
+  @UseGuards(AuthGuard)
+  @RequirePermission(Permission.INVENTORY_MANAGE)
+  @Audit({ action: 'update', module: 'inventory.transfer' })
+  @ApiOperation({ summary: '仓间调拨：把源批次一部分数量移到目标仓（总量守恒）' })
+  transfer(@CurrentUser() ctx: RequestContext, @Body() dto: TransferDto) {
+    return this.inventory.transfer(ctx, {
+      sourceBatchId: dto.sourceBatchId,
+      toWarehouseId: dto.toWarehouseId,
+      quantityM: dto.quantityM,
+      remark: dto.remark ?? null,
+    })
   }
 }

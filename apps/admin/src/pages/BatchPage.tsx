@@ -3,22 +3,28 @@ import {
   App as AntdApp,
   Button,
   Card,
+  Form,
+  InputNumber,
+  Modal,
   Select,
   Space,
   Table,
   Tag,
   Typography,
 } from 'antd'
-import { ReloadOutlined, DatabaseOutlined } from '@ant-design/icons'
+import { ReloadOutlined, DatabaseOutlined, SwapOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useLookups } from '../lib/lookups'
 import {
   BATCH_STATUS_LABEL,
   fmt,
   fmtMoney,
+  PERM,
   SOURCE_TYPE_LABEL,
   type BatchWire,
+  type WarehouseWire,
 } from '../lib/erp'
+import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
 
@@ -30,6 +36,19 @@ export default function BatchPage() {
   const [loading, setLoading] = useState(false)
   const [specId, setSpecId] = useState<string | undefined>()
   const [status, setStatus] = useState<BatchWire['status'] | undefined>()
+  const [warehouseId, setWarehouseId] = useState<string | undefined>()
+  const [warehouses, setWarehouses] = useState<WarehouseWire[]>([])
+  const [transferring, setTransferring] = useState<BatchWire | null>(null)
+  const [transferForm] = Form.useForm<{ toWarehouseId?: string; quantityM?: number }>()
+
+  useEffect(() => {
+    api
+      .get<WarehouseWire[]>('/warehouses?status=active')
+      .then((res) => setWarehouses(res.data.data))
+      .catch(() => setWarehouses([]))
+  }, [])
+
+  const warehouseName = (id: string | null) => (id ? (warehouses.find((w) => w.id === id)?.name ?? id) : '未指定')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -37,6 +56,7 @@ export default function BatchPage() {
       const params = new URLSearchParams()
       if (specId) params.set('specId', specId)
       if (status) params.set('status', status)
+      if (warehouseId) params.set('warehouseId', warehouseId)
       const res = await api.get<BatchWire[]>(`/inventory/batches?${params.toString()}`)
       setData(res.data.data)
     } catch (e) {
@@ -44,11 +64,35 @@ export default function BatchPage() {
     } finally {
       setLoading(false)
     }
-  }, [specId, status, message])
+  }, [specId, status, warehouseId, message])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  const canManage = useAuthStore((s) => s.hasPermission(PERM.INVENTORY_MANAGE))
+
+  const openTransfer = (b: BatchWire) => {
+    setTransferring(b)
+    transferForm.resetFields()
+  }
+
+  const onTransfer = async () => {
+    if (!transferring) return
+    const v = await transferForm.validateFields()
+    try {
+      await api.post('/inventory/transfer', {
+        sourceBatchId: transferring.id,
+        toWarehouseId: v.toWarehouseId,
+        quantityM: v.quantityM,
+      })
+      message.success('调拨完成')
+      setTransferring(null)
+      await load()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '调拨失败')
+    }
+  }
 
   return (
     <div>
@@ -89,6 +133,16 @@ export default function BatchPage() {
               label: BATCH_STATUS_LABEL[k].text,
             }))}
           />
+          <Select
+            allowClear
+            placeholder="按仓库筛选"
+            style={{ width: 160 }}
+            value={warehouseId}
+            onChange={setWarehouseId}
+            showSearch
+            optionFilterProp="label"
+            options={warehouses.map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` }))}
+          />
           <Button type="primary" icon={<DatabaseOutlined />} onClick={() => void load()}>
             查询
           </Button>
@@ -116,6 +170,25 @@ export default function BatchPage() {
               dataIndex: 'materialId',
               width: 140,
               render: (v: string) => materialName(v),
+            },
+            {
+              title: '仓库',
+              dataIndex: 'warehouseId',
+              width: 110,
+              render: (v: string | null) => (v ? <Tag>{warehouseName(v)}</Tag> : <Text type="secondary">未指定</Text>),
+            },
+            {
+              title: '操作',
+              width: 80,
+              fixed: 'right',
+              render: (_, r) =>
+                canManage && r.remainingQuantity !== '0.000' && Number(r.remainingQuantity) > 0 ? (
+                  <Button type="link" size="small" icon={<SwapOutlined />} onClick={() => openTransfer(r)}>
+                    调拨
+                  </Button>
+                ) : (
+                  <Text type="secondary">-</Text>
+                ),
             },
             { title: '门幅', dataIndex: 'widthCm', width: 80, align: 'right', render: (v: string) => `${fmt(v, 1)}cm` },
             {
@@ -180,6 +253,42 @@ export default function BatchPage() {
           ]}
         />
       </Card>
+
+      {/* 调拨弹窗 */}
+      <Modal
+        title={transferring ? `调拨 · ${transferring.batchNo}` : '调拨'}
+        open={transferring !== null}
+        onCancel={() => setTransferring(null)}
+        onOk={() => void onTransfer()}
+        okText="确认调拨"
+        destroyOnClose
+      >
+        {transferring && (
+          <Form form={transferForm} layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item label="源批次剩余">
+              <Text strong>{fmt(transferring.remainingQuantity, 2)} m</Text>
+            </Form.Item>
+            <Form.Item name="toWarehouseId" label="目标仓库" rules={[{ required: true, message: '请选择目标仓库' }]}>
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择目标仓库"
+                options={warehouses
+                  .filter((w) => w.id !== transferring.warehouseId)
+                  .map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` }))}
+              />
+            </Form.Item>
+            <Form.Item name="quantityM" label="调拨数量（米）" rules={[{ required: true, message: '请输入调拨数量' }]}>
+              <InputNumber
+                style={{ width: '100%' }}
+                min={0.0001}
+                max={Number(transferring.remainingQuantity)}
+                placeholder={`不超过 ${fmt(transferring.remainingQuantity, 2)} m`}
+              />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
     </div>
   )
 }
