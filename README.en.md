@@ -80,6 +80,21 @@ DB_PASSWORD=1234560
 DB_NAME=weft_count
 ```
 
+### Alternative: import SQL directly (skip migrations)
+
+The `sql/` folder contains ready-to-import database scripts — useful for deployment, demos, or
+giving a DBA a reviewable DDL:
+
+```bash
+mysql -h127.0.0.1 -uroot -p < sql/01_create_database.sql
+mysql -h127.0.0.1 -uroot -p weft_count < sql/02_schema.sql
+pnpm --filter @weftcount/server seed            # demo data
+```
+
+`02_schema.sql` is dumped from a real database and matches the code exactly.
+**For upgrading an existing database, still use migrations** (they preserve history).
+See [`sql/README.md`](./sql/README.md).
+
 ### Verify
 
 ```bash

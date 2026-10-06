@@ -52,7 +52,7 @@ WeftCount/
 ```bash
 pnpm install
 
-# 建库
+# 建库（方式一：TypeORM 迁移，与开发流程一致）
 mysql -h127.0.0.1 -uroot -p1234560 -e "CREATE DATABASE IF NOT EXISTS weft_count DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 pnpm --filter @weftcount/server migration:run   # 建表
@@ -72,6 +72,19 @@ DB_USER=root
 DB_PASSWORD=1234560
 DB_NAME=weft_count
 ```
+
+### 方式二：直接导入 SQL（不跑迁移）
+
+`sql/` 下提供了可直接导入的建库脚本，适合部署、演示或给 DBA 审阅 DDL：
+
+```bash
+mysql -h127.0.0.1 -uroot -p< sql/01_create_database.sql
+mysql -h127.0.0.1 -uroot -p weft_count < sql/02_schema.sql
+pnpm --filter @weftcount/server seed   # 演示数据
+```
+
+`02_schema.sql` 由真实数据库导出，与代码 100%一致。**升级已有库仍应走方式一**（迁移保留历史）。
+详见 [`sql/README.md`](./sql/README.md)。
 
 ### 验证
 
