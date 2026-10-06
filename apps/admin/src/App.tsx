@@ -24,6 +24,7 @@ import {
   ThunderboltOutlined,
   BarcodeOutlined,
   BellOutlined,
+  AreaChartOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -48,6 +49,7 @@ import AiCoefficientPage from './pages/AiCoefficientPage'
 import SupplierCodePage from './pages/SupplierCodePage'
 import AiProductionPage from './pages/AiProductionPage'
 import AlertPage from './pages/AlertPage'
+import TrendPage from './pages/TrendPage'
 import SpecPage from './pages/SpecPage'
 import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
@@ -116,6 +118,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       : []),
     ...(hasPermission(PERM.INVENTORY_VIEW)
       ? [{ key: '/alerts', icon: <BellOutlined />, label: '预警中心' }]
+      : []),
+    ...(hasPermission(PERM.COST_VIEW)
+      ? [{ key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' }]
       : []),
     ...(hasPermission(PERM.PARTNER_VIEW)
       ? [{ key: '/supplier-codes', icon: <BarcodeOutlined />, label: '供应商条码映射' }]
@@ -333,6 +338,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ContractPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/trends"
+          element={
+            <RequireAuth>
+              <Shell>
+                <TrendPage />
               </Shell>
             </RequireAuth>
           }

@@ -418,6 +418,13 @@ export interface AlertWire {
   createdAt: string
 }
 
+export interface TrendData {
+  days: number
+  daily: { date: string; meters: number; weightKg: number; purchaseAmount: number; salesAmount: number }[]
+  specShare: { specId: string; specName: string; meters: number }[]
+  totals: { meters: number; purchaseAmount: number; salesAmount: number }
+}
+
 // ---------------------------------------------------------------------------
 // 生产：机台 / 工单 / 报工
 // ---------------------------------------------------------------------------

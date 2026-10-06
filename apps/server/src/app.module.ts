@@ -20,6 +20,7 @@ import { TraceabilityModule } from './modules/traceability/traceability.module'
 import { ContractModule } from './modules/contract/contract.module'
 import { AiModule } from './modules/ai/ai.module'
 import { AlertModule } from './modules/alert/alert.module'
+import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -62,6 +63,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     ContractModule,
     AiModule,
     AlertModule,
+    AnalyticsModule,
   ],
   controllers: [HealthController],
   providers: [

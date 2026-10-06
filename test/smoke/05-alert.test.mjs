@@ -55,3 +55,30 @@ test('逾期工单触发交期逾期预警', async () => {
   assert.ok(overdue, '应生成该逾期工单的预警')
   assert.match(overdue.title, new RegExp(wo.orderNo), '标题应含工单号')
 })
+
+// ---- 趋势分析 ----
+
+test('趋势聚合：日期序列连续且长度正确', async () => {
+  const c = await login('factory')
+  for (const days of [7, 30]) {
+    const t = await get(c, `/analytics/trends?days=${days}`)
+    assert.equal(t.days, days, '应返回请求的天数')
+    assert.equal(t.daily.length, days, `daily 应有 ${days} 个点(缺失日期补0)`)
+    // 日期应连续递增
+    for (let i = 1; i < t.daily.length; i++) {
+      const prev = new Date(t.daily[i - 1].date).getTime()
+      const cur = new Date(t.daily[i].date).getTime()
+      assert.equal(cur - prev, 86400000, '日期应逐日连续')
+    }
+  }
+})
+
+test('趋势聚合：结构完整且数值非负', async () => {
+  const c = await login('factory')
+  const t = await get(c, '/analytics/trends?days=30')
+  for (const p of t.daily) {
+    assert.ok(p.meters >= 0 && p.weightKg >= 0 && p.purchaseAmount >= 0 && p.salesAmount >= 0, '数值应非负')
+  }
+  assert.ok(t.totals, '应有合计')
+  assert.ok(Array.isArray(t.specShare), '应有规格占比数组')
+})
