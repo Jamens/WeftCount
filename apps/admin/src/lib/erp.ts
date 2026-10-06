@@ -1,3 +1,4 @@
+import { Permission } from '@weftcount/shared'
 import type {
   CountSystem,
   MaterialCategoryValue,
@@ -540,32 +541,8 @@ export interface PartnerWire {
 }
 
 /** 权限码（与后端 Permission 保持一致，前端仅做菜单/按钮门控） */
-export const PERM = {
-  MATERIAL_VIEW: 'material.view',
-  MATERIAL_EDIT: 'material.edit',
-  PARTNER_VIEW: 'partner.view',
-  PARTNER_EDIT: 'partner.edit',
-  USER_VIEW: 'user.view',
-  USER_MANAGE: 'user.manage',
-  ROLE_VIEW: 'role.view',
-  ROLE_MANAGE: 'role.manage',
-  INVENTORY_VIEW: 'inventory.view',
-  INVENTORY_MANAGE: 'inventory.manage',
-  WAREHOUSE_VIEW: 'warehouse.view',
-  WAREHOUSE_MANAGE: 'warehouse.manage',
-  REPORT_VIEW: 'report.view',
-  PURCHASE_VIEW: 'purchase.view',
-  PURCHASE_MANAGE: 'purchase.manage',
-  SALES_VIEW: 'sales.view',
-  SALES_MANAGE: 'sales.manage',
-  CONTRACT_VIEW: 'contract.view',
-  CONTRACT_MANAGE: 'contract.manage',
-  COST_VIEW: 'cost.view',
-  PRODUCTION_VIEW: 'production.view',
-  PRODUCTION_ORDER_EDIT: 'production.order.edit',
-  PRODUCTION_REPORT: 'production.report',
-  AUDIT_VIEW: 'audit.view',
-} as const
+/** 权限码：取自 shared 单一事实源（与后端/desktop 同一份，避免各端漂移） */
+export const PERM = Permission
 
 // ---------------------------------------------------------------------------
 // 用户 / 角色（系统设置）

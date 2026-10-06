@@ -22,6 +22,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons'
 import { api, authStore, sessionStore, type SessionInfo } from './lib/api'
+import { WORKSHOP_VIEW_PERM } from '@weftcount/shared'
 import { useThemeStore } from './stores/theme.store'
 import LoginPage from './pages/LoginPage'
 import ReportPage from './pages/ReportPage'
@@ -36,16 +37,8 @@ const { Text } = Typography
 
 type View = 'report' | 'board' | 'label' | 'rollcard' | 'scan' | 'pick' | 'pickin'
 
-/** 每个车间页所需权限码（与后端端点一一对应，避免点了才报「无权限」） */
-const VIEW_PERM: Record<View, string> = {
-  report: 'production.report',   // 织机报工
-  board: 'production.view',      // 车间大屏（看工单/机台）
-  pick: 'inventory.manage',      // 扫码出库
-  pickin: 'inventory.manage',    // 扫码入库
-  label: 'inventory.view',       // 标签打印
-  rollcard: 'inventory.view',    // 件卡打印
-  scan: 'report.view',           // 扫码查询（件卡/批次追溯）
-}
+/** 车间视图→权限码：取自 shared 单一事实源（与后端端点权限一一对应） */
+const VIEW_PERM = WORKSHOP_VIEW_PERM
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())

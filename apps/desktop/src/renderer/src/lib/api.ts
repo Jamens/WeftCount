@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { hasPermission } from '@weftcount/shared'
 
 /**
  * 桌面端（车间工作台）API 客户端
@@ -72,16 +73,11 @@ export const sessionStore = {
     localStorage.setItem(NAME_KEY, info.username)
     localStorage.setItem('weft_desktop_realname', info.realName)
   },
-  /** 权限匹配：与后端一致的双向通配（任一侧含 * 即命中） */
+  /** 权限匹配：与后端/admin 共用 shared 的分段通配实现（单一事实源） */
   has: (perm: string): boolean => {
     const perms = sessionStore.get()?.permissions
     if (!perms) return false
-    return perms.some((p) => {
-      if (p === perm || p === '*') return true
-      if (p.endsWith('.*')) return perm.startsWith(p.slice(0, -1))
-      if (perm.endsWith('.*')) return p.startsWith(perm.slice(0, -1))
-      return false
-    })
+    return hasPermission(perms, perm)
   },
   clear: (): void => {
     localStorage.removeItem(PERMS_KEY)

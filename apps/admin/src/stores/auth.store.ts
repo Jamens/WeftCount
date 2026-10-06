@@ -1,3 +1,4 @@
+import { hasPermission } from '@weftcount/shared'
 import { create } from 'zustand'
 import { api, tokenStore, contextStore } from '../lib/api'
 import type { LoginResult, LoginUserInfo, LoginTenantInfo, LoginCompanyInfo } from '@weftcount/shared'
@@ -96,20 +97,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  hasPermission: (code) => {
-    const { permissions } = get()
-    return permissions.some((g) => {
-      if (g === '*') return true
-      const gSeg = g.split('.')
-      const rSeg = code.split('.')
-      for (let i = 0; i < rSeg.length; i++) {
-        if (gSeg[i] === undefined) return false
-        if (gSeg[i] === '*') return true
-        if (gSeg[i] !== rSeg[i]) return false
-      }
-      return true
-    })
-  },
+  // 权限匹配：与后端/desktop 共用 shared 的分段通配实现（单一事实源）
+  hasPermission: (code) => hasPermission(get().permissions, code),
 
   hasAnyPermission: (codes) => codes.some((c) => get().hasPermission(c)),
 }))
