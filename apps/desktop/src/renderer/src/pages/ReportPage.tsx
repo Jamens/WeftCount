@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRef, useCallback, useEffect, useMemo, useState, } from 'react'
 import {
   App as AntdApp,
   Button,
@@ -18,7 +18,7 @@ import {
 } from 'antd'
 import { BarcodeOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { api } from '../lib/api'
+import { api, newReqId } from '../lib/api'
 import { fmt, num, type ReportableOrder } from '../lib/types'
 
 const { Title, Text } = Typography
@@ -37,6 +37,11 @@ export default function ReportPage() {
   const [outputM, setOutputM] = useState<number | null>(null)
   const [stopMin, setStopMin] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  /**
+   * 报工幂等键：进入报工页/换工单时生成一次，**提交失败重试时复用同一个**。
+   * 车间网络不稳，超时重试很常见；没有幂等键会重复计量——产量虚高、件卡翻倍。
+   */
+  const reqIdRef = useRef<string>('')
   // 报工按匹：本次产出的件卡（rollNo+米数）
   const [rollMode, setRollMode] = useState(false)
   const [rolls, setRolls] = useState<{ rollNo: string; meters: number }[]>([])
@@ -84,12 +89,15 @@ export default function ReportPage() {
     }
     setSubmitting(true)
     try {
+      if (!reqIdRef.current) reqIdRef.current = newReqId()
       await api.post(`/production-orders/${target.id}/reports`, {
+        clientRequestId: reqIdRef.current,
         outputM: effectiveOutput,
         reportDate: dayjs().format('YYYY-MM-DD'),
         stoppageMinutes: stopMin ?? null,
         ...(rollMode && rolls.length ? { rolls } : {}),
       })
+      reqIdRef.current = '' // 本单已完成，下张单用新键
       message.success(`报工成功：${effectiveOutput}m 已入库${rolls.length ? `（${rolls.length} 匹）` : ''}${target.status === 'scheduled' ? '，工单转入生产中' : ''}`)
       setTarget(null)
       setOutputM(null)

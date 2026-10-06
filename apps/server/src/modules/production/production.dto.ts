@@ -126,6 +126,15 @@ export class ProductionOrderFilterDto {
 // ---------------------------------------------------------------------------
 
 export class CreateReportDto {
+  /**
+   * 客户端幂等键（**可选**，强烈建议传）
+   *
+   * 为这次报工生成一个唯一值（uuid/时间戳+随机）；**重试时必须复用同一个值**，
+   * 服务端据此去重，避免超时重试/双击造成重复计量（产量虚高、件卡翻倍）。
+   */
+  @IsOptional() @IsString() @MaxLength(64)
+  clientRequestId?: string
+
   @IsNumber({}, { message: '产出必须为数字' })
   @Min(0.001, { message: '产出必须大于 0' })
   outputM!: number

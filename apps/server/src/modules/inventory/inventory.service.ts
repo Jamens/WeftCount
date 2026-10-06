@@ -1021,6 +1021,16 @@ export class InventoryService {
   // ---------------------------------------------------------------------------
 
   /** 列批次的件卡（件卡标签打印用） */
+  /**
+   * 按来源单据查批次（报工产出的批次 sourceDocId = 报工单 id）
+   *
+   * 供报工幂等去重复用：重复提交同一 clientRequestId 时要把首次的批次/工单返回给客户端，
+   * 而不是新建一份。由高层模块调用，避免反向依赖。
+   */
+  async findBatchBySourceDoc(tenantId: string, companyId: string, sourceDocId: string) {
+    return this.batches.findOne({ where: { tenantId, companyId, sourceDocId } })
+  }
+
   async listRolls(tenantId: string, companyId: string, filter: { batchId?: string; status?: string }) {
     const qb = this.rolls
       .createQueryBuilder('r')

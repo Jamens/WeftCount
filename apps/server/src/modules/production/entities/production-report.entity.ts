@@ -27,6 +27,15 @@ export class ProductionReportEntity {
   companyId!: string
 
   /** 所属生产工单 */
+  /**
+   * 客户端幂等键（可空=不启用幂等）
+   *
+   * 报工是车间高频写操作，网络抖动重试/双击会**重复计量**导致产量虚高、件卡翻倍。
+   * 客户端为一次报工生成唯一值，重试时**复用同一个**；服务端据此去重。
+   */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  clientRequestId!: string | null
+
   @Column({ type: 'char', length: 36 })
   orderId!: string
 

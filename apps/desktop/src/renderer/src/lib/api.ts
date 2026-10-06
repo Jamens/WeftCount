@@ -135,3 +135,13 @@ export const api = {
   post: <T,>(url: string, data?: unknown): Promise<T> => request<T>('post', url, data),
   patch: <T,>(url: string, data?: unknown): Promise<T> => request<T>('patch', url, data),
 }
+
+/**
+ * 生成报工幂等键（clientRequestId）
+ *
+ * 车间网络不稳，超时重试很常见；报工若无幂等键，重试会**重复计量**——
+ * 产量虚高、件卡翻倍、成本跟着错。一次报工生成一个，**重试必须复用同一个**。
+ */
+export function newReqId(): string {
+  return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}

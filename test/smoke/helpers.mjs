@@ -100,3 +100,11 @@ export async function firstWarehouse(client) {
 
 export const num = (v) => Number(v ?? 0)
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/** 第一个启用机台（报工需指派机台） */
+export async function firstMachine(client) {
+  const ms = await get(client, '/machines')
+  const m = ms.find((x) => x.status !== 'retired')
+  if (!m) throw new Error('无可用机台')
+  return m
+}

@@ -294,6 +294,20 @@ export class ProductionService {
     orderId: string,
     dto: CreateReportDto,
   ): Promise<{ report: ProductionReportEntity; order: ProductionOrderEntity; batchId: string }> {
+    // **幂等去重**：同一 clientRequestId 已报过工 → 直接返回首次结果，不重复计量。
+    // 报工是车间高频写操作，网络抖动重试/手快双击都会重复提交，
+    // 重复计量会让产量虚高、件卡翻倍、成本跟着错，且事后极难纠正。
+    if (dto.clientRequestId) {
+      const dup = await this.reports.findOne({
+        where: { companyId, clientRequestId: dto.clientRequestId },
+      })
+      if (dup) {
+        const dupOrder = await this.findOrder(tenantId, companyId, orderId)
+        const dupBatch = await this.inventory.findBatchBySourceDoc(tenantId, companyId, dup.id)
+        return { report: dup, order: dupOrder, batchId: dupBatch?.id ?? '' }
+      }
+    }
+
     const o = await this.findOrder(tenantId, companyId, orderId)
     if (o.status !== 'scheduled' && o.status !== 'in_progress') {
       throw new BadRequestException({
@@ -310,6 +324,7 @@ export class ProductionService {
     const { report, order, batchId } = await this.dataSource.transaction(async (manager) => {
       const savedReport = await manager.save(
         manager.create(ProductionReportEntity, {
+          clientRequestId: dto.clientRequestId ?? null,
           tenantId,
           companyId,
           orderId,

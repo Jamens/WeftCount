@@ -1,7 +1,7 @@
 // 预警中心：扫描生成 / 去重 / 确认
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { login, get, post, activeSpec, activeGreigeMaterial, assertNear } from './helpers.mjs'
+import { login, get, post, activeSpec, activeGreigeMaterial, assertNear, firstMachine } from './helpers.mjs'
 
 test('预警扫描可执行并返回统计', async () => {
   const c = await login('factory')
@@ -104,4 +104,41 @@ test('趋势：损耗段(投料vs产出vs累计损耗)与匹维度段结构完�
   }
   assert.ok(typeof t.rolls.inStock === 'number', '应有在库匹数')
   assert.ok(Array.isArray(t.rolls.machineTop), '应有机台产出Top数组')
+})
+
+// ---- 报工幂等（防重复计量） ----
+
+test('报工幂等：同一 clientRequestId 重复提交只计量一次', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const machine = await firstMachine(c)
+  const wo = await post(c, '/production-orders', {
+    materialId: mat.id, specId: spec.id, plannedQuantityM: 100, machineId: machine.id,
+  })
+  await post(c, `/production-orders/${wo.id}/schedule`, {})
+  await post(c, `/production-orders/${wo.id}/start`, {})
+
+  const cid = `smoke-idem-${Date.now()}`
+  const r1 = await post(c, `/production-orders/${wo.id}/reports`, { outputM: 20, clientRequestId: cid })
+  // 模拟网络重试/双击：同id 再提交一次
+  const r2 = await post(c, `/production-orders/${wo.id}/reports`, { outputM: 20, clientRequestId: cid })
+
+  assert.equal(r1.report.id, r2.report.id, '重复提交应返回首次那次的报工单')
+  assert.equal(r2.batchId, r1.batchId, '不应新建第二个批次')
+  // 产量只应累加一次
+  const after = await get(c, `/production-orders/${wo.id}`)
+  assertNear(Number(after.outputQuantityM), 20, 0.01, '产量应只计一次(20m)，不能是 40m')
+})
+
+test('报工不带幂等键时仍可正常报工(向后兼容)', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const machine = await firstMachine(c)
+  const wo = await post(c, '/production-orders', { materialId: mat.id, specId: spec.id, plannedQuantityM: 100, machineId: machine.id })
+  await post(c, `/production-orders/${wo.id}/schedule`, {})
+  await post(c, `/production-orders/${wo.id}/start`, {})
+  const r = await post(c, `/production-orders/${wo.id}/reports`, { outputM: 30 })
+  assert.ok(r.report.id, '不传幂等键也应能报工')
 })
