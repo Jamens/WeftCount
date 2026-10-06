@@ -16,6 +16,7 @@ import { PartnerService } from '../partner/partner.service'
 import { OrderService } from '../order/order.service'
 import { WarehouseService } from '../warehouse/warehouse.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
+import { RollEntity } from './entities/roll.entity'
 import { InventoryTransactionEntity } from './entities/inventory-transaction.entity'
 import { InventoryDocumentEntity, type InventoryDocType } from './entities/inventory-document.entity'
 
@@ -53,6 +54,11 @@ export interface CreateDocInput {
    * 不传则走 FIFO 自动拣货。生产领用/入库不适用。
    */
   pickedItems?: { batchId: string; quantityM: number }[] | null
+  /**
+   * 逐匹入库（仅采购入库）：扫件卡逐匹登记，rollNo 公司内唯一防重扫。
+   * 传了则按各匹米数校验总量并生成件卡记录（批次米数应 = 各匹之和）。
+   */
+  rolls?: { rollNo: string; meters: number }[] | null
   remark?: string | null
 }
 
@@ -70,6 +76,8 @@ export class InventoryService {
   constructor(
     @InjectRepository(InventoryBatchEntity)
     private readonly batches: Repository<InventoryBatchEntity>,
+    @InjectRepository(RollEntity)
+    private readonly rolls: Repository<RollEntity>,
     @InjectRepository(InventoryTransactionEntity)
     private readonly txns: Repository<InventoryTransactionEntity>,
     @InjectRepository(InventoryDocumentEntity)
@@ -370,6 +378,42 @@ export class InventoryService {
           remark: input.remark ?? null,
         }),
       )
+
+      // 逐匹入库：按各匹米数校验总量并生成件卡记录
+      if (input.rolls && input.rolls.length > 0) {
+        const rollSum = input.rolls.reduce((s, r) => s + Number(r.meters || 0), 0)
+        // 批次米数应约等于各匹之和（允许小量舍入差），否则计数与总量对不上
+        if (Math.abs(rollSum - meters) > Math.max(0.5, meters * 0.001)) {
+          throw new BadRequestException({
+            code: ErrorCode.VALIDATION_FAILED,
+            message: `逐匹合计 ${rollSum.toFixed(2)}m 与入库总量 ${meters.toFixed(2)}m 不一致，请核对`,
+          })
+        }
+        const seen = new Set<string>()
+        for (const r of input.rolls) {
+          const rollNo = String(r.rollNo).trim()
+          if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
+          if (seen.has(rollNo)) {
+            throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡号 ${rollNo} 重复` })
+          }
+          seen.add(rollNo)
+        }
+        const kgPerM = meters > 0 ? weightKg / meters : 0
+        await manager.save(
+          input.rolls.map((r) =>
+            manager.create(RollEntity, {
+              tenantId: ctx.tenantId,
+              companyId: ctx.companyId,
+              batchId: savedBatch.id,
+              rollNo: String(r.rollNo).trim(),
+              meters: num(Number(r.meters), 3),
+              weightKg: num(kgPerM * Number(r.meters), 3),
+              status: 'in_stock',
+              sourceDocId: savedDoc.id,
+            }),
+          ),
+        )
+      }
 
       return savedDoc
     })

@@ -125,3 +125,57 @@ test('对账恒等式成立（采购入库+产出+盘盈 = 领用+出库+盘亏+
   if (r.diffKg !== undefined) assertNear(num(r.diffKg), 0, 0.01, '对账差异应为 0')
   void src
 })
+
+// ---- 逐匹入库(件卡计数) ----
+
+test('逐匹入库：按各匹米数建批次并生成件卡', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const wh = await firstWarehouse(c)
+  const tag = Date.now()
+  const rolls = [
+    { rollNo: `R${tag}-1`, meters: 25 },
+    { rollNo: `R${tag}-2`, meters: 25.5 },
+    { rollNo: `R${tag}-3`, meters: 24.5 },
+  ]
+  const total = rolls.reduce((s, r) => s + r.meters, 0)
+  const doc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: total,
+    partnerId: sup.id, unitPrice: 8.5, warehouseId: wh.id, rolls,
+  })
+  assert.ok(doc.docNo, '应建入库单')
+  // 回读该单对应批次，米数应 = 各匹之和
+  const all = await get(c, '/inventory/batches')
+  const batch = all.find((b) => b.sourceDocId === doc.id)
+  assert.ok(batch, '应生成批次')
+  assertNear(num(batch.quantity), total, 0.01, '批次米数应=各匹合计')
+})
+
+test('逐匹合计与入库总量不一致被拒', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const tag = Date.now()
+  // 声明总量 100，但各匹只合 50 → 应拒
+  await expectReject(c, 'POST', '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100,
+    partnerId: sup.id, rolls: [{ rollNo: `X${tag}`, meters: 50 }],
+  })
+})
+
+test('同件卡号重复被拒(防重扫)', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const tag = Date.now()
+  const no = `DUP${tag}`
+  // 同一单内两匹同号 → 拒
+  await expectReject(c, 'POST', '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 20,
+    partnerId: sup.id, rolls: [{ rollNo: no, meters: 10 }, { rollNo: no, meters: 10 }],
+  })
+})

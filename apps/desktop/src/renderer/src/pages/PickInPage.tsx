@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   App as AntdApp,
   Alert,
@@ -65,6 +65,27 @@ export default function PickInPage() {
   const [specId, setSpecId] = useState<string | undefined>()
   const [supplierId, setSupplierId] = useState<string | undefined>()
   const [unit, setUnit] = useState('m')
+
+  // 逐匹计数：扫一张件卡 = 收一匹(rollNo+米数)，合计即入库量
+  const [rollMode, setRollMode] = useState(false)
+  const [rollList, setRollList] = useState<{ rollNo: string; meters: number }[]>([])
+  const [rollCode, setRollCode] = useState('')
+  const [rollDefaultMeters, setRollDefaultMeters] = useState(25)
+  const rollTotal = useMemo(() => rollList.reduce((s, r) => s + r.meters, 0), [rollList])
+
+  const addRoll = () => {
+    const no = rollCode.trim()
+    if (!no) return
+    if (rollList.some((r) => r.rollNo === no)) {
+      message.warning(`件卡 ${no} 本单已扫过（防重扫）`)
+      setRollCode('')
+      return
+    }
+    setRollList((prev) => [...prev, { rollNo: no, meters: rollDefaultMeters }])
+    setRollCode('')
+  }
+
+  const removeRoll = (rollNo: string) => setRollList((prev) => prev.filter((r) => r.rollNo !== rollNo))
   const [qty, setQty] = useState<number | null>(null)
   const [price, setPrice] = useState<number | null>(null)
   const [warehouseId, setWarehouseId] = useState<string | undefined>()
@@ -169,8 +190,10 @@ export default function PickInPage() {
       message.warning('请选择供应商')
       return
     }
-    if (!qty || qty <= 0) {
-      message.warning('请输入收货数量')
+    // 逐匹模式下，入库量 = 各件卡米数之和（强制以米计）
+    const effectiveQty = rollMode ? rollTotal : qty
+    if (!effectiveQty || effectiveQty <= 0) {
+      message.warning(rollMode ? '请先扫件卡（至少一匹）' : '请输入收货数量')
       return
     }
     setSubmitting(true)
@@ -178,11 +201,12 @@ export default function PickInPage() {
       const res = await api.post<{ id: string; docNo: string }>('/inventory/purchase-inbound', {
         materialId,
         specId,
-        enteredUnit: unit,
-        enteredValue: qty,
+        enteredUnit: rollMode ? 'm' : unit,
+        enteredValue: effectiveQty,
         unitPrice: price,
         partnerId: supplierId,
         warehouseId,
+        ...(rollMode && rollList.length ? { rolls: rollList } : {}),
       })
       // 回读新批次号(按来源单据定位)，便于提示打印标签
       let newBatchNo = ''
@@ -194,10 +218,11 @@ export default function PickInPage() {
         /* 忽略 */
       }
       setLastBatchNo(newBatchNo || res.docNo)
-      message.success(`入库成功：单据 ${res.docNo}${newBatchNo ? `，批次 ${newBatchNo}` : ''}`)
+      message.success(`入库成功：单据 ${res.docNo}${newBatchNo ? `，批次 ${newBatchNo}` : ''}${rollMode ? `，${rollList.length} 匹` : ''}`)
       clearTemplate()
       setQty(null)
       setPrice(null)
+      setRollList([])
     } catch (e) {
       message.error(e instanceof Error ? e.message : '入库失败')
     } finally {
@@ -291,19 +316,67 @@ export default function PickInPage() {
                 </Col>
               </Row>
               <Row gutter={12}>
-                <Col span={8}>
+                <Col span={6}>
                   <Text type="secondary">单位</Text>
-                  <Select style={{ width: '100%' }} value={unit} onChange={setUnit} options={UNITS.map((u) => ({ value: u, label: u }))} />
+                  <Select style={{ width: '100%' }} value={rollMode ? 'm' : unit} onChange={setUnit} disabled={rollMode} options={UNITS.map((u) => ({ value: u, label: u }))} />
                 </Col>
-                <Col span={8}>
-                  <Text type="secondary">数量</Text>
-                  <InputNumber style={{ width: '100%' }} min={0.001} precision={1} value={qty ?? undefined} onChange={(v) => setQty(v ?? null)} placeholder="收货数量" />
+                <Col span={6}>
+                  <Text type="secondary">{rollMode ? '数量（各匹合计）' : '数量'}</Text>
+                  <InputNumber
+                    style={{ width: '100%' }} min={0.001} precision={1}
+                    value={(rollMode ? rollTotal : qty) || undefined}
+                    onChange={(v) => !rollMode && setQty(v ?? null)}
+                    readOnly={rollMode} placeholder={rollMode ? '扫件卡自动累计' : '收货数量'}
+                  />
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                   <Text type="secondary">单价（元/米，可选）</Text>
                   <InputNumber style={{ width: '100%' }} min={0} precision={4} value={price ?? undefined} onChange={(v) => setPrice(v ?? null)} />
                 </Col>
+                <Col span={6}>
+                  <Text type="secondary">逐匹计数</Text>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Button style={{ width: '100%' }} type={rollMode ? 'primary' : 'default'} onClick={() => setRollMode(!rollMode)}>
+                      {rollMode ? '逐匹模式·开' : '逐匹模式·关'}
+                    </Button>
+                  </Space.Compact>
+                </Col>
               </Row>
+
+              {rollMode && (
+                <Card size="small" title={`逐匹计数（已扫 ${rollList.length} 匹 · 合计 ${rollTotal.toFixed(1)} m）`} style={{ background: '#fafafa' }}>
+                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        size="large" prefix={<BarcodeOutlined />} placeholder="扫描件卡（序列号）后回车"
+                        value={rollCode} onChange={(e) => setRollCode(e.target.value)}
+                        onPressEnter={addRoll}
+                      />
+                      <InputNumber
+                        size="large" min={0.001} precision={2} style={{ width: 140 }}
+                        value={rollDefaultMeters} onChange={(v) => setRollDefaultMeters(v ?? 25)}
+                        addonBefore="每匹m"
+                      />
+                      <Button type="primary" size="large" onClick={addRoll}>计入一匹</Button>
+                    </Space.Compact>
+                    {rollList.length > 0 && (
+                      <Space wrap size={4}>
+                        {rollList.map((r) => (
+                          <Tag
+                            key={r.rollNo} closable color="blue"
+                            onClose={(e) => { e.preventDefault(); removeRoll(r.rollNo) }}
+                          >
+                            {r.rollNo} · {r.meters}m
+                          </Tag>
+                        ))}
+                      </Space>
+                    )}
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      扫一张件卡计一匹（默认每匹 {rollDefaultMeters}m，可改）；同号不可重复扫。确认入库时按各匹合计建批次。
+                    </Text>
+                  </Space>
+                </Card>
+              )}
               <Button type="primary" size="large" block icon={<InboxOutlined />} loading={submitting} onClick={() => void onSubmit()}>
                 确认入库（建新批次）
               </Button>

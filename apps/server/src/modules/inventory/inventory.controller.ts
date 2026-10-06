@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsArray, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator'
+import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'
@@ -18,6 +18,17 @@ class PickItemDto {
   @IsNumber({}, { message: '拣货数量必须为数字' })
   @Min(0.001, { message: '拣货数量必须大于 0' })
   quantityM!: number
+}
+
+class RollDto {
+  @IsString()
+  @IsNotEmpty({ message: '件卡号不能为空' })
+  rollNo!: string
+
+  /** 该匹米数 */
+  @IsNumber({}, { message: '件卡米数必须为数字' })
+  @Min(0.001, { message: '件卡米数必须大于 0' })
+  meters!: number
 }
 
 class CreateDocDto implements CreateDocInput {
@@ -65,6 +76,13 @@ class CreateDocDto implements CreateDocInput {
   @ValidateNested({ each: true })
   @Type(() => PickItemDto)
   pickedItems?: PickItemDto[] | null
+
+  /** 逐匹入库（仅采购入库）：扫件卡逐匹登记(rollNo+米数)，防重扫 */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RollDto)
+  rolls?: RollDto[] | null
 
   @IsOptional()
   @IsString()
