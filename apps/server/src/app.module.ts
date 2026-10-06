@@ -9,6 +9,7 @@ import { TenantModule } from './modules/tenant/tenant.module'
 import { AuditModule } from './modules/audit/audit.module'
 import { AuditInterceptor } from './modules/audit/audit.interceptor'
 import { MaterialModule } from './modules/material/material.module'
+import { InventoryModule } from './modules/inventory/inventory.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -40,6 +41,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     TenantModule,
     AuditModule,
     MaterialModule,
+    InventoryModule,
   ],
   controllers: [HealthController],
   providers: [

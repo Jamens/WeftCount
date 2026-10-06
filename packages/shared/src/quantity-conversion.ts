@@ -269,8 +269,12 @@ export function checkTripleLedger(
 
   const productionDiff = productionByWeight - purchaseKg
   const salesDiff = salesByWeight - productionByWeight
-  const productionDiffRate = purchaseKg > 0 ? Math.abs(productionDiff) / purchaseKg : 0
-  const salesDiffRate = productionByWeight > 0 ? Math.abs(salesDiff) / productionByWeight : 0
+  // 只有当一条腿的「两端都有数据」时才比较偏差：
+  // 例如采购了但还没生产，或生产了但还没销售，属于「尚未闭环」而非异常，不应报警。
+  const productionDiffRate =
+    purchaseKg > 0 && productionM > 0 ? Math.abs(productionDiff) / purchaseKg : 0
+  const salesDiffRate =
+    productionByWeight > 0 && salesM2 > 0 ? Math.abs(salesDiff) / productionByWeight : 0
 
   const warnings: string[] = []
   if (productionDiffRate > toleranceRate) {
