@@ -220,8 +220,12 @@ async function seedMasterData(
   })
   await ensureMaterial(ds, tenantId, companyId, {
     code: 'G-COTTON-PLAIN', name: '全棉坯布', category: 'greige', specification: '本色',
+    // **必须设安全库存与采购提前期**：否则 `safetyStock == null` 会被直接跳过，
+    // 补货预警/补货建议在演示数据上永远触发不出来（功能做了但看不到）。
+    // 300m 演示库存 + 日均消耗 → 补货点= 20×(7+7) + 200 = 480 > 300，会触发建议。
+    safetyStock: 200, leadTimeDays: 7,
   })
-  console.log('[seed] 演示物料就绪（棉纱40S / 全棉坯布）')
+  console.log('[seed] 演示物料就绪（棉纱40S / 全棉坯布，含安全库存与采购提前期）')
 
   // —— 仓库 ——
   const warehouses = [
@@ -334,15 +338,40 @@ async function seedDemoRolls(
 /** 幂等建物料 */
 async function ensureMaterial(
   ds: DataSource, tenantId: string, companyId: string,
-  m: { code: string; name: string; category: 'yarn' | 'greige'; specification: string },
+  m: {
+    code: string
+    name: string
+    category: 'yarn' | 'greige'
+    specification: string
+    /** 安全库存：补货预警的前提，缺了永不触发 */
+    safetyStock?: number
+    /** 采购提前期/周期（天）：补货点计算用 */
+    leadTimeDays?: number
+  },
 ) {
   const repo = ds.getRepository(MaterialEntity)
   const exists = await repo.findOne({ where: { companyId, code: m.code } })
-  if (exists) return exists
+  if (exists) {
+    // 幂等但**允许补齐**：已存在时只填「为空」的字段。
+    // seed 增删了演示字段（如安全库存）后，重跑应能修复旧演示数据；
+    // 但用户自己改过的值不能被冲掉——所以只在 null 时填。
+    let dirty = false
+    if (m.safetyStock != null && exists.safetyStock == null) {
+      exists.safetyStock = String(m.safetyStock)
+      dirty = true
+    }
+    if (m.leadTimeDays != null && exists.leadTimeDays == null) {
+      exists.leadTimeDays = String(m.leadTimeDays)
+      dirty = true
+    }
+    return dirty ? repo.save(exists) : exists
+  }
   return repo.save(
     repo.create({
       id: randomUUID(), tenantId, companyId,
       code: m.code, name: m.name, category: m.category, specification: m.specification,
+      safetyStock: m.safetyStock != null ? String(m.safetyStock) : null,
+      leadTimeDays: m.leadTimeDays != null ? String(m.leadTimeDays) : null,
       measureMode: m.category === 'yarn' ? 'weight' : 'length',
       primaryUnit: m.category === 'yarn' ? 'kg' : 'm',
       allowedUnits: m.category === 'yarn' ? ['kg', 't'] : ['m', 'kg'],
