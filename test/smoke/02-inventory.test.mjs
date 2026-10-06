@@ -255,3 +255,28 @@ test('件卡规格不符被拒(发错布种)', async () => {
     partnerId: cus.id, pickedRolls: [{ rollNo }],
   })
 })
+
+test('列批次件卡(件卡打印用)：含件卡号/米数/规格/批次', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const tag = Date.now()
+  const rolls = [{ rollNo: `P${tag}-1`, meters: 22 }, { rollNo: `P${tag}-2`, meters: 28 }]
+  const doc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 50,
+    partnerId: sup.id, unitPrice: 8.5, rolls,
+  })
+  const batches = await get(c, '/inventory/batches')
+  const batch = batches.find((b) => b.sourceDocId === doc.id)
+  assert.ok(batch, '应有批次')
+  // 按批次列件卡
+  const list = await get(c, `/inventory/rolls?batchId=${batch.id}`)
+  assert.equal(list.length, 2, '应列出 2 匹件卡')
+  const one = list.find((r) => r.rollNo === rolls[0].rollNo)
+  assert.ok(one, '应含第一匹')
+  assert.equal(one.meters, '22.000', '件卡米数22')
+  assert.equal(one.batchNo, batch.batchNo, '应带批次号')
+  assert.ok(one.specName, '应带规格名')
+  assert.equal(one.status, 'in_stock', '新件卡应在库')
+})

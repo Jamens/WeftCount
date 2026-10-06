@@ -967,6 +967,41 @@ export class InventoryService {
   // 查询
   // ---------------------------------------------------------------------------
 
+  /** 列批次的件卡（件卡标签打印用） */
+  async listRolls(tenantId: string, companyId: string, filter: { batchId?: string; status?: string }) {
+    const qb = this.rolls
+      .createQueryBuilder('r')
+      .where('r.company_id = :companyId', { companyId })
+      .orderBy('r.created_at', 'ASC')
+    if (filter.batchId) qb.andWhere('r.batch_id = :batchId', { batchId: filter.batchId })
+    if (filter.status) qb.andWhere('r.status = :status', { status: filter.status })
+    const rolls = await qb.getMany()
+    // 带批次号/规格名，标签直接可用
+    const batchIds = [...new Set(rolls.map((r) => r.batchId))]
+    const batches = batchIds.length
+      ? await this.batches.find({ where: { id: In(batchIds) } })
+      : []
+    const batchMap = new Map(batches.map((b) => [b.id, b]))
+    return Promise.all(
+      rolls.map(async (r) => {
+        const b = batchMap.get(r.batchId)
+        const spec = b ? await this.materials.findSpec(tenantId, companyId, b.specId).catch(() => null) : null
+        return {
+          id: r.id,
+          rollNo: r.rollNo,
+          meters: r.meters,
+          status: r.status,
+          batchId: r.batchId,
+          batchNo: b?.batchNo ?? '-',
+          specId: b?.specId ?? null,
+          specName: spec?.name ?? '-',
+          widthCm: b?.widthCm ?? null,
+          inboundAt: r.createdAt,
+        }
+      }),
+    )
+  }
+
   /** 件卡轻量查询（扫码发货用）：件卡→米数/规格/批次/状态，不含单据追溯 */
   async lookupRoll(tenantId: string, companyId: string, rollNo: string) {
     const roll = await this.rolls.findOne({ where: { rollNo, companyId } })

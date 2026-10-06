@@ -152,6 +152,14 @@ export class InventoryController {
     return this.inventory.createSalesOutbound(ctx, dto)
   }
 
+  /** 列批次的件卡（件卡标签打印用） */
+  @Get('rolls')
+  @RequirePermission(Permission.INVENTORY_VIEW)
+  @ApiOperation({ summary: '列件卡(可按批次/状态过滤)，件卡标签打印用' })
+  listRolls(@CurrentUser() ctx: RequestContext, @Query('batchId') batchId?: string, @Query('status') status?: string) {
+    return this.inventory.listRolls(ctx.tenantId, ctx.companyId, { batchId, status })
+  }
+
   /** 件卡轻量查询（扫码发货用） */
   @Get('rolls/lookup')
   @RequirePermission(Permission.INVENTORY_MANAGE)

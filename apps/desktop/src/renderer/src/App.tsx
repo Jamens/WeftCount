@@ -27,13 +27,14 @@ import LoginPage from './pages/LoginPage'
 import ReportPage from './pages/ReportPage'
 import BoardPage from './pages/BoardPage'
 import LabelPage from './pages/LabelPage'
+import RollCardPage from './pages/RollCardPage'
 import ScanPage from './pages/ScanPage'
 import PickPage from './pages/PickPage'
 import PickInPage from './pages/PickInPage'
 
 const { Text } = Typography
 
-type View = 'report' | 'board' | 'label' | 'scan' | 'pick' | 'pickin'
+type View = 'report' | 'board' | 'label' | 'rollcard' | 'scan' | 'pick' | 'pickin'
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!authStore.getToken())
@@ -105,6 +106,7 @@ export default function App() {
                 { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
                 { key: 'pickin', icon: <InboxOutlined />, label: '扫码入库' },
                 { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
+                { key: 'rollcard', icon: <BarcodeOutlined />, label: '件卡打印' },
                 { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
               ]}
               onClick={({ key }) => setView(key as View)}
@@ -125,7 +127,7 @@ export default function App() {
   }
 
   const page =
-    view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'pick' ? <PickPage /> : view === 'pickin' ? <PickInPage /> : <ScanPage />
+    view === 'report' ? <ReportPage /> : view === 'board' ? <BoardPage /> : view === 'label' ? <LabelPage /> : view === 'rollcard' ? <RollCardPage /> : view === 'pick' ? <PickPage /> : view === 'pickin' ? <PickInPage /> : <ScanPage />
 
   return shell(page)
 }
