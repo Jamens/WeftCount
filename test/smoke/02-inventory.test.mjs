@@ -337,3 +337,73 @@ test('拆匹发货：超出该匹剩余量被拒', async () => {
     })
   )
 })
+
+// ---- 件卡级盘点（拆匹后的真实需求：能定位缺哪一匹） ----
+
+test('件卡级盘点：未盘到的件卡按剩余量写损并置零，守恒不破', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const wh = await firstWarehouse(c)
+  const tag = Date.now()
+  // 入库 2 匹各 100m
+  const doc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 200,
+    unitPrice: 8.2, partnerId: sup.id, warehouseId: wh.id,
+    rolls: [{ rollNo: `STK-${tag}-A`, meters: 100 }, { rollNo: `STK-${tag}-B`, meters: 100 }],
+  })
+  const batch = (await get(c, '/inventory/batches')).find(b => b.sourceDocId === doc.id)
+
+  // 件卡级盘点单：明细应逐匹
+  const st = await post(c, '/stocktakes', { warehouseId: wh.id, mode: 'roll', remark: `件卡盘点${tag}` })
+  const detail = await get(c, `/stocktakes/${st.id}`)
+  const items = detail.items.filter(i => i.batchId === batch.id)
+  assert.equal(items.length, 2, '件卡级盘点应有 2 条件卡明细')
+  assert.ok(items.every(i => i.rollNo), '明细应带件卡号')
+  const lost = items.find(i => i.rollNo === `STK-${tag}-A`)
+  const kept = items.find(i => i.rollNo === `STK-${tag}-B`)
+  assert.ok(lost && kept, '应能定位到具体件卡')
+
+  // 只录「B」的实盘（=账面），A 不录 → A 视为缺失
+  await post(c, `/stocktakes/${st.id}/counts`, { records: [{ itemId: kept.id, countedQuantityM: 100 }] })
+  await post(c, `/stocktakes/${st.id}/complete`, {})
+
+  // A 应被写损：remaining=0、status=consumed
+  const rollsAfter = await get(c, `/inventory/rolls?batchId=${batch.id}`)
+  const a = rollsAfter.find(r => r.rollNo === `STK-${tag}-A`)
+  const b = rollsAfter.find(r => r.rollNo === `STK-${tag}-B`)
+  assertNear(Number(a.remainingM), 0, 0.01, '缺失件卡 remaining 应归零')
+  assert.equal(a.status, 'consumed', '缺失件卡应置 consumed')
+  assertNear(Number(b.remainingM), 100, 0.01, '盘到的件卡 remaining 不变')
+  // 守恒：Σroll.remaining == batch.remaining
+  const batchAfter = (await get(c, '/inventory/batches')).find(x => x.id === batch.id)
+  const sum = rollsAfter.reduce((s, r) => s + Number(r.remainingM), 0)
+  assertNear(sum, Number(batchAfter.remainingQuantity), 0.01, 'Σroll.remaining 应==batch.remaining')
+  assertNear(Number(batchAfter.remainingQuantity), 100, 0.01, '批次应剩 100m（少了一匹）')
+})
+
+test('件卡级盘点：账实相符时不产生盘盈盘亏流水', async () => {
+  const c = await login('factory')
+  const spec = await activeSpec(c)
+  const mat = await activeGreigeMaterial(c)
+  const sup = await supplierOf(c)
+  const wh = await firstWarehouse(c)
+  const tag = Date.now()
+  const doc = await post(c, '/inventory/purchase-inbound', {
+    materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: 100,
+    unitPrice: 8.2, partnerId: sup.id, warehouseId: wh.id,
+    rolls: [{ rollNo: `STKOK-${tag}`, meters: 100 }],
+  })
+  const batch = (await get(c, '/inventory/batches')).find(b => b.sourceDocId === doc.id)
+  const st = await post(c, '/stocktakes', { warehouseId: wh.id, mode: 'roll', remark: `件卡盘点OK${tag}` })
+  const detail = await get(c, `/stocktakes/${st.id}`)
+  const item = detail.items.find(i => i.batchId === batch.id)
+  await post(c, `/stocktakes/${st.id}/counts`, { records: [{ itemId: item.id, countedQuantityM: 100 }] })
+  const before = (await get(c, '/inventory/batches')).find(b => b.id === batch.id)
+  await post(c, `/stocktakes/${st.id}/complete`, {})
+  const after = (await get(c, '/inventory/batches')).find(b => b.id === batch.id)
+  assertNear(Number(after.remainingQuantity), Number(before.remainingQuantity), 0.01, '账实相符不应改变剩余量')
+  const rollsAfter = await get(c, `/inventory/rolls?batchId=${batch.id}`)
+  assertNear(Number(rollsAfter[0].remainingM), 100, 0.01, '账实相符件卡 remaining 不变')
+})

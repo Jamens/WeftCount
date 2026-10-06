@@ -34,6 +34,19 @@ export class StocktakeItemEntity {
   @Column({ type: 'char', length: 36 })
   batchId!: string
 
+  /**
+   * 件卡（**可空**）
+   *
+   * - 非空 → 件卡级明细：盘点按件卡核销，能定位到「缺哪一匹」
+   * - 为空 → 批次级明细：按米数核销（原有模式，保留）
+   */
+  @Column({ type: 'char', length: 36, nullable: true })
+  rollId!: string | null
+
+  /** 件卡号（冗余存一份，便于打印盘点单/人工核对） */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  rollNo!: string | null
+
   /** 批次号快照（批次号可能后续变更，展示用） */
   @Column({ type: 'varchar', length: 32 })
   batchNo!: string
