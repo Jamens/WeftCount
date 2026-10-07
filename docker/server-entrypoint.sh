@@ -38,6 +38,15 @@ mysql.createConnection({host:process.env.DB_HOST||'mysql',port:+(process.env.DB_
 
 # 迁移（TypeORM）——schema 的唯一事实源
 # 与本地脚本一致：在 apps/server 目录下执行（-d src/data-source.ts）
+# JWT 密钥：未显式配置时**自动生成强随机值**。
+# 不能退回代码里的开发默认值——开源仓库里该默认值人人可见，
+# 用它签发的令牌可被任何人伪造（冒充任意租户管理员）。
+if [ -z "${JWT_SECRET:-}" ]; then
+  JWT_SECRET="$(node -e "console.log(require('crypto').randomBytes(48).toString('hex'))")"
+  export JWT_SECRET
+  echo "[entrypoint] 未配置 JWT_SECRET，已自动生成随机密钥（重启后会变化，需重新登录）"
+fi
+
 cd /app/apps/server
 echo "[entrypoint] 执行数据库迁移…"
 npx typeorm-ts-node-commonjs -d src/data-source.ts migration:run

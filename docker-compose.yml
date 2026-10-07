@@ -56,6 +56,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-weft_change_me}
       DB_NAME: ${DB_NAME:-weft_count}
       SEED_ON_START: ${SEED_ON_START:-true}
+      # 不设则由 entrypoint 自动生成随机密钥（重启后变化 → 需重新登录）。
+      # 生产建议在 .env 里固定：node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      JWT_SECRET: ${JWT_SECRET:-}
       TZ: Asia/Shanghai
       # CORS：管理端由 nginx 同源反代，此处主要覆盖直连/桌面端场景
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
