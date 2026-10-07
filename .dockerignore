@@ -1,0 +1,43 @@
+# ============================================================
+# Docker 构建上下文排除项
+# ------------------------------------------------------------
+# 不排除的话，宿主机的 node_modules / dist / Electron 二进制会被送进构建上下文，
+# 体积动辄数百 MB，构建慢十倍且可能污染镜像内依赖。
+# ============================================================
+
+# 依赖与产物
+**/node_modules
+**/dist
+**/dist-esm
+**/out
+**/.turbo
+**/.vite
+**/coverage
+
+# 构建缓存/日志
+**/*.tsbuildinfo
+**/.eslintcache
+**/*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 版本控制与编辑器
+.git
+.gitignore
+.github
+.idea
+.vscode
+*.swp
+.DS_Store
+
+# 本机/运行时产物（不入镜像）
+**/.env
+**/.env.local
+**/.workbuddy
+**/coverage
+_trash
+_tmp_*
+
+# 大件（Electron 二进制、数据库导出）
+**/release
+**/*.sql.gz

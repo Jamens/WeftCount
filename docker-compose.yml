@@ -1,0 +1,85 @@
+# ============================================================
+# WeftCount · 一键部署（MySQL + 后端 + 管理端）
+# ------------------------------------------------------------
+# 用法：
+#   docker compose up -d --build
+#   # 管理端  http://localhost:5180
+#   # 后端API http://localhost:3180/api/docs
+#
+# 桌面端（Electron）需在宿主机运行（容器内无 GUI）：
+#   pnpm i && pnpm --filter @weftcount/desktop build && pnpm dev:desktop
+#   桌面端默认直连 127.0.0.1:3180，与容器映射的端口一致。
+#
+# ⚠️ 演示账号密码统一 weft2026，**上生产前务必删除并改密**（见 sql/03_seed_reference.sql）。
+# ============================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: weftcount-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-weft_change_me}
+      MYSQL_DATABASE: ${DB_NAME:-weft_count}
+      TZ: Asia/Shanghai
+    ports:
+      - '${DB_PORT:-3306}:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # 用 mysqladmin 探活，比「端口已监听」可靠（初始化期间端口可能已开）
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-p${DB_PASSWORD:-weft_change_me}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: weftcount-server
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy # 等MySQL 真正就绪，避免首次迁移连不上
+    environment:
+      NODE_ENV: production
+      PORT: '3180'
+      DB_HOST: mysql
+      DB_PORT: '3306'
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-weft_change_me}
+      DB_NAME: ${DB_NAME:-weft_count}
+      SEED_ON_START: ${SEED_ON_START:-true}
+      TZ: Asia/Shanghai
+      # CORS：管理端由 nginx 同源反代，此处主要覆盖直连/桌面端场景
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # 大模型（可选）：不配则 AI 用确定性规则兜底
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com}
+      AI_MODEL: ${AI_MODEL:-deepseek-chat}
+    ports:
+      - '${SERVER_PORT:-3180}:3180'
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: weftcount-admin
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      # nginx 模板变量：/api 反代目标（upstream 只能给 host:port，不能带 scheme）
+      BACKEND_HOST: server:3180
+      API_PREFIX: /api
+    ports:
+      - '${ADMIN_PORT:-5180}:80'
+
+volumes:
+  mysql-data:
