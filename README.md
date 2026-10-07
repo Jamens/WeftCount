@@ -49,6 +49,20 @@ WeftCount/
 
 ## 快速开始
 
+### 最快：Docker 一键起（推荐先试这个）
+
+不装 Node、不装 MySQL，一条命令起全套（MySQL + 后端 + 管理端）：
+
+```bash
+docker compose up -d --build
+# 管理端 http://localhost:5180 · API 文档 http://localhost:3180/api/docs
+```
+
+首次启动自动完成：等 MySQL 就绪 → 建库 → 跑迁移 → 写演示数据 → 启动服务。
+详见 [`docker/README.md`](./docker/README.md)。桌面端（Electron）需在宿主机另跑。
+
+### 本地开发
+
 ```bash
 pnpm install
 

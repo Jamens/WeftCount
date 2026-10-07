@@ -56,6 +56,21 @@ WeftCount/
 
 ## Quick start
 
+### Fastest: one command with Docker (try this first)
+
+No Node, no MySQL install — brings up the whole stack (MySQL + API + admin):
+
+```bash
+docker compose up -d --build
+# admin http://localhost:5180 · API docs http://localhost:3180/api/docs
+```
+
+On first start it automatically waits for MySQL, creates the database, runs migrations,
+seeds demo data, then starts the services. See [`docker/README.md`](./docker/README.md).
+The Electron desktop app still runs on the host.
+
+### Local development
+
 ```bash
 pnpm install
 
