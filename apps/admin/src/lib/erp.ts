@@ -924,6 +924,52 @@ export interface BatchTrace {
   consumedBy: Array<{ docNo: string; docType: string; outM: number; partnerName: string | null; date: string }>
 }
 
+/**
+ * 单匹（件卡）追溯
+ *
+ * 与 `BatchTrace` 的区别：批次是「一堆布的汇总量」，
+ * 件卡是「**具体这一匹**」——质检判疵、客诉追责、串布排查都只认匹号。
+ * 拆匹后一匹可多次出库，故 `destinations` 是数组（`destination` 为兼容旧调用方保留）。
+ */
+export interface RollTrace {
+  roll: {
+    id: string
+    rollNo: string
+    meters: string
+    weightKg: string
+    remainingM: string
+    remainingKg: string
+    status: string
+    inboundAt: string
+  }
+  spec: {
+    specId: string
+    specName: string
+    finishedWidth: number
+    totalGsm: number | null
+    totalKgPer100m: number | null
+  }
+  material: { id: string; name: string; code: string } | null
+  batch: { id: string; batchNo: string; remainingM: string }
+  source: {
+    docNo: string
+    docType: string
+    partnerName: string | null
+    orderId: string | null
+    date: string
+    machineName?: string
+  } | null
+  destinations: Array<{
+    docNo: string
+    docType: string
+    partnerName: string | null
+    orderId: string | null
+    date: string
+    meters: number
+    weightKg: number
+  }>
+}
+
 export const COUNT_SYSTEM_LABEL: Record<CountSystem, string> = {
   NeS: '英支 NeS',
   Nm: '公支 Nm',
