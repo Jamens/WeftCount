@@ -14,6 +14,11 @@ Thumbs.db
 .eslintcache
 .vite-temp/
 
+# IDE 配置（每个开发者本地不同，且已被 `git add .` 顺手带进来过）
+.idea/
+.vscode/
+*.iml
+
 # pnpm / WorkBuddy 环境产物
 _trash/
 _tmp_*

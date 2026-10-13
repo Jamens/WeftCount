@@ -2,6 +2,21 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
+/**
+ * 关掉硬件加速（软件渲染）
+ *
+ * 必须在 app.whenReady 之前调用，否则不生效。
+ *
+ * 车间一体机 / 虚拟机 / 远程桌面环境下常没有可用 GPU，
+ * Electron 的 GPU 子进程会反复崩溃并最终打出
+ * `FATAL: GPU process isn't usable. Goodbye.`——**整个窗口直接闪退**，
+ * 进程列表里一个窗口都留不下。
+ *
+ * 本应用是表单 + 表格 + 条码标签的实用界面，不做视频/3D，
+ * 软件渲染的帧率完全够用，**用稳定换帧率是明确划算的取舍**。
+ */
+app.disableHardwareAcceleration()
+
 /** 注册主进程 IPC 处理器（preload 通过 contextBridge 暴露给渲染进程） */
 function registerIpcHandlers(): void {
   ipcMain.handle('app:getVersion', () => app.getVersion())

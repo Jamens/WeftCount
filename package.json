@@ -16,6 +16,8 @@
     "dev:server": "pnpm --filter @weftcount/server dev",
     "dev:admin": "pnpm --filter @weftcount/admin dev",
     "dev:desktop": "pnpm --filter @weftcount/desktop dev",
+    "start:desktop": "node scripts/start-desktop.mjs",
+    "start:desktop:dev": "node scripts/start-desktop.mjs --dev",
     "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
