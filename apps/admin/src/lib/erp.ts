@@ -451,6 +451,29 @@ export interface GanttData {
   atRiskCount: number
 }
 
+export interface DashboardData {
+  period: { from: string; to: string; label: string }
+  inventory: {
+    greigeMeters: number
+    remainingKg: number
+    stockValue: number
+    rollsInStock: number
+    depletedBatches: number
+  }
+  purchase: { amount: number; orders: number }
+  sales: { amount: number; orders: number }
+  production: {
+    outputMeters: number
+    inProgressOrders: number
+    draftOrders: number
+    reportCount: number
+    machineTotal: number
+    machineRunning: number
+  }
+  todo: { openAlerts: number; dueSoonOrders: number; overdueOrders: number }
+  recentOutput: { date: string; meters: number }[]
+}
+
 export type AlertType = 'order_overdue' | 'low_stock' | 'stale_batch'
 export type AlertSeverity = 'info' | 'warning' | 'critical'
 export interface AlertWire {

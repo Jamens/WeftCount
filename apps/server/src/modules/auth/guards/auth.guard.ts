@@ -126,8 +126,11 @@ export class AuthGuard implements CanActivate {
     ])
     if (required) {
       const needed: string[] = Array.isArray(required) ? required : [required]
-      const missing = needed.filter((p) => !hasPermission(permissions, p))
-      if (missing.length === 0) {
+      // 声明多个权限码时语义是「**任一满足即可**」，不是「全部都要」。
+      // 用 some 而不是 every：早期写成 every 时，
+      // 声明 @RequirePermission(A, B) 的端点会要求同时拥有 A 和 B，
+      // 导致「采购+销售」这类双视角角色（order.controller 的列表/详情）被误判无权。
+      if (needed.some((p) => hasPermission(permissions, p))) {
         return true
       }
       // 全部不满足时，若只声明了一个权限就报缺哪个；声明多个时报缺少清单
@@ -138,7 +141,7 @@ export class AuthGuard implements CanActivate {
         message:
           needed.length === 1
             ? '无权访问，缺少权限：' + needed[0]
-            : `无权访问，缺少权限：${missing.join('、')}`,
+            : `无权访问，需要以下任一权限：${needed.join('、')}`,
       })
     }
 

@@ -22,6 +22,7 @@ import { AiModule } from './modules/ai/ai.module'
 import { AlertModule } from './modules/alert/alert.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { ImportExportModule } from './modules/import-export/import-export.module'
+import { DashboardModule } from './modules/dashboard/dashboard.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -66,6 +67,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     AlertModule,
     AnalyticsModule,
     ImportExportModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [
