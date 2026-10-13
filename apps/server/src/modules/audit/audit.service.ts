@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, FindOptionsWhere, Between, Like, type FindOptionsOrder } from 'typeorm'
 import type { AuditActionType } from '@weftcount/shared'
 import { AuditLogEntity } from './entities/audit-log.entity'
-import { buildSnapshot, computeDiff, maskSensitive } from './audit-sanitizer'
+import { buildSnapshot, computeDiff } from './audit-sanitizer'
 
 export interface AuditInput {
   tenantId: string
@@ -72,11 +72,16 @@ export class AuditService {
   async record(input: AuditInput): Promise<void> {
     try {
       const after = input.after ?? null
-      const diff = input.after
-        ? computeDiff(input.before ?? null, after)
-        : input.before
-          ? { 快照: { before: null, after: maskSensitive(input.before) } }
-          : null
+      const before = input.before ?? null
+      // 前后都有 → 逐字段算差异；只有一边 → 原样记为快照
+      const diff =
+        before && after
+          ? computeDiff(before, after)
+          : after
+            ? computeDiff(null, after)
+            : before
+              ? computeDiff(before, null)
+              : null
 
       await this.repo.insert({
         tenantId: input.tenantId,
@@ -106,7 +111,11 @@ export class AuditService {
 
   /**
    * 记录更新操作的变更前后快照
-   * service 层在修改前调用 before() 抓取原值
+   *
+   * **当前无调用方**：字段级快照已由 `AuditInterceptor` 在拦截器层统一完成
+   * （见 `audit-targets.ts` 里为什么不做成 service 层注入）。
+   * 保留此方法供未来「不在 HTTP 链路上」的写入场景使用——
+   * 例如 Electron 端离线队列重放、定时任务自动过账，这些路径不经拦截器。
    */
   async recordUpdate(
     base: Omit<AuditInput, 'before' | 'after'>,

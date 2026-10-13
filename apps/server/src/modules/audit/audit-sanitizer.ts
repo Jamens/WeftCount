@@ -118,3 +118,38 @@ export function buildSnapshot(body: unknown): Record<string, unknown> | null {
   }
   return Object.keys(out).length > 0 ? out : null
 }
+
+/**
+ * 技术字段：每次更新都会变，但不算「业务字段变更」
+ *
+ * `updatedAt` 尤其要注意：TypeORM 的 `@UpdateDateColumn` 会在任何一次 save 时刷新，
+ * 若不过滤，**每条更新审计的 diff 里都会有一条updatedAt 变化**，
+ * 真实业务变更会被这条噪声淹没，审计页看起来「什么都改了」反而看不出改了啥。
+ */
+const TECHNICAL_FIELDS = new Set([
+  'id',
+  'tenantId',
+  'companyId',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+  'version',
+])
+
+/**
+ * 把数据库实体整理成可存储的快照
+ *
+ * 与 `buildSnapshot`（处理请求体）的区别：
+ * - 请求体只含用户提交的字段，实体快照含全字段，两者的 diff 才有意义
+ * - 剔除 id/租户/时间戳等技术字段，避免噪声淹没真实变更
+ * - 仍然脱敏（密码哈希等一律 MASKED）
+ */
+export function buildEntitySnapshot(entity: unknown): Record<string, unknown> | null {
+  if (!entity || typeof entity !== 'object') return null
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(entity as Record<string, unknown>)) {
+    if (TECHNICAL_FIELDS.has(k)) continue
+    out[k] = isSensitive(k) ? MASKED : maskSensitive(v)
+  }
+  return Object.keys(out).length > 0 ? out : null
+}

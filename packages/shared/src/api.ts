@@ -106,6 +106,34 @@ export const AuditAction = {
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction]
 
+/**
+ * 审计目标类型（被操作对象的种类）
+ *
+ * ## 为什么放在 shared 而不是前后端各自维护
+ *
+ * 这份清单曾经三处不一致：
+ * - 前端审计页的下拉里有 `inventory_batch` / `roll`——**后端从不写这两个值**，
+ *   而 `inventory_batch` 还是下拉的**默认值**，不重置筛选条件就查不到任何记录
+ * - 后端实际写入的 `machine` / `inventory_document` 前端下拉里根本没有
+ *
+ * 前后端各写一份必然漂移，所以收敛到这里作单一事实源：
+ * 后端 `audit-targets.ts` 注册实体时用它做完整性自检，前端下拉直接 import。
+ */
+export const AUDIT_TARGET_TYPES = [
+  'material',
+  'greige_spec',
+  'partner',
+  'warehouse',
+  'order',
+  'contract',
+  'machine',
+  'production_order',
+  'inventory_document',
+  'stocktake',
+] as const
+
+export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number]
+
 export interface AuditLogEntry {
   userId: string
   companyId?: string

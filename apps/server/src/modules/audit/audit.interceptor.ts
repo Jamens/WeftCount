@@ -6,11 +6,14 @@ import {
   SetMetadata,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { Observable, tap } from 'rxjs'
+import { InjectDataSource } from '@nestjs/typeorm'
+import { DataSource } from 'typeorm'
+import { Observable, from, of, switchMap, tap } from 'rxjs'
 import type { Request, Response } from 'express'
-import type { AuditActionType } from '@weftcount/shared'
+import type { AuditActionType, AuditTargetType } from '@weftcount/shared'
 import { AuditService, type AuditInput } from './audit.service'
-import { buildSnapshot } from './audit-sanitizer'
+import { buildEntitySnapshot, buildSnapshot } from './audit-sanitizer'
+import { AUDIT_TARGET_ENTITIES, SNAPSHOT_ACTIONS } from './audit-targets'
 import { RequestContext } from '../auth/auth-context'
 
 export const AUDIT_KEY = 'weftcount:audit'
@@ -24,12 +27,13 @@ export interface AuditMeta {
   /** 从请求体中取目标类型的字段名 */
   targetTypeField?: string
   /**
-   * 目标对象类型（**字面量**，推荐直接写）
+   * 目标对象类型
    *
-   * 不填则targetType 恒为 null，`/audit-logs/target`（按对象查变更史）**永远查不到**——
-   * 该端点依赖 `targetType + targetId` 组合匹配。只有 targetId 没用，类型缺失就匹配不上。
+   * 限定为 `AuditTargetType`（shared 单一事实源），编译期就能挡住拼错的字面量。
+   * 类型只约束书写、运行期靠 `AUDIT_TARGET_TYPES` 全集；
+   * 两者不一致时模块加载会直接抛错（见 `audit-targets.ts`）。
    */
-  targetType?: string
+  targetType?: AuditTargetType
 }
 
 /** 声明接口的审计属性 */
@@ -63,6 +67,7 @@ export class AuditInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
     private readonly audit: AuditService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -89,36 +94,149 @@ export class AuditInterceptor implements NestInterceptor {
     const meta = explicit ?? this.inferMeta(req.path, method)
     const startedAt = Date.now()
     const ctx = req.ctx
+
+    // 没有登录上下文就没有操作人身份，记了也无法追责。
+    // 登录接口本身就是特例：此时还没有令牌，身份从事务成功后的响应体里取，
+    // 由 handle() 内部的 resolveIdentity 兜住。
+    if (!ctx) {
+      return next.handle().pipe(
+        tap({
+          next: (data: unknown) => {
+            const identity = this.resolveLoginIdentity(data)
+            if (!identity) return
+            void this.audit.record({
+              ...identity,
+              action: meta.action,
+              module: meta.module,
+              summary: `登录账号 ${identity.username}`,
+              httpMethod: method,
+              path: req.originalUrl ?? req.url,
+              ip: this.extractIp(req),
+              userAgent: req.headers['user-agent'],
+              after: buildSnapshot((req as Request & { body?: unknown }).body),
+              durationMs: Date.now() - startedAt,
+            })
+          },
+        }),
+      )
+    }
+
     const bodySnapshot = buildSnapshot((req as Request & { body?: unknown }).body)
+    const targetType = meta.targetType ?? this.pick(req, meta.targetTypeField)
+
+    // 需要字段级前后快照的动作才做库内快照。
+    // 这里是 async（要查库），所以先把 Observable 流铺开再进next.handle()，
+    // 不能写成同步的 tap 前置逻辑。
+    if (!targetType || !SNAPSHOT_ACTIONS.has(meta.action)) {
+      return this.handle(next, {
+        meta,
+        method,
+        req,
+        startedAt,
+        ctx,
+        bodySnapshot,
+        targetType,
+        targetId: undefined,
+        before: null,
+      })
+    }
+
+    const targetId = this.pick(req, meta.targetIdParam) ?? this.pick(req, 'id')
+    if (!targetId) {
+      // 拿不到目标 id 就退化为请求体快照：
+      // 宁可 before 为 null，也不能让审计整条丢失
+      return this.handle(next, {
+        meta,
+        method,
+        req,
+        startedAt,
+        ctx,
+        bodySnapshot,
+        targetType,
+        targetId: undefined,
+        before: null,
+      })
+    }
+
+    return from(this.loadSnapshot(targetType, targetId, ctx.tenantId)).pipe(
+      switchMap((before) =>
+        this.handle(next, {
+          meta,
+          method,
+          req,
+          startedAt,
+          ctx,
+          bodySnapshot,
+          targetType,
+          targetId,
+          before,
+        }),
+      ),
+    )
+  }
+
+  /**
+   * 执行业务并写审计
+   *
+   * 「后」快照在业务成功后才查库取——这是字段级审计的唯一可靠来源：
+   * 请求体只是用户提交了什么，不等于库里最终是什么
+   * （服务端会补默认字段、算工艺派生值、跑归一化）。
+   */
+  private handle(
+    next: CallHandler,
+    info: {
+      meta: AuditMeta
+      method: string
+      req: Request & { ctx?: RequestContext }
+      startedAt: number
+      ctx: RequestContext
+      bodySnapshot: Record<string, unknown> | null
+      targetType?: string
+      targetId?: string
+      before: Record<string, unknown> | null
+    },
+  ): Observable<unknown> {
+    const { meta, method, req, startedAt, ctx, bodySnapshot, targetType, targetId, before } = info
 
     return next.handle().pipe(
+      switchMap((data: unknown) => {
+        // ctx 已在 intercept() 里确保存在，这里直接取操作人身份
+        const identity: Omit<AuditInput, 'action' | 'module' | 'httpMethod' | 'path'> = {
+          tenantId: ctx.tenantId,
+          companyId: ctx.companyId,
+          userId: ctx.userId,
+          username: ctx.username,
+          realName: ctx.realName,
+        }
+        return from(this.loadSnapshot(targetType, targetId, ctx.tenantId)).pipe(
+          switchMap((after) =>
+            of(data).pipe(
+              tap(() => {
+                void this.audit.record({
+                  ...identity,
+                  action: meta.action,
+                  module: meta.module,
+                  summary: this.buildSummary(meta, req, data, targetId),
+                  targetType,
+                  targetId: targetId ?? this.pickFromResponse(data),
+                  httpMethod: method,
+                  path: req.originalUrl ?? req.url,
+                  ip: this.extractIp(req),
+                  userAgent: req.headers['user-agent'],
+                  before,
+                  // 有库内前快照却没有后快照，说明目标已被删除（如 delete 动作），
+                  // 此时应展示「原值→空」，退回请求体会显示成「无变化」，是误导
+                  after: before ? (after ?? this.deletedMarker(before)) : (after ?? bodySnapshot),
+                  durationMs: Date.now() - startedAt,
+                })
+              }),
+            ),
+          ),
+        )
+      }),
       tap({
-        // 业务成功才记审计：失败的操作由全局异常过滤器记error 日志，
-        // 避免「点了没反应」这类无效操作也进审计表
-        next: (data: unknown) => {
-          const identity = this.resolveIdentity(ctx, data)
-          if (!identity) return
-          void this.audit.record({
-            ...identity,
-            action: meta.action,
-            module: meta.module,
-            summary:
-              meta.action === 'login'
-                ? `登录账号 ${identity.username}`
-                : this.buildSummary(meta, req, data),
-            targetType: meta.targetType ?? this.pick(req, meta.targetTypeField),
-            targetId: this.pick(req, meta.targetIdParam) ?? this.pickFromResponse(data),
-            httpMethod: method,
-            path: req.originalUrl ?? req.url,
-            ip: this.extractIp(req),
-            userAgent: req.headers['user-agent'],
-            after: bodySnapshot,
-            durationMs: Date.now() - startedAt,
-          })
-        },
         error: () => {
-          // 失败操作记 warn，便于排查「谁在反复提交失败请求」
-          if (!ctx) return
+          // 失败操作记warn，便于排查「谁在反复提交失败请求」
           void this.audit.record({
             tenantId: ctx.tenantId,
             companyId: ctx.companyId,
@@ -141,26 +259,52 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   /**
-   * 解析操作人身份
+   * 读取目标实体在库内的真实状态
    *
-   * 常规接口从 AuthGuard 写入的 req.ctx 取；
-   * 登录接口此时还没有令牌，身份要从事务成功后的响应体里取——
-   * 否则「谁登录了系统」这条最关键的审计就永远记不上。
+   * 三个「不查」的条件都要静默跳过，不能抛错：
+   * 审计出问题绝不能影响主业务（与 `AuditService.record` 同一条铁律）
    */
-  private resolveIdentity(
-    ctx: RequestContext | undefined,
+  private async loadSnapshot(
+    targetType: string | undefined,
+    targetId: string | undefined,
+    tenantId: string,
+  ): Promise<Record<string, unknown> | null> {
+    if (!targetType || !targetId) return null
+    const entity = AUDIT_TARGET_ENTITIES[targetType]
+    if (!entity) return null
+    try {
+      const repo = this.dataSource.getRepository(entity)
+      // 必须带 tenantId：审计快照会把整行字段写进审计表，
+      // 漏掉租户条件等于允许跨租户读取他人数据
+      const row = await repo.findOne({ where: { id: targetId, tenantId } as never })
+      return buildEntitySnapshot(row)
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * 目标已删除时的「后」快照占位
+   *
+   * 取前快照的键、值全部置 null，`computeDiff` 就能逐字段展示「原值 → 空」，
+   * 而不是整个diff 变成空（用户会误以为没改过）。
+   */
+  private deletedMarker(before: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    for (const k of Object.keys(before)) out[k] = null
+    return out
+  }
+
+  /**
+   * 从登录响应里解析操作人身份
+   *
+   * 只用于**登录接口**：此时还没有令牌，`req.ctx` 不存在，
+   * 身份只能从事务成功后的响应体里取——
+   * 否则「谁登录了系统」这条最该被审计的记录就永远记不上。
+   */
+  private resolveLoginIdentity(
     data: unknown,
   ): Omit<AuditInput, 'action' | 'module' | 'httpMethod' | 'path'> | null {
-    if (ctx) {
-      return {
-        tenantId: ctx.tenantId,
-        companyId: ctx.companyId,
-        userId: ctx.userId,
-        username: ctx.username,
-        realName: ctx.realName,
-      }
-    }
-
     // 登录响应：{ data: { user, tenant, currentCompanyId } }
     const d = (data as { data?: Record<string, unknown> } | null)?.data
     if (!d) return null
@@ -196,7 +340,12 @@ export class AuditInterceptor implements NestInterceptor {
     return { action: actionMap[method] ?? 'update', module, targetIdParam: 'id' }
   }
 
-  private buildSummary(meta: AuditMeta, req: Request, data: unknown): string {
+  private buildSummary(
+    meta: AuditMeta,
+    req: Request,
+    data: unknown,
+    resolvedId?: string,
+  ): string {
     const labels: Record<AuditActionType, string> = {
       create: '新建',
       update: '修改',
@@ -212,7 +361,7 @@ export class AuditInterceptor implements NestInterceptor {
       ai_call: 'AI 调用',
     }
     const label = labels[meta.action] ?? meta.action
-    const id = this.pick(req, meta.targetIdParam) ?? this.pickFromResponse(data)
+    const id = resolvedId ?? this.pick(req, meta.targetIdParam) ?? this.pickFromResponse(data)
     return id ? `${label} ${meta.module} #${id}` : `${label} ${meta.module}`
   }
 

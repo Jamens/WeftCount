@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Button, Card, Empty, Input, Space, Table, Tag, Timeline, Typography } from 'antd'
+import { App as AntdApp, Button, Card, Empty, Input, Select, Space, Table, Tag, Timeline, Typography } from 'antd'
 import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import type { AuditActionType } from '@weftcount/shared'
+import { AUDIT_TARGET_TYPES, type AuditActionType } from '@weftcount/shared'
 import { api } from '../lib/api'
+import { TARGET_LABELS, displayValue, fieldLabel, targetLabel } from '../lib/audit-labels'
 import { ACTION_LABELS } from './AuditLogPage'
 
 const { Text } = Typography
@@ -22,19 +23,13 @@ interface AuditRecord {
   createdAt: string
 }
 
-/** 常见对象类型（下拉用；targetType 由后端写入，值取自各模块） */
-const TARGET_TYPES = [
-  { value: 'material', label: '物料' },
-  { value: 'greige_spec', label: '坯布规格' },
-  { value: 'partner', label: '往来单位' },
-  { value: 'order', label: '订单' },
-  { value: 'contract', label: '合同' },
-  { value: 'warehouse', label: '仓库' },
-  { value: 'production_order', label: '生产工单' },
-  { value: 'inventory_batch', label: '库存批次' },
-  { value: 'roll', label: '件卡' },
-  { value: 'stocktake', label: '盘点单' },
-]
+/**
+ * 对象类型的中文名与可选值统一来自 `@weftcount/shared` 的 `AUDIT_TARGET_TYPES`
+ * ——后端写入的 targetType 也以它为唯一清单（见服务端 `audit-targets.ts` 的加载期自检）。
+ *
+ * 之前这里手写了一份，混进了后端从不写的 `inventory_batch` / `roll`（其中前者还是默认值，
+ * 不重置筛选就查不到任何记录），漏掉了实际会写的 `machine` / `inventory_document`。
+ */
 
 /**
  * 对象操作时间线
@@ -47,7 +42,7 @@ const TARGET_TYPES = [
  */
 export default function AuditTimeline() {
   const { message } = AntdApp.useApp()
-  const [targetType, setTargetType] = useState<string>('inventory_batch')
+  const [targetType, setTargetType] = useState<string>(AUDIT_TARGET_TYPES[0])
   const [targetId, setTargetId] = useState<string>('')
   const [records, setRecords] = useState<AuditRecord[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -96,26 +91,18 @@ export default function AuditTimeline() {
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space wrap>
           <Text type="secondary">对象类型</Text>
-          <Input
+          <Select
             style={{ width: 180 }}
-            list="audit-target-types"
             value={targetType}
-            onChange={(e) => setTargetType(e.target.value.trim())}
-            placeholder="如 inventory_batch"
+            onChange={setTargetType}
+            options={AUDIT_TARGET_TYPES.map((v) => ({ value: v, label: TARGET_LABELS[v] ?? v }))}
           />
-          <datalist id="audit-target-types">
-            {TARGET_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </datalist>
           <Text type="secondary">对象 ID</Text>
           <Input
             style={{ width: 320 }}
             value={targetId}
             onChange={(e) => setTargetId(e.target.value.trim())}
-            placeholder="批次/件卡/订单的 ID（可从各详情页复制）"
+            placeholder="对象 ID（可从各详情页复制）"
             onPressEnter={() => void load()}
           />
         </Space>
@@ -142,7 +129,7 @@ export default function AuditTimeline() {
                         </Tag>
                         <Text strong>{r.realName || r.username}</Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          {r.module} · {dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                          {targetLabel(r.targetType)} · {dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                         </Text>
                       </Space>
                       {r.summary && (
@@ -158,11 +145,12 @@ export default function AuditTimeline() {
                           style={{ marginTop: 6, maxWidth: 640 }}
                           dataSource={Object.entries(r.diff).map(([field, d]) => ({
                             field,
-                            before: JSON.stringify(d.before),
-                            after: JSON.stringify(d.after),
+                            label: fieldLabel(field),
+                            before: displayValue(d.before),
+                            after: displayValue(d.after),
                           }))}
                           columns={[
-                            { title: '字段', dataIndex: 'field', width: 140 },
+                            { title: '字段', dataIndex: 'label', width: 140 },
                             { title: '变更前', dataIndex: 'before', ellipsis: true },
                             { title: '变更后', dataIndex: 'after', ellipsis: true },
                           ]}

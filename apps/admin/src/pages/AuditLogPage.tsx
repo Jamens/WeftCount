@@ -19,6 +19,7 @@ import {
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { api } from '../lib/api'
+import { displayValue, fieldLabel, targetLabel } from '../lib/audit-labels'
 import type { AuditActionType } from '@weftcount/shared'
 import AuditTimeline from './AuditTimeline'
 
@@ -269,7 +270,7 @@ export default function AuditLogPage() {
               </Descriptions.Item>
               {detail.targetId && (
                 <Descriptions.Item label="操作对象">
-                  {detail.targetType} #{detail.targetId}
+                  {targetLabel(detail.targetType)} #{detail.targetId}
                 </Descriptions.Item>
               )}
             </Descriptions>
@@ -282,11 +283,12 @@ export default function AuditLogPage() {
                   pagination={false}
                   dataSource={Object.entries(detail.diff).map(([field, v]) => ({
                     field,
-                    before: JSON.stringify(v.before),
-                    after: JSON.stringify(v.after),
+                    label: fieldLabel(field),
+                    before: displayValue(v.before),
+                    after: displayValue(v.after),
                   }))}
                   columns={[
-                    { title: '字段', dataIndex: 'field', width: 140 },
+                    { title: '字段', dataIndex: 'label', width: 140 },
                     {
                       title: '变更前',
                       dataIndex: 'before',
