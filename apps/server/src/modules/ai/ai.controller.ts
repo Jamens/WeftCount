@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator'
+import { Type } from 'class-transformer'
+import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator'
 import { LlmClient } from './llm.client'
 import { PricingService } from './pricing.service'
 import { LossService } from './loss.service'
@@ -43,6 +44,24 @@ class PredictionDto {
   @IsNumber({}, { message: '计划产量必须为数字' })
   @Min(1, { message: '计划产量必须大于 0' })
   plannedMeters!: number
+}
+
+class ScheduleApplyItemDto {
+  @IsString() @IsNotEmpty({ message: '缺少工单' })
+  orderId!: string
+
+  @IsString() @IsNotEmpty({ message: '缺少机台' })
+  machineId!: string
+
+  /** 相对今天的起排天（第 0 天=今天），来自甘特图 */
+  @IsNumber() @Min(0, { message: '起排天不能为负' })
+  startDay!: number
+}
+
+class ScheduleApplyDto {
+  @IsArray() @ArrayMinSize(1, { message: '请选择要确认的工单' })
+  @ValidateNested({ each: true }) @Type(() => ScheduleApplyItemDto)
+  items!: ScheduleApplyItemDto[]
 }
 
 @ApiTags('AI 智能')
@@ -123,5 +142,20 @@ export class AiController {
   @ApiOperation({ summary: '排产建议：待排工单按交期(EDD)×机台产能贪心排 + AI 解读' })
   scheduleSuggestion(@CurrentUser() ctx: RequestContext) {
     return this.scheduling.advise(ctx.tenantId, ctx.companyId)
+  }
+
+  @Get('scheduling/gantt')
+  @RequirePermission(Permission.PRODUCTION_VIEW)
+  @ApiOperation({ summary: '排产甘特：机台×时间轴全景（含在产/已排实占+ 待排建议），纯确定性聚合' })
+  scheduleGantt(@CurrentUser() ctx: RequestContext) {
+    return this.scheduling.gantt(ctx.tenantId, ctx.companyId)
+  }
+
+  @Post('scheduling/apply')
+  @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
+  @Audit({ action: 'submit', module: 'production.schedule', targetType: 'production_order' })
+  @ApiOperation({ summary: '批量确认排产建议：指派机台 + 按甘特起排天写计划开工日，状态转已排产' })
+  scheduleApply(@CurrentUser() ctx: RequestContext, @Body() dto: ScheduleApplyDto) {
+    return this.scheduling.applySchedule(ctx.tenantId, ctx.companyId, dto.items)
   }
 }

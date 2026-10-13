@@ -419,6 +419,38 @@ export interface ScheduleData {
   machineCount: number
 }
 
+export interface GanttBar {
+  orderId: string
+  orderNo: string
+  specName: string
+  machineId: string | null
+  startDay: number
+  endDay: number
+  days: number
+  plannedMeters: number
+  /** in_progress=在产、scheduled=已排产（已落库）、draft=建议（可批量确认） */
+  status: 'in_progress' | 'scheduled' | 'draft'
+  dueInDays: number | null
+  meetsDue: boolean | null
+}
+
+export interface GanttMachine {
+  id: string
+  name: string
+  code: string
+  loadDays: number
+  suggestedCount: number
+}
+
+export interface GanttData {
+  machines: GanttMachine[]
+  bars: GanttBar[]
+  horizonDays: number
+  committedCount: number
+  suggestedCount: number
+  atRiskCount: number
+}
+
 export type AlertType = 'order_overdue' | 'low_stock' | 'stale_batch'
 export type AlertSeverity = 'info' | 'warning' | 'critical'
 export interface AlertWire {

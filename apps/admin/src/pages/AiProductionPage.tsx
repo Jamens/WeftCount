@@ -3,7 +3,8 @@ import { App as AntdApp, Alert, Button, Card, Col, Descriptions, Form, InputNumb
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useLookups } from '../lib/lookups'
-import { fmt, LIST_TABLE_SCROLL_Y, type AiInsight, type PredictionData, type ScheduleData, type ScheduleRow } from '../lib/erp'
+import { fmt, type AiInsight, type GanttBar, type GanttData, type PredictionData, type ScheduleData } from '../lib/erp'
+import { GanttChart } from '../components/GanttChart'
 
 const { Title, Text } = Typography
 
@@ -105,17 +106,25 @@ function PredictionTab() {
 }
 
 function ScheduleTab() {
-  const { message } = AntdApp.useApp()
+  const { message, modal } = AntdApp.useApp()
   const [insight, setInsight] = useState<AiInsight<ScheduleData> | null>(null)
+  const [gantt, setGantt] = useState<GanttData | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [applying, setApplying] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get<AiInsight<ScheduleData>>('/ai/scheduling')
-      setInsight(res.data.data)
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '加载排产建议失败')
+      // 与建议表同源：甘特多含在产/已排实占，建议表只有待排。任一失败都不该让另一半空白，故各自兜底。
+      const [adv, g] = await Promise.allSettled([
+        api.get<AiInsight<ScheduleData>>('/ai/scheduling'),
+        api.get<GanttData>('/ai/scheduling/gantt'),
+      ])
+      if (adv.status === 'fulfilled') setInsight(adv.value.data.data)
+      else message.error(adv.reason instanceof Error ? adv.reason.message : '加载排产建议失败')
+      if (g.status === 'fulfilled') setGantt(g.value.data.data)
+      else message.error(g.reason instanceof Error ? g.reason.message : '加载甘特图失败')
     } finally {
       setLoading(false)
     }
@@ -123,39 +132,115 @@ function ScheduleTab() {
 
   useEffect(() => { void load() }, [load])
 
-  const d = insight?.data
+  // 待确认的建议条（draft）才可勾选，已落库的不可重复确认
+  const draftBars = (gantt?.bars ?? []).filter((b) => b.status === 'draft' && b.machineId)
+
+  /** 批量确认排产建议：一次事务落库，全部成功或全部不动 */
+  const applySelected = () => {
+    const items = draftBars
+      .filter((b) => selected.includes(b.orderId))
+      .map((b) => ({ orderId: b.orderId, machineId: b.machineId as string, startDay: b.startDay }))
+    if (items.length === 0) return
+    modal.confirm({
+      title: `确认排产 ${items.length} 个工单？`,
+      content: '将按甘特图指派机台并写入计划开工日，工单状态转为「已排产」。若期间有工单被他人改动，会跳过并在结果中列出。',
+      okText: '确认排产',
+      cancelText: '取消',
+      onOk: async () => {
+        setApplying(true)
+        try {
+          const res = await api.post<{ applied: number; skipped: string[] }>('/ai/scheduling/apply', { items })
+          const r = res.data.data
+          if (r.skipped.length > 0) {
+            message.warning(`已排 ${r.applied} 个，跳过 ${r.skipped.length} 个（${r.skipped.join('、')}）`)
+          } else {
+            message.success(`已确认排产 ${r.applied} 个工单`)
+          }
+          setSelected([])
+          await load()
+        } catch (e) {
+          message.error(e instanceof Error ? e.message : '批量排产失败')
+        } finally {
+          setApplying(false)
+        }
+      },
+    })
+  }
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space>
+      <Space wrap>
         <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>刷新排产</Button>
-        {d && <Text type="secondary">待排 {d.orderCount} 工单 · 可用机台 {d.machineCount} 台{/* eslint-disable-next-line react/no-unescaped-entities */}</Text>}
-        {d && d.atRiskCount > 0 && <Tag color="red">{d.atRiskCount} 个逾期风险</Tag>}
+        <Button type="primary" disabled={selected.length === 0} loading={applying} onClick={applySelected}>
+          确认选中排产{selected.length > 0 ? `（${selected.length}）` : ''}
+        </Button>
+        {gantt && (
+          <Text type="secondary">
+            机台 {gantt.machines.length} 台 · 已占{/* eslint-disable-next-line react/no-unescaped-entities */}
+            <Text strong>{gantt.committedCount}</Text> 条 · 建议<Text strong>{gantt.suggestedCount}</Text> 条 · 跨度{gantt.horizonDays}天
+          </Text>
+        )}
+        {gantt && gantt.atRiskCount > 0 && <Tag color="red">{gantt.atRiskCount} 个逾期风险</Tag>}
       </Space>
-      {!insight || !d ? (
-        <Card size="small"><Alert type="info" showIcon message="加载中或无数据" description="需有未排产(draft)的生产工单。" /></Card>
-      ) : d.orderCount === 0 ? (
-        <Card size="small"><Alert type="info" showIcon message="暂无待排工单" description="生产工单建为草稿(未排产)后，这里会给出机台分配与交期建议。" /></Card>
+      {!insight && !gantt ? (
+        <Card size="small"><Alert type="info" showIcon message="加载中或无数据" description="需有生产工单（在产/已排产/草稿）才能排产。" /></Card>
       ) : (
         <>
-          <Card size="small" title="排产建议明细">
-            <Table<ScheduleRow>
-              rowKey="orderId" size="small" loading={loading} dataSource={d.rows}
-              scroll={LIST_TABLE_SCROLL_Y ? { y: LIST_TABLE_SCROLL_Y } : undefined}
-              pagination={false}
-              columns={[
-                { title: '工单号', dataIndex: 'orderNo', width: 150 },
-                { title: '规格', dataIndex: 'specName', width: 130, ellipsis: true },
-                { title: '计划(米)', dataIndex: 'plannedMeters', width: 90, align: 'right', render: (v: number) => fmt(String(v), 0) },
-                { title: '建议机台', dataIndex: 'machineName', width: 120, render: (v: string | null) => v ?? '无机台' },
-                { title: '起止(天)', width: 100, render: (_, r) => `第${r.startDay}~${r.endDay}天` },
-                { title: '占用(天)', dataIndex: 'days', width: 80, align: 'right' },
-                { title: '交期', dataIndex: 'dueInDays', width: 90, align: 'right', render: (v: number | null) => (v == null ? '无' : `还有${v}天`) },
-                { title: '按期', dataIndex: 'meetsDue', width: 80, render: (v: boolean | null) => (v == null ? '-' : v ? <Tag color="green">按期</Tag> : <Tag color="red">逾期</Tag>) },
-              ]}
-            />
-          </Card>
-          <InsightCard insight={insight} />
+          {gantt && gantt.bars.length > 0 && (
+            <Card
+              size="small"
+              title="排产甘特图"
+              extra={
+                draftBars.length > 0 && (
+                  <Space>
+                    <Button size="small" type="link" onClick={() => setSelected(selected.length === draftBars.length ? [] : draftBars.map((b) => b.orderId))}>
+                      {selected.length === draftBars.length ? '取消全选' : '全选建议'}
+                    </Button>
+                    <Text type="secondary" style={{ fontSize: 12 }}>勾选虚线「建议」条可批量确认</Text>
+                  </Space>
+                )
+              }
+            >
+              <GanttChart machines={gantt.machines} bars={gantt.bars} horizonDays={gantt.horizonDays} />
+              {/* 勾选区：图上不好点选，单独列一份可勾选清单 */}
+              {draftBars.length > 0 && (
+                <Table<GanttBar>
+                  rowKey="orderId"
+                  size="small"
+                  style={{ marginTop: 12 }}
+                  dataSource={draftBars}
+                  pagination={false}
+                  scroll={{ y: 220 }}
+                  rowSelection={{
+                    selectedRowKeys: selected,
+                    onChange: (keys) => setSelected(keys as string[]),
+                  }}
+                  columns={[
+                    { title: '工单号', dataIndex: 'orderNo', width: 150 },
+                    { title: '规格', dataIndex: 'specName', width: 130, ellipsis: true },
+                    { title: '计划(米)', dataIndex: 'plannedMeters', width: 90, align: 'right', render: (v: number) => fmt(String(v), 0) },
+                    {
+                      title: '建议机台',
+                      width: 120,
+                      render: (_, r) => gantt.machines.find((m) => m.id === r.machineId)?.name ?? '无机台',
+                    },
+                    { title: '起止(天)', width: 100, render: (_, r) => `第${r.startDay}~${r.endDay}天` },
+                    { title: '占用(天)', dataIndex: 'days', width: 80, align: 'right' },
+                    { title: '交期', dataIndex: 'dueInDays', width: 90, align: 'right', render: (v: number | null) => (v == null ? '无' : `还有${v}天`) },
+                    {
+                      title: '按期',
+                      dataIndex: 'meetsDue',
+                      width: 80,
+                      render: (v: boolean | null) => (v == null ? '-' : v ? <Tag color="green">按期</Tag> : <Tag color="red">逾期</Tag>),
+                    },
+                  ]}
+                />
+              )}
+            </Card>
+          )}
+          {insight && (
+            <InsightCard insight={insight} />
+          )}
         </>
       )}
     </Space>
