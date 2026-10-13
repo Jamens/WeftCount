@@ -292,12 +292,23 @@ export class MaterialController {
   @Post(':id/discontinue')
   @RequirePermission(Permission.MATERIAL_EDIT)
   @Audit({ action: 'update', module: 'material', targetType: 'material', targetIdParam: 'id' })
-  @ApiOperation({ summary: '停用物料' })
+  @ApiOperation({ summary: '停用物料（有库存余额时拒绝）' })
   discontinue(
     @CurrentUser() ctx: RequestContext,
     @Param('id') id: string,
   ): Promise<MaterialEntity> {
     return this.svc.discontinue(ctx.tenantId, ctx.companyId, id)
+  }
+
+  @Post(':id/activate')
+  @RequirePermission(Permission.MATERIAL_EDIT)
+  @Audit({ action: 'update', module: 'material', targetType: 'material', targetIdParam: 'id' })
+  @ApiOperation({ summary: '恢复启用物料' })
+  activate(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+  ): Promise<MaterialEntity> {
+    return this.svc.activate(ctx.tenantId, ctx.companyId, id)
   }
 }
 

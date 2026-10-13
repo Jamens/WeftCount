@@ -15,6 +15,7 @@ import {
 } from '@weftcount/shared'
 import { MaterialEntity } from './entities/material.entity'
 import { GreigeSpecEntity } from './entities/greige-spec.entity'
+import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity'
 
 export interface CreateMaterialInput {
   code?: string
@@ -58,6 +59,8 @@ export class MaterialService {
     private readonly materials: Repository<MaterialEntity>,
     @InjectRepository(GreigeSpecEntity)
     private readonly specs: Repository<GreigeSpecEntity>,
+    @InjectRepository(InventoryBatchEntity)
+    private readonly batches: Repository<InventoryBatchEntity>,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -216,12 +219,57 @@ export class MaterialService {
 
   /**
    * 停用物料
-   * 有库存时不允许停用——否则库存报表会指向一个不存在的物料
-   * TODO: 库存模块完成后补上库存量校验
+   *
+   * **有库存余额时拒绝停用。**
+   * 停用后历史单据仍会引用它，库存报表若出现「指向已停用物料」的余额，
+   * 收发存三算就断了——报表对不上时很难反查到是一次误操作停用导致的。
+   *
+   * 判定口径：`status != 'depleted'` 且 `remainingQuantity > 0`。
+   * 只看 status 不够：状态为 normal 但数量已归零的行是数据不一致的残留，
+   * 按数量判定才是「真的还占着库存」。
    */
   async discontinue(tenantId: string, companyId: string, id: string): Promise<MaterialEntity> {
     const m = await this.findOne(tenantId, companyId, id)
+    if (m.status === 'discontinued') {
+      throw new ConflictException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `物料 ${m.code} 已处于停用状态`,
+      })
+    }
+
+    const active = await this.batches
+      .createQueryBuilder('b')
+      .select('COALESCE(SUM(b.remaining_quantity), 0)', 'meters')
+      .addSelect('COUNT(1)', 'n')
+      .where('b.company_id = :companyId', { companyId })
+      .andWhere('b.material_id = :id', { id })
+      .andWhere("b.status != 'depleted'")
+      .andWhere('b.remaining_quantity > 0')
+      .getRawOne<{ meters: string; n: string }>()
+
+    const meters = Number(active?.meters ?? 0)
+    if (Number.isFinite(meters) && meters > 0) {
+      throw new ConflictException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message:
+          `物料 ${m.code} 尚有 ${active?.n ?? 0} 个批次未清空（合计 ${meters} 米），` +
+          '不能停用。请先处理完库存，或将该物料的计量方式改掉后再新建一个替代物料。',
+      })
+    }
+
     m.status = 'discontinued'
+    return this.materials.save(m)
+  }
+
+  /**
+   * 恢复启用物料
+   *
+   * 与停用成对：只有停用没有启用，等于物料一旦用错就永久报废。
+   * 停用只是「不再用于新单据」的标记，不是物理删除。
+   */
+  async activate(tenantId: string, companyId: string, id: string): Promise<MaterialEntity> {
+    const m = await this.findOne(tenantId, companyId, id)
+    m.status = 'active'
     return this.materials.save(m)
   }
 

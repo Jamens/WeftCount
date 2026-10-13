@@ -116,6 +116,16 @@ export default function MaterialPage() {
     }
   }
 
+  const onActivate = async (id: string) => {
+    try {
+      await api.post(`/materials/${id}/activate`)
+      message.success('已恢复启用')
+      await load()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '启用失败')
+    }
+  }
+
   return (
     <div>
       <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
@@ -230,15 +240,27 @@ export default function MaterialPage() {
             },
             {
               title: '操作',
-              width: 90,
+              width: 130,
               fixed: 'right',
               render: (_, r) =>
-                canEdit && r.status === 'active' ? (
-                  <Popconfirm title="确认停用该物料？" onConfirm={() => void onDiscontinue(r.id)}>
-                    <Button type="link" size="small" danger>
-                      停用
-                    </Button>
-                  </Popconfirm>
+                canEdit ? (
+                  r.status === 'active' ? (
+                    <Popconfirm
+                      title="确认停用该物料？"
+                      description="有库存余额时会被拒绝"
+                      onConfirm={() => void onDiscontinue(r.id)}
+                    >
+                      <Button type="link" size="small" danger>
+                        停用
+                      </Button>
+                    </Popconfirm>
+                  ) : (
+                    <Popconfirm title="确认恢复启用该物料？" onConfirm={() => void onActivate(r.id)}>
+                      <Button type="link" size="small">
+                        启用
+                      </Button>
+                    </Popconfirm>
+                  )
                 ) : (
                   <Text type="secondary">-</Text>
                 ),
