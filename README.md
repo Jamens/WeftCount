@@ -361,7 +361,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - 迁移 `1731000000000-CreateWarehouse`：`warehouses` 主数据表（编码 `W+流水`，类型 raw/greige/finished/auxiliary/scrap/other）+ `inventory_batches` 加 `warehouse_id`（批次归属仓库，存量批次先为 NULL）。
 - **建批自动归仓**：采购入库 / 生产入库（报工）可指定仓库，不指定则落第一个启用仓。
 - **调拨** `POST /inventory/transfer`（权限 `inventory.manage`）：把源批次的一部分数量移到目标仓，在**同一事务**内完成——扣减源批次剩余（扣完标记 `depleted`）、目标仓按同规格快照新建批次、记 `stock_transfer` 出/入两条流水。数量按源批次自己的快照折三视图，**保证调拨前后全库总量守恒**（仓间移动，不影响对账恒等式）。
-- 接口 `GET/POST /warehouses`、`PATCH /warehouses/:id`（权限 `warehouse.view/manage`）；前端 `/warehouses` 仓库管理页，库存批次页支持**按仓库筛选**与**调拨**操作，菜单按 `warehouse.view` 门控。
+- 接口 `GET/POST /warehouses`、`PATCH /warehouses/:id`（权限 `warehouse.view/manage`）；前端 `/warehouses` 仓库管理页，库存批次页支持**按仓库筛选**与**调拨**操作，菜单与路由均按 `warehouse.view` 门控。
 
 ### 库存盘点（仓库管理另一半）
 
@@ -370,7 +370,7 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
 - 迁移 `1731100000000-CreateStocktake`：`stocktakes`（盘点单：仓库/日期/状态 draft·completed·cancelled）+ `stocktake_items`（明细：批次 `bookQuantityM` 账面量冻结 + `countedQuantityM` 实盘量）。
 - 流程：建单快照目标仓内所有有剩余的批次账面量 → 录实盘数 → 完成过账。差异 = 实盘 - 账面；**盘盈**加批次剩余记 `count_gain`、**盘亏**减批次剩余（不超扣成负，扣完标 `depleted`）记 `count_loss`，均按批次**自己的规格快照**折三视图，在**同一事务**内完成。未录实盘的明细按账实相符处理。
 - 盘点调整是「已解释」的差异：过账后对账把 `count_gain`/`count_loss` 计入恒等式对应侧，不会被误报「去向不明」。
-- 接口 `GET/POST /stocktakes`、`GET /stocktakes/:id`、`POST /stocktakes/:id/{counts,complete,cancel}`（权限 `inventory.manage`）；前端 `/stocktakes` 盘点页（建单选仓库、录实盘数、差异着色、账实相符/盘盈/盘亏标签、完成过账），菜单按 `warehouse.view` 门控。
+- 接口 `GET/POST /stocktakes`、`GET /stocktakes/:id`、`POST /stocktakes/:id/{counts,complete,cancel}`（权限 `inventory.manage`）；前端 `/stocktakes` 盘点页（建单选仓库、录实盘数、差异着色、账实相符/盘盈/盘亏标签、完成过账），菜单与路由均按 `inventory.view` 门控。
 
 ### 全链路追溯
 
@@ -381,7 +381,9 @@ AI 能力放最高档做溢价，依据调研结论：国内中小织造厂年�
   - **采购入库**批次 → 供应商 + 采购订单 + 入库单
   - **调拨**批次 → 递归追溯到最初来源（防环，最多 5 层）
 - `GET /traceability/batch/:batchId`：批次双向追溯——来源链 + 被哪些单据消耗（正向）。
-- 权限 `report.view`；前端 `/traceability` 追溯页（销售单倒查 / 批次追溯双模式，来源链树状展示，规格工艺卡片），菜单按 `report.view` 门控。
+- `GET /inventory/rolls/trace?rollNo=`：**件卡级**追溯。按**匹号**查（不是 UUID——现场只有手写/条码），返回件卡剩余量、规格工艺、物料、所属批次、来源（织造报工→机台 / 采购入库→供应商）与**全部出库去向**。拆匹后一匹可多次出库，故去向是数组。
+- 权限 `report.view`；前端 `/traceability` 追溯页三种模式（销售单倒查 / 批次追溯 / **件卡追溯**），来源链树状展示，规格工艺卡片；菜单与路由均按 `report.view` 门控。
+- **扫码枪深链**：`/traceability?roll=R0001` 打开即出结果。现场查一匹布的动作就是「扫条码」，让用户先切页再手打匹号是不成立的。
 
 ### 供应商条码映射（扫码入库的正宗做法）
 
@@ -432,7 +434,7 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 - **成本引擎** `packages/shared/src/cost.ts` 的 `computeSpecCost`：纯函数、无 IO、可单测，输入规格快照 + 经纬纱单价 + 加工费，输出物成本/加工费/制造成本（每米·每kg·每m²）+ 售价对比的毛利与毛利率。用量全部取自 `SpecCalculationSnapshot`，规格改了历史成本仍可还原。
 - **加工费**（元/米）按规格配置：迁移 `1730900000000-AddSpecOverhead` 给 `greige_specs` 加 `overhead_cost_per_meter`，在坯布规格表单里按电费/人工/机台折旧核定。是成本项、非工艺参数，不影响克重计算。
 - **取价规则**：经/纬纱单价取该物料**最近一次采购入库**的 `unitCost` → 回落**物料参考价** `standardPrice` → 0（页面标注来源）；售价取该规格**最近一次销售出库**单价算毛利，无售价则毛利留空不臆造。
-- 接口 `GET /cost/analysis`（权限 `cost.view`），按规格列成本构成与毛利；前端 `/cost` 成本报表页，菜单按 `cost.view` 门控。
+- 接口 `GET /cost/analysis`（权限 `cost.view`），按规格列成本构成与毛利；前端 `/cost` 成本报表页，菜单与路由均按 `cost.view` 门控。
 
 > 成本是否可信取决于**规格有没有配经/纬纱物料与加工费**——未配置的规格成本为 0、毛利率会显示 100%，属数据未录而非引擎错误。
 
@@ -529,7 +531,7 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 | 三算对账 | `/inventory/reconcile` | 闭环恒等式 + 容差预警 + 分规格明细 |
 | 仓库管理 | `/warehouses` | 仓库主数据 CRUD（类型/仓管员/启停用） |
 | 库存盘点 | `/stocktakes` | 建盘点单（快照账面量）、录实盘数、差异过账（盘盈/盘亏自动调批次与流水） |
-| 全链路追溯 | `/traceability` | 销售单倒查（客户/订单→批次→工单/机台 或 采购/供应商）、批次双向追溯（来源+去向） |
+| 全链路追溯 | `/traceability` | 销售单倒查（客户/订单→批次→工单/机台 或 采购/供应商）、批次双向追溯（来源+去向）、件卡按匹号精确追溯（支持扫码深链 `?roll=`） |
 
 > 后端 `decimal` 列经 JSON 序列化为**字符串**，前端统一用 `apps/admin/src/lib/erp.ts` 的 `dec()` 解析，不盲用 shared 中把 decimal 标成 `number` 的接口声明。
 
@@ -715,20 +717,49 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 
 **已做但链路残缺**（不是缺功能，是做了接不上）
 
-- **单匹追溯前端零入口** —— 后端 `GET /inventory/rolls/trace` 存在，但全前端0 处引用，README 却在宣传
-- **审计「字段级前后快照」只有 after** —— `audit.service.ts` 的 `recordUpdate` 全仓 0 处调用，before 列恒为 null
-- **审计 targetType 前后端不匹配** —— 前端下拉含后端从不写入的 `inventory_batch`/`roll`（默认值，选了必查不到），且缺 `machine`/`inventory_document`
-- **停用物料无库存校验** —— `material.service.ts` 注释写「有库存不允许停用」，代码里没这个校验
-- **admin 路由层无权限门控** —— 权限只管菜单与按钮，手输 URL 可直达无权页面（desktop 端已用 `safeView` 做对，admin 应照抄）
-- **11 个权限码定义了一处未用** —— 如 `tech.calc` 授给工艺员但接口实际校验 `MATERIAL_VIEW`，工艺员独立试算权限形同虚设
+- ~~**单匹追溯前端零入口**~~ ✅ 已完成（追溯页加「件卡追溯」模式 + 扫码枪深链 `?roll=匹号`）
+- ~~**审计「字段级前后快照」只有 after**~~ ✅ 已完成（改为拦截器层按targetType 在业务前后各查一次库）
+- ~~**审计 targetType 前后端不匹配**~~ ✅ 已完成（清单收敛到 shared 单一事实源 + 加载期双向自检）
+- ~~**停用物料无库存校验**~~ ✅ 已完成（并补上此前缺失的「重新启用」入口）
+- ~~**admin 路由层无权限门控**~~ ✅ 已完成（`ROUTE_PERMS` 与菜单同源，路由区数据驱动）
 - ~~**Dashboard 是静态页**~~ ✅ 已完成（见上文「首页概览」，改为确定性聚合 + 按权限收敛金额）
+- **11 个权限码定义了一处未用** —— 如 `tech.calc` 授给工艺员但接口实际校验 `MATERIAL_VIEW`，工艺员独立试算权限形同虚设（**未做**）
 
-**排产甘特图**已于本轮补齐（见上文「排产建议」条目），原属此类缺口中性价比最高的一项。
+> **这类缺陷比「缺功能」更危险**：它不报错、不崩溃、功能看起来是有的。
+> 审计页正常显示记录（只是 before 全是 null），物料能停用（只是库存对不上），
+> 菜单不显示的页面手输 URL 照样能进。
+> 判断「某功能有没有」不许凭记忆，也不许只看有没有端点——
+> **有端点 ≠ 有功能，要看整条链路是否通**。
 
-> 顺带修掉一个隐藏更深的缺陷：`@RequirePermission(A, B)` 的语义本应是「任一满足即可」，
-> 守卫里却用 `every` 过滤后再判空，等价于**要求同时具备 A 和 B**。
-> 这会让「采购+销售」这类双视角角色（`order.controller` 的列表/详情）在只有其中一个权限时直接 403。
-> 已改为 `some`，冒烟覆盖。**加权限码时别再把它当「全部都要」用。**
+### 权限体系的两条铁律
+
+这一轮修权限相关缺陷时踩到两个坑，都属于「按直觉写会静默失效」：
+
+**1. 权限判定必须用 `hasPermission`，不能用 `permissions.includes()`**
+角色授予的是通配符（仓管员持 `inventory.*`），`includes` 是精确匹配，会把合法用户误判为无权。
+
+**2. `@RequirePermission(A, B)` 是「任一满足即可」**
+守卫里曾写成 `needed.filter(p => !hasPermission(...))` 再判空，
+等价于**要求同时具备 A 和 B**——「采购+销售」双视角角色只有其一时直接 403。
+已改为 `some`。**加权限码时别再把它当「全部都要」用。**
+
+前端同理：菜单显隐、路由门控、按钮级控制全部读 `apps/admin/src/lib/route-perms.ts`，
+不要在页面里另写一份 `hasPermission(...)`。
+
+### 审计的字段级前后快照
+
+审计表没有独立的 before/after 列，统一合并在 `diff` 这个 JSON 列里。
+
+- **快照取自数据库而非请求体**：请求体只是「用户提交了什么」，不等于「库里最终是什么」
+  （服务端会补默认字段、算工艺派生值、跑归一化）。
+- **在拦截器层统一完成**，不放在业务 service：`inventory → material` 已是既有依赖方向，
+  让 material 反向依赖会形成模块循环；而且「改 6 处、漏 1 处」会静默失效——
+  漏掉的那处 before 恒为 null，审计页照常显示「已修改」，没有任何报错提示。
+- **剔除技术字段**（`id` / 租户 / `updatedAt` 等）：`@UpdateDateColumn` 每次 save 都刷新，
+  不过滤的话每条更新审计都会带一条 `updatedAt` 变更，真实业务变更被噪声淹没。
+- **`targetType` 清单在 `packages/shared/src/api.ts` 的 `AUDIT_TARGET_TYPES`**，
+  后端 `audit-targets.ts` 注册实体时加载期自检，前端下拉直接 import。
+  前后端各写一份必然漂移（此前就混着后端从不写的 `inventory_batch`/`roll`）。
 
 ## 开发规范
 
@@ -745,6 +776,10 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
   开发中反复出现「以为没做其实早做了」（补货点、大屏轮询）或
   「以为做了其实断在别处」（`audit/target` 有端点但 targetType 缺失导致永查不到）。
   **有端点 ≠ 有功能**，要看整条链路是否通
+- **新增前端路由必须三处同步**：加进 `PROTECTED_ROUTES`、在 `ROUTE_PERMS` 登记权限码、
+  加进侧边栏菜单。漏配权限码会在加载期直接抛错（自检已覆盖），但漏加菜单是静默的。
+- **新增审计对象类型**：在 `packages/shared` 的 `AUDIT_TARGET_TYPES` 加枚举、
+  在 `audit-targets.ts` 注册实体、在 `audit-labels.ts` 补中文名。三处缺一，前端就选不到或显示英文。
 
 ## 本机环境适配说明
 
