@@ -262,34 +262,105 @@ export default function ReportPage() {
               规格 {target.specName ?? '-'} · 机台 {target.machineName ?? '-'} · 计划 {fmt(target.plannedQuantityM, 0)}m · 已产{' '}
               {fmt(target.producedQuantityM, 0)}m
             </Text>
+            {/**
+             * 三个控件按**车间触摸屏**标准定尺寸，而非桌面默认值：
+             * - 控件高 `size="large"`（40px），戴手套可点
+             * - 输入框宽 180~220：桌面 140~180 在触摸屏上既难点、又要精确戳进数字区
+             * - `controls={false}` 去掉步进箭头：误触一次就是 ±1 米，
+             *   而米数直接进成本核算，错了要回溯单据才能改
+             */}
             <Space size="large" wrap>
               <div>
                 <Text>报工方式</Text>
                 <div>
-                  <Radio.Group value={rollMode ? 'roll' : 'meter'} onChange={(e) => { setRollMode((e.target.value as string) === 'roll'); setRolls([]) }} optionType="button" size="small" buttonStyle="solid"
-                    options={[{ label: '按米数', value: 'meter' }, { label: '按匹(件卡)', value: 'roll' }]} />
+                  <Radio.Group
+                    value={rollMode ? 'roll' : 'meter'}
+                    onChange={(e) => {
+                      setRollMode((e.target.value as string) === 'roll')
+                      setRolls([])
+                    }}
+                    optionType="button"
+                    size="large"
+                    buttonStyle="solid"
+                    options={[
+                      { label: '按米数', value: 'meter' },
+                      { label: '按匹(件卡)', value: 'roll' },
+                    ]}
+                  />
                 </div>
               </div>
               <div>
                 <Text>本次产出（米）{rollMode ? `= 各匹合计 ${rollTotal.toFixed(1)}m` : ''}</Text>
-                <div><InputNumber style={{ width: 180 }} min={0.001} value={rollMode ? (rollTotal || undefined) : outputM} onChange={(v) => !rollMode && setOutputM(v)} readOnly={rollMode} placeholder={rollMode ? '扫件卡自动累计' : '本次织出米数'} /></div>
+                <div>
+                  <InputNumber
+                    size="large"
+                    style={{ width: 220 }}
+                    min={0.001}
+                    controls={false}
+                    value={rollMode ? rollTotal || undefined : outputM}
+                    onChange={(v) => !rollMode && setOutputM(v)}
+                    readOnly={rollMode}
+                    placeholder={rollMode ? '扫件卡自动累计' : '本次织出米数'}
+                  />
+                </div>
               </div>
               <div>
                 <Text>停机分钟（可选）</Text>
-                <div><InputNumber style={{ width: 140 }} min={0} value={stopMin} onChange={setStopMin} placeholder="如 30" /></div>
+                <div>
+                  <InputNumber
+                    size="large"
+                    style={{ width: 180 }}
+                    min={0}
+                    controls={false}
+                    value={stopMin}
+                    onChange={setStopMin}
+                    placeholder="如 30"
+                  />
+                </div>
               </div>
             </Space>
             {rollMode && (
               <Card size="small" title={`本次产出件卡（${rolls.length} 匹）`} style={{ background: token.colorFillAlter }}>
                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                  <Space.Compact style={{ width: '100%' }}>
+                  {/**
+                   * 件卡登记行。
+                   *
+                   * 「每匹米数」用**外置标签 + 独立数字框**，不用 `addonBefore="每匹m"`：
+                   * addon 会从 wrapper 里占走 70px（实测 wrapper 200px → addon 70 + 数字区 130），
+                   * 数字区再减内边距后输三位数（120/150）就显示不全——
+                   * 而每匹米数恰恰常是三位数。现场戴手套的触摸屏上「窄框 + 数字」也难点得准。
+                   *
+                   * 不用 `Space.Compact`：它要求子元素都是输入类控件才能拼成一整条边框，
+                   * 插入外置标签后边框会断成两截。改用普通 `Space` + flex 控制。
+                   */}
+                  <Space size="middle" style={{ width: '100%' }} align="center">
                     <Input
-                      size="large" prefix={<BarcodeOutlined />} placeholder="扫描/输入件卡号后回车"
-                      value={rollNoInput} onChange={(e) => setRollNoInput(e.target.value)} onPressEnter={addRoll}
+                      size="large"
+                      prefix={<BarcodeOutlined />}
+                      placeholder="扫描/输入件卡号后回车"
+                      value={rollNoInput}
+                      onChange={(e) => setRollNoInput(e.target.value)}
+                      onPressEnter={addRoll}
+                      style={{ flex: 1, minWidth: 200 }}
                     />
-                    <InputNumber size="large" min={0.001} precision={2} style={{ width: 140 }} value={rollMeters} onChange={(v) => setRollMeters(v ?? 30)} addonBefore="每匹m" />
-                    <Button type="primary" size="large" onClick={addRoll}>登记一匹</Button>
-                  </Space.Compact>
+                    <Text type="secondary" style={{ fontSize: 12, flex: '0 0 auto' }}>
+                      每匹米数
+                    </Text>
+                    <InputNumber
+                      size="large"
+                      min={0.001}
+                      precision={2}
+                      style={{ width: 140, flex: '0 0 auto' }}
+                      value={rollMeters}
+                      onChange={(v) => setRollMeters(v ?? 30)}
+                      // 去掉步进箭头：车间是触摸屏（常戴手套），箭头既挤占宽度又是误触高发区
+                      controls={false}
+                      placeholder="如 30"
+                    />
+                    <Button type="primary" size="large" onClick={addRoll} style={{ flex: '0 0 auto' }}>
+                      登记一匹
+                    </Button>
+                  </Space>
                   {rolls.length > 0 && (
                     <Space wrap size={4}>
                       {rolls.map((r) => (
