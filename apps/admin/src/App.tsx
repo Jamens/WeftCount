@@ -27,6 +27,7 @@ import {
   BellOutlined,
   AreaChartOutlined,
   InboxOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -50,6 +51,7 @@ import AiLossPage from './pages/AiLossPage'
 import AiCoefficientPage from './pages/AiCoefficientPage'
 import SupplierCodePage from './pages/SupplierCodePage'
 import AiProductionPage from './pages/AiProductionPage'
+import ReportExportPage from './pages/ReportExportPage'
 import AlertPage from './pages/AlertPage'
 import TrendPage from './pages/TrendPage'
 import ImportExportPage from './pages/ImportExportPage'
@@ -117,7 +119,10 @@ function Shell({ children }: { children: React.ReactNode }) {
         ? [{ key: '/warehouses', icon: <BankOutlined />, label: '仓库管理' }]
         : []),
       ...(hasPermission(PERM.MATERIAL_VIEW)
-        ? [{ key: '/import-export', icon: <InboxOutlined />, label: '导入导出' }]
+        ? [
+            { key: '/import-export', icon: <InboxOutlined />, label: '导入导出' },
+            { key: '/report-export', icon: <FileExcelOutlined />, label: '报表导出' },
+          ]
         : []),
     ]),
     g('采购销售', [
@@ -380,6 +385,16 @@ export default function App() {
             <RequireAuth>
               <Shell>
                 <ImportExportPage />
+              </Shell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/report-export"
+          element={
+            <RequireAuth>
+              <Shell>
+                <ReportExportPage />
               </Shell>
             </RequireAuth>
           }
