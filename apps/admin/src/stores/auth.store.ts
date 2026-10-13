@@ -1,7 +1,13 @@
 import { hasPermission } from '@weftcount/shared'
 import { create } from 'zustand'
 import { api, tokenStore, contextStore } from '../lib/api'
-import type { LoginResult, LoginUserInfo, LoginTenantInfo, LoginCompanyInfo } from '@weftcount/shared'
+import type {
+  CurrentUserInfo,
+  LoginResult,
+  LoginUserInfo,
+  LoginTenantInfo,
+  LoginCompanyInfo,
+} from '@weftcount/shared'
 
 /**
  * 认证状态
@@ -16,6 +22,15 @@ export interface AuthState {
   companies: LoginCompanyInfo[]
   currentCompanyId: string
   permissions: string[]
+  /**
+   * 权限是否已加载完毕
+   *
+   * 刷新页面时权限在 localStorage 里**没有**缓存（`hydrate` 只恢复令牌与公司标识），
+   * 要等 `/auth/me` 返回才填上。这段时间 `permissions` 是空数组，
+   * 路由守卫若直接判定「无权」，会把已登录用户先弹回工作台造成闪一下。
+   * 有了这个标志，守卫才能区分「还没加载」与「确实没有」。
+   */
+  permissionsLoading: boolean
   loading: boolean
   error: string | null
 
@@ -33,6 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   companies: [],
   currentCompanyId: '',
   permissions: [],
+  permissionsLoading: false,
   loading: false,
   error: null,
 
@@ -49,6 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         companies: d.companies,
         currentCompanyId: d.currentCompanyId,
         permissions: d.permissions,
+        permissionsLoading: false,
         loading: false,
       })
       return true
@@ -66,6 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       companies: [],
       currentCompanyId: '',
       permissions: [],
+      permissionsLoading: false,
       error: null,
     })
   },
@@ -76,24 +94,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await api.post('/auth/switch-company', { companyId })
       contextStore.setContext(tenant.id, companyId)
-      set({ currentCompanyId: companyId })
+      // 权限置为「加载中」并清空：不同公司下用户角色可能不同，
+      // 沿用上一个公司的权限码会短暂展示无权页面（守卫会误判）。
+      // 置 loading 而非直接留旧值，是因为空数组同样会被判为无权。
+      set({ currentCompanyId: companyId, permissions: [], permissionsLoading: true })
+      const res = await api.get<CurrentUserInfo>('/auth/me')
+      const d = res.data.data
+      set({
+        permissions: d.permissions,
+        currentCompanyId: d.companyId,
+        permissionsLoading: false,
+      })
       return true
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : '切换公司失败' })
+      set({ error: e instanceof Error ? e.message : '切换公司失败', permissionsLoading: false })
       return false
     }
   },
 
   /**
    * 从本地存储恢复登录态
-   * 只恢复令牌与公司标识，用户信息与权限需调 /auth/me 补齐（由页面负责）
+   *
+   * 只恢复令牌与公司标识，用户信息与权限需调 `/auth/me` 补齐（由页面负责）。
+   * 有令牌即视为「权限加载中」——守卫据此放行而不是误判无权。
    */
   hydrate: () => {
     const token = tokenStore.get()
     const tenantId = contextStore.getTenantId()
     const companyId = contextStore.getCompanyId()
     if (token && tenantId && companyId) {
-      set({ currentCompanyId: companyId })
+      set({ currentCompanyId: companyId, permissionsLoading: true })
     }
   },
 
