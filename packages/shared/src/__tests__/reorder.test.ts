@@ -5,8 +5,18 @@ import {
   type ReorderInput,
 } from '../reorder'
 
-/** 期望值一律由输入分量现算，不手写常数（手算极易 100×/1000× 错位） */
-function expect2<T>(input: ReorderInput, fn: (s: ReturnType<typeof computeReorderSuggestion>) => T, expected: T, label: string) {
+/**
+ * 期望值一律由输入分量现算，不手写常数（手算极易 100×/1000× 错位）
+ *
+ * `expected` 限number：`toBeCloseTo` 只对数值有意义，
+ * 泛型放开成 `<T>` 会让传字符串/对象的用例也能编过，运行时才炸。
+ */
+function expect2(
+  input: ReorderInput,
+  fn: (s: ReturnType<typeof computeReorderSuggestion>) => number,
+  expected: number,
+  label: string,
+) {
   const s = computeReorderSuggestion(input)
   expect(fn(s), label).toBeCloseTo(expected, 3)
 }
