@@ -93,7 +93,7 @@ export default function RollCardPage() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: 20 }}>
       <Row gutter={[12, 12]}>
         <Col span={24}>
           <Card size="small">

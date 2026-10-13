@@ -85,7 +85,9 @@ export default function BoardPage() {
   }, [activeOrders])
 
   return (
-    <div style={{ padding: 16, background: token.colorBgLayout, minHeight: '100%' }}>
+    // 背景由 Layout.Content 统一提供，页面不再自带 background：
+    // 各页各写一套会导致换页时背景闪一下（两处色值哪怕差 1 个色阶也看得出来）
+    <div style={{ padding: 20, minHeight: '100%' }}>
       <Row align="middle" justify="space-between" style={{ marginBottom: 16 }}>
         <Col>
           <Title level={3} style={{ color: token.colorText, margin: 0 }}>

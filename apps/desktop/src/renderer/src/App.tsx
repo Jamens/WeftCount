@@ -131,54 +131,83 @@ export default function App() {
   // 头部/侧栏跟随主题，文字用对比色
   const headerText = mode === 'dark' ? '#fff' : token.colorText
 
+  /**
+   * 层级配色：**只允许三种深色**，其余一律走 antd token。
+   *
+   * 此前的问题是三处各自写死颜色——侧栏沿用 antd 默认 `#001529`（藏青）、
+   * 主体用 `#000`、卡片是 `#1f1f1f`。三个黑里两个还带不同色相，
+   * 放在一起就是截图里那种「贴片感」。
+   *
+   * 现在的分层：
+   *   - 侧栏 / 页头（外壳）：`#1c1f26`，比内容区**略亮**，形成凹陷感
+   *   - 内容区背景：`colorBgLayout`（深色下 `#101215`，最深）
+   *   - 卡片：`colorBgContainer`（`#1c1f26`，比背景亮，卡片浮起来）
+   * 这样只有一条明度梯度，色相统一为中性灰蓝。
+   */
+  const shellBg = mode === 'dark' ? '#1c1f26' : '#ffffff'
+  const shellBorder = mode === 'dark' ? 'rgba(255,255,255,0.08)' : token.colorBorderSecondary
+
   const shell = (children: React.ReactNode) => (
     <AntdApp>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Layout.Header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 16px',
-            // antd Layout.Header 默认深色底(#001529)，亮色模式必须给浅色底，
-            // 否则深色文字压在深色底上会被「遮住」
-            background: mode === 'dark' ? '#141414' : '#ffffff',
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          }}
-        >
-          <Text strong style={{ color: headerText, fontSize: 16 }}>
-            纬数 · 车间工作台
-          </Text>
-          <Space>
-            <Tooltip title={mode === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'}>
-              <Button
-                type="text"
-                aria-label="切换明暗模式"
-                icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
-                onClick={toggleTheme}
-                style={{ color: headerText }}
-              />
-            </Tooltip>
-            {env && <Tag style={{ margin: 0 }}>v{env.version}</Tag>}
-            {/* 离线队列待同步提示：有待同步时操作员能明确知道「数据还没进系统」 */}
-            {pendingOps > 0 && (
-              <Tooltip title={`${pendingOps} 条操作待同步（网络恢复后自动重放）`}>
-                <Tag color="warning" style={{ margin: 0 }}>
-                  待同步 {pendingOps}
-                </Tag>
-              </Tooltip>
-            )}
-            <Text style={{ color: headerText, cursor: 'pointer' }} onClick={onLogout}>
-              <LogoutOutlined /> 退出
+      {/**
+       * 固定视口 + 内容区独立滚动：页头与侧栏恒定可见。
+       * 不这样做的话，内容不足一屏时整页滚动会把导航一起带走——
+       * 车间操作员在「短页面」和「长列表」间来回切换时不断丢失侧栏。
+       */}
+      <div className="weft-content">
+        <Layout style={{ minHeight: '100%', background: token.colorBgLayout }}>
+          <Layout.Header
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 16px',
+              // 与侧栏同色：外壳是一个整体，中间不该有横向色带把界面切成两段
+              background: shellBg,
+              borderBottom: `1px solid ${shellBorder}`,
+            }}
+          >
+            <Text strong style={{ color: headerText, fontSize: 16 }}>
+              纬数 · 车间工作台
             </Text>
-          </Space>
-        </Layout.Header>
-        <Layout>
-          <Layout.Sider width={160} theme={mode}>
+            <Space>
+              <Tooltip title={mode === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'}>
+                <Button
+                  type="text"
+                  aria-label="切换明暗模式"
+                  icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+                  onClick={toggleTheme}
+                  style={{ color: headerText }}
+                />
+              </Tooltip>
+              {env && <Tag style={{ margin: 0 }}>v{env.version}</Tag>}
+              {/* 离线队列待同步提示：有待同步时操作员能明确知道「数据还没进系统」 */}
+              {pendingOps > 0 && (
+                <Tooltip title={`${pendingOps} 条操作待同步（网络恢复后自动重放）`}>
+                  <Tag color="warning" style={{ margin: 0 }}>
+                    待同步 {pendingOps}
+                  </Tag>
+                </Tooltip>
+              )}
+              <Text style={{ color: headerText, cursor: 'pointer' }} onClick={onLogout}>
+                <LogoutOutlined /> 退出
+              </Text>
+            </Space>
+          </Layout.Header>
+        <Layout style={{ background: token.colorBgLayout }}>
+          <Layout.Sider
+            width={176}
+            className="weft-sider"
+            style={{
+              background: shellBg,
+              borderRight: `1px solid ${shellBorder}`,
+            }}
+          >
             <Menu
               theme={mode}
               mode="inline"
-              selectedKeys={[view]}
+              style={{ background: 'transparent', borderInlineEnd: 0 }}
+              selectedKeys={[safeView]}
               items={[
                 { key: 'report', icon: <FundOutlined />, label: '织机报工' },
                 { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
@@ -194,9 +223,10 @@ export default function App() {
               onClick={({ key }) => setView(key as View)}
             />
           </Layout.Sider>
-          <Layout.Content>{children}</Layout.Content>
+          <Layout.Content style={{ background: token.colorBgLayout }}>{children}</Layout.Content>
         </Layout>
-      </Layout>
+        </Layout>
+      </div>
     </AntdApp>
   )
 

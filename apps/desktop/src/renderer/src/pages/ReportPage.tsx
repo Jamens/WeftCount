@@ -15,6 +15,7 @@ import {
   Table,
   Tag,
   Typography,
+  theme,
 } from 'antd'
 import { BarcodeOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -31,6 +32,7 @@ const { Title, Text } = Typography
  */
 export default function ReportPage() {
   const { message } = AntdApp.useApp()
+  const { token } = theme.useToken()
   const [orders, setOrders] = useState<ReportableOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [target, setTarget] = useState<ReportableOrder | null>(null)
@@ -120,30 +122,88 @@ export default function ReportPage() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-        <Col span={8}>
-          <Card size="small"><Statistic title="可报工工单" value={orders.length} suffix="单" /></Card>
-        </Col>
-        <Col span={8}>
-          <Card size="small"><Statistic title="这些工单累计产出" value={num(activeOutputM).toFixed(0)} suffix="m" /></Card>
-        </Col>
-        <Col span={8}>
-          <Card size="small">
-            <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading} block>刷新工单</Button>
-          </Card>
-        </Col>
-      </Row>
+    /**
+     * 内容区铺满，不设maxWidth。
+     * 车间终端是固定尺寸的一体机，不是宽屏办公显示器——
+     * 加 maxWidth 反而会在右侧留出一条空白带，让界面显得「没铺满」。
+     * 数据表格需要横向空间时可由 Table 自带滚动处理。
+     */
+    <div style={{ padding: 20 }}>
+      {/**
+       * 统计条。此前把「刷新工单」单独占一个 span=8 的 Card，
+       * 结果一个次要操作和两个关键指标**同权重同尺寸**，
+       * 视觉上把注意力从数据上拽走，也让顶部多出一条无意义的等宽分割。
+       *
+       * 现在刷新统一放在下方卡片的 extra 里，全页只有一处刷新入口——
+       * 顶部重复一个同名按钮会让人怀疑「这两个有什么区别」。
+       *
+       * 无工单时整个统计条隐藏：两个「0」占据黄金视线的顶端，
+       * 而真正要回答的问题（为什么没有工单）在下方——空状态不该被数字抢戏。
+       */}
+      {orders.length > 0 && (
+        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Col flex="none">
+            <Card size="small" style={{ minWidth: 170 }}>
+              <Statistic title="可报工工单" value={orders.length} suffix="单" valueStyle={{ fontSize: 24 }} />
+            </Card>
+          </Col>
+          <Col flex="none">
+            <Card size="small" style={{ minWidth: 210 }}>
+              <Statistic
+                title="这些工单累计产出"
+                value={num(activeOutputM).toFixed(0)}
+                suffix="m"
+                valueStyle={{ fontSize: 24 }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
-      <Card size="small" title="选择工本报工">
+      <Card
+        size="small"
+        title="选择工本报工"
+        styles={{ body: { paddingTop: 8 } }}
+        extra={
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
+            刷新
+          </Button>
+        }
+      >
         {orders.length === 0 ? (
-          <Empty description="暂无可报工工单（请先在 admin 生产管理建单并排产到机台）" />
+          /**
+           * 空状态给**下一步动作**，而不是只说「没有数据」。
+           * 挡车工看到「暂无工单」时真正的问题是「我该去哪接单」，
+           * 告诉他 admin 哪个页面能排产，比重复「暂无数据」有用。
+           *
+           * 配一个「重新加载」按钮：工单是别人刚排的，
+           * 挡车工干等自动刷新不合理，必须能自己再试一次。
+           */
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <Space direction="vertical" size={4}>
+                <Text type="secondary">暂无可报工工单</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  需管理员在 admin「生产管理」建工单并排产到机台，排产后此处自动出现
+                </Text>
+              </Space>
+            }
+            style={{ padding: '24px 0' }}
+          />
         ) : (
           <Table<ReportableOrder>
             rowKey="id"
             size="small"
             pagination={false}
             dataSource={orders}
+            /**
+             * 刻意**不用** `fixed: 'right'` 固定操作列。
+             * 列宽总和（约 820px）小于容器时，antd 仍会为 fixed 列生成一个
+             * 独立定位层，把其余列按内容宽度压缩——表现为「计划(米)已产(米)进度」
+             * 三列表头挤在一起，且表格右侧留出空白。
+             * 车间一体机宽度固定、列数少，横向滚动本身用不上，固定列纯属负收益。
+             */
             columns={[
               { title: '工单号', dataIndex: 'orderNo', width: 150 },
               { title: '规格', dataIndex: 'specName', width: 140, render: (v: string | null) => v ?? '-' },
@@ -154,8 +214,13 @@ export default function ReportPage() {
                 width: 90,
                 render: (s: string) => (s === 'in_progress' ? <Tag color="processing">生产中</Tag> : <Tag color="blue">已排产</Tag>),
               },
-              { title: '计划(米)', dataIndex: 'plannedQuantityM', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
-              { title: '已产(米)', dataIndex: 'producedQuantityM', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
+              /**
+               * 表头用 `title` 包裹而不是直接写字符串：
+               * 「已产(米)」与相邻的「进度」列宽都偏窄时，纯文本表头会紧贴成
+               * 「已产(米)进度」，读起来像一列。title 元素自带换行与 ellipsis 间距。
+               */
+              { title: <span title="计划米数">计划(米)</span>, dataIndex: 'plannedQuantityM', width: 100, align: 'right', render: (v: string) => fmt(v, 0) },
+              { title: <span title="已产出米数">已产(米)</span>, dataIndex: 'producedQuantityM', width: 100, align: 'right', render: (v: string) => fmt(v, 0) },
               {
                 title: '进度',
                 dataIndex: 'producedQuantityM',
@@ -169,7 +234,6 @@ export default function ReportPage() {
               {
                 title: '操作',
                 width: 90,
-                fixed: 'right',
                 render: (_, o) => (
                   <Button type="primary" size="small" icon={<SendOutlined />} onClick={() => setTarget(o)}>
                     报工
@@ -216,7 +280,7 @@ export default function ReportPage() {
               </div>
             </Space>
             {rollMode && (
-              <Card size="small" title={`本次产出件卡（${rolls.length} 匹）`} style={{ background: '#fafafa' }}>
+              <Card size="small" title={`本次产出件卡（${rolls.length} 匹）`} style={{ background: token.colorFillAlter }}>
                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
                   <Space.Compact style={{ width: '100%' }}>
                     <Input

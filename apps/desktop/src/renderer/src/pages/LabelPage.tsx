@@ -76,7 +76,7 @@ export default function LabelPage() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: 20 }}>
       <Row gutter={[12, 12]}>
         <Col span={14}>
           <Card

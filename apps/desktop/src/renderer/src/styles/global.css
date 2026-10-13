@@ -11,9 +11,74 @@ body,
 }
 
 body {
-  background: #14161a;
+  background: #101215;
   color: #e8e8e6;
   font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  /**
+   * 车间终端是**触控屏**（常带手套操作），禁用双击缩放与长按选择，
+   * 避免误触触发浏览器的缩放/选中行为——这类问题在现场极难复现与上报。
+   */
+  touch-action: manipulation;
+  -webkit-user-select: none;
+}
+
+/**
+ * 内容区滚动容器
+ *
+ * 不设这条时，内容不足一屏时页面会整页滚动（连侧栏一起滚走），
+ * 车间操作员在长列表与短页面间来回切换会不断「丢失导航」。
+ * 设为内容区独立滚动后，侧栏与页头**恒定可见**。
+ */
+.weft-content {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/**
+ * 菜单选中态：左侧金色竖条 + 浅色底
+ *
+ * antd 的实心色块选中态在窄侧栏里视觉权重过高（整个界面的重心被拉到
+ * 一个二级导航项上）。改为竖条指示后，语义同样清晰但安静得多。
+ *
+ * 用 ::after 而不是改 antd token：token 会连 hover 态一起改掉，
+ * 这里只调整选中态的呈现方式。
+ */
+.weft-sider .ant-menu-item-selected {
+  background: rgba(217, 138, 31, 0.14) !important;
+  color: #f0a94a !important;
+}
+
+.weft-sider .ant-menu-item-selected::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  border-radius: 0 2px 2px 0;
+  background: #d98a1f;
+}
+
+/**
+ * 表格：给相邻表头留出呼吸间距
+ *
+ * antd 默认表头左右各 8px，列宽偏窄时（如「已产(米)」90px）文字几乎贴到邻列，
+ * 读起来像「已产(米)进度」连成一列。加到 12px 后短表头也能分清边界。
+ */
+.weft-content .ant-table-thead > tr > th {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+/**
+ * 数据单元格：数值列右对齐时留足右侧内边距
+ * 否则最后一位数字紧贴列分隔线，扫读时容易串列。
+ */
+.weft-content .ant-table-tbody > tr > td {
+  padding-left: 12px;
+  padding-right: 12px;
 }
