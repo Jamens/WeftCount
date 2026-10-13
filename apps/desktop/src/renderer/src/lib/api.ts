@@ -13,17 +13,30 @@ import { hasPermission } from '@weftcount/shared'
  */
 
 /**
- * API 基址
+ * API 基址：一律用**相对路径 `/api`**
  *
- * - 开发(渲染进程由 vite dev server 加载，http 协议)：用相对路径 `/api`，由 dev server
- *   代理到后端(见 electron.vite.config.ts 的 server.proxy)。渲染进程与请求**同源**，
- *   从根上绕开 Chromium 的 CORS 与 Private Network Access 拦截——直连绝对地址
- *   127.0.0.1 常被 PNA 判违规拦成「网络错误」。
- * - 打包后(file:// 加载)：没有 dev server 可代理，退回绝对地址(后端需允许该来源)。
+ * ## 为什么不用绝对地址
+ *
+ * `http://127.0.0.1:3180/api` 看着直接，实测**必定失败**：
+ * 页面无论来自 `file://`（opaque origin）还是自定义协议，
+ * 去请求局域网地址都是跨源 + Private Network Access 的目标，
+ * Chromium 会直接拦掉——请求根本没发出去，
+ * 控制台只有 `TypeError: Failed to fetch`，
+ * 界面表现为「无法连接服务器，请确认后端已启动」，**提示完全指错方向**。
+ *
+ * （`file://` 那次还有更隐蔽的一点：它是 opaque origin，
+ * **把它换成同源地址也一样失败**，所以「改用 localhost 相对路径」并不能救。）
+ *
+ * ## 为什么相对路径现在两条路都通
+ *
+ * - dev 模式：vite dev server 代理 `/api`（见 electron.vite.config.ts）
+ * - 构建/打包：主进程注册的 `weft://` 协议把 `/api/*` 转发给后端
+ *   （见 `main/index.ts` 的 `registerAppProtocol`）
+ *
+ * 两种形态下 `/api` 都是**真正的同源**请求，PNA 与 CORS 都不介入，
+ * 且不依赖任何 Chromium flag。
  */
-export const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:3180/api' : '/api'
-
-const BACKEND_ORIGIN = 'http://127.0.0.1:3180'
+export const API_BASE = '/api'
 
 const TOKEN_KEY = 'weft_desktop_token'
 const TENANT_KEY = 'weft_desktop_tenant'
@@ -111,7 +124,11 @@ instance.interceptors.response.use(
       }
       const e = new Error(
         failure?.message ??
-          (error.code === 'ECONNABORTED' ? '请求超时' : '无法连接服务器，请确认后端已启动'),
+          (error.code === 'ECONNABORTED'
+            ? '请求超时'
+            : // 无响应时**不能断言**是后端没启动——也可能是本机代理没起来或网络不通，
+              // 历史上这句提示把排查方向直接带偏过（实际是渲染进程被 PNA 拦截，请求压根没发出）
+              `无法连接服务器（${API_BASE}），请确认后端已启动`),
       )
       // **保留原始 axios 错误**：离线队列要靠它区分「网络类」与「业务类」。
       // 丢了原始错误，所有失败都会被当成业务错误而不入队，队列形同虚设。
