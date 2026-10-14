@@ -56,6 +56,10 @@ export const ROUTE_PERMS: Record<string, string[]> = {
   '/users': [Permission.USER_VIEW],
   '/roles': [Permission.ROLE_VIEW],
   '/audit-logs': [Permission.AUDIT_VIEW],
+  '/quality/inspections': [Permission.QUALITY_VIEW],
+  '/quality/inspections/:id': [Permission.QUALITY_VIEW],
+  '/quality/defect-types': [Permission.QUALITY_VIEW],
+  '/quality/grade-prices': [Permission.QUALITY_VIEW],
 }
 
 /** 某路径是否被权限门控保护 */

@@ -28,6 +28,7 @@ import {
   AreaChartOutlined,
   InboxOutlined,
   FileExcelOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -60,6 +61,10 @@ import BatchPage from './pages/BatchPage'
 import TransactionPage from './pages/TransactionPage'
 import ReconcilePage from './pages/ReconcilePage'
 import DocPage from './pages/DocPage'
+import QualityInspectionPage from './pages/QualityInspectionPage'
+import QualityInspectionDetailPage from './pages/QualityInspectionDetailPage'
+import QualityDefectTypePage from './pages/QualityDefectTypePage'
+import QualityGradePricePage from './pages/QualityGradePricePage'
 import { routePerms } from './lib/route-perms'
 import { useThemeStore } from './stores/theme.store'
 
@@ -210,6 +215,11 @@ function Shell({ children }: { children: React.ReactNode }) {
       { key: '/stocktakes', icon: <FileDoneOutlined />, label: '库存盘点' },
     ])),
     g('成本与报表', items([
+    g('质检', items([
+      { key: '/quality/inspections', icon: <FileSearchOutlined />, label: '坯布检验分等' },
+      { key: '/quality/defect-types', icon: <ExperimentOutlined />, label: '疵点类型' },
+      { key: '/quality/grade-prices', icon: <DollarOutlined />, label: '分等价目' },
+    ])),
       { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
       { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
       { key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' },
@@ -376,6 +386,10 @@ const PROTECTED_ROUTES: { path: string; page: React.ReactNode }[] = [
   { path: '/inventory/reconcile', page: <ReconcilePage /> },
   { path: '/inventory/documents', page: <DocPage /> },
   { path: '/audit-logs', page: <AuditLogPage /> },
+  { path: '/quality/inspections', page: <QualityInspectionPage /> },
+  { path: '/quality/inspections/:id', page: <QualityInspectionDetailPage /> },
+  { path: '/quality/defect-types', page: <QualityDefectTypePage /> },
+  { path: '/quality/grade-prices', page: <QualityGradePricePage /> },
 ]
 
 /**

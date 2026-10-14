@@ -257,6 +257,31 @@ export class QualityController {
     return this.svc.gradeRules()
   }
 
+  /**
+   * 取分等单价 —— **出库/订单取价接这里**
+   *
+   * 只建质检模块而不接这个口子，定等就只是个标签：
+   * 等级价差 5~15% 一分钱都收不回来。
+   * 优先级：合同明细协议价 > 规格挂牌价 > 不分等（原价）。
+   */
+  @Get('price/quote')
+  @RequirePermission(Permission.QUALITY_VIEW)
+  @ApiOperation({ summary: '按品等取单价（合同明细协议价 > 规格挂牌价 > 原价）' })
+  quotePrice(
+    @CurrentUser() ctx: RequestContext,
+    @Query('basePrice') basePrice: string,
+    @Query('grade') grade?: GreigeGrade,
+    @Query('contractItemId') contractItemId?: string,
+    @Query('specId') specId?: string,
+  ) {
+    return this.svc.resolveUnitPrice(ctx, {
+      basePrice: Number(basePrice ?? 0),
+      grade: grade ?? null,
+      contractItemId: contractItemId ?? null,
+      specId: specId ?? null,
+    })
+  }
+
   @Get('grade-prices')
   @RequirePermission(Permission.QUALITY_VIEW)
   @ApiOperation({ summary: '分等价目列表' })

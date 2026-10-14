@@ -1,6 +1,7 @@
 import { Permission } from '@weftcount/shared'
 import type {
   CountSystem,
+  GreigeGrade,
   MaterialCategoryValue,
   MeasureMode,
   SpecCalculationSnapshot,
@@ -684,6 +685,14 @@ export const PERMISSION_CATALOG: { group: string; options: { value: string; labe
     ],
   },
   {
+    group: '质检',
+    options: [
+      { value: 'quality.view', label: '质检查看' },
+      { value: 'quality.inspect', label: '检验录入' },
+      { value: 'quality.review', label: '定等复核' },
+    ],
+  },
+  {
     group: '采购 / 销售',
     options: [
       { value: 'purchase.view', label: '采购查看' },
@@ -1062,3 +1071,127 @@ export const YARN_PRICE_SOURCE_LABEL: Record<YarnPriceSource, { text: string; co
  * 外壳(html/body)已固定视口不滚动，这里只保证表格能在内容区内放得下。
  */
 export const LIST_TABLE_SCROLL_Y = 'calc(100vh - 400px)'
+
+// ---------------------------------------------------------------------------
+// 质检 · 坯布检验分等
+// ---------------------------------------------------------------------------
+
+export type InspectionStatusValue = 'draft' | 'done' | 'void'
+export type InspectionModeValue = 'full' | 'sampling'
+export type DefectCategoryValue = 'warp' | 'weft' | 'stain' | 'broken' | 'other'
+export type DefectPenaltyModeValue = 'by_length' | 'fixed'
+export type GradePriceScopeValue = 'contract_item' | 'spec'
+export type GradePriceModeValue = 'fixed' | 'discount' | 'delta'
+
+export interface DefectTypeWire {
+  id: string
+  code: string
+  name: string
+  category: DefectCategoryValue
+  penaltyMode: DefectPenaltyModeValue
+  fixedPenalty: number
+  sortOrder: number
+  enabled: boolean
+}
+
+export interface InspectionWire {
+  id: string
+  inspectionNo: string
+  batchId: string | null
+  warehouseId: string | null
+  inspectorId: string
+  inspectedAt: string
+  standard: 'four_point'
+  mode: InspectionModeValue
+  sampleRate: string | null
+  status: InspectionStatusValue
+  rollCount: number
+  totalPoints: number
+  totalSqYd: string
+  avgPointsPer100SqYd: string
+  passRate: string | null
+  remark: string | null
+  createdAt: string
+}
+
+export interface InspectionDefectView {
+  id: string
+  defectTypeId: string
+  defectCode: string
+  positionM: number | null
+  lengthInch: number | null
+  penalty: number
+  remark: string | null
+}
+
+export interface InspectionRollView {
+  id: string
+  rollId: string
+  rollNo: string
+  meters: number
+  widthInch: number
+  sqYards: number
+  totalPoints: number
+  pointsPer100SqYd: number
+  overReceivingLimit: boolean
+  grade: GreigeGrade | null
+  remark: string | null
+  defects: InspectionDefectView[]
+}
+
+export interface InspectionDetailWire {
+  inspection: InspectionWire
+  rolls: InspectionRollView[]
+}
+
+export interface GradePriceWire {
+  id: string
+  scope: GradePriceScopeValue
+  refId: string
+  grade: GreigeGrade
+  mode: GradePriceModeValue
+  value: string
+}
+
+export const INSPECTION_STATUS_LABEL: Record<InspectionStatusValue, { text: string; color: string }> = {
+  draft: { text: '录入中', color: 'processing' },
+  done: { text: '已定等', color: 'success' },
+  void: { text: '已作废', color: 'default' },
+}
+
+export const INSPECTION_MODE_LABEL: Record<InspectionModeValue, string> = {
+  full: '全检',
+  sampling: '抽检',
+}
+
+export const DEFECT_CATEGORY_LABEL: Record<DefectCategoryValue, string> = {
+  warp: '经向',
+  weft: '纬向',
+  stain: '污渍',
+  broken: '破损',
+  other: '其他',
+}
+
+export const DEFECT_PENALTY_MODE_LABEL: Record<DefectPenaltyModeValue, string> = {
+  by_length: '按长度四档扣分',
+  fixed: '固定扣分',
+}
+
+/** 品等配色：A 绿 → D 红，扫一眼就知道这批布成色如何 */
+export const GRADE_COLOR: Record<GreigeGrade, string> = {
+  A: 'success',
+  B: 'cyan',
+  C: 'orange',
+  D: 'error',
+}
+
+export const GRADE_PRICE_MODE_LABEL: Record<GradePriceModeValue, string> = {
+  fixed: '直接定价（元/米）',
+  discount: '折扣率（0.92 = 92 折）',
+  delta: '每米加减（元）',
+}
+
+export const GRADE_PRICE_SCOPE_LABEL: Record<GradePriceScopeValue, string> = {
+  contract_item: '合同明细协议价',
+  spec: '规格挂牌价',
+}
