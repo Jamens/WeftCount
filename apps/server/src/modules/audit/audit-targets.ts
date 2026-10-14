@@ -10,6 +10,7 @@ import { MachineEntity } from '../production/entities/machine.entity'
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
 import { StocktakeEntity } from '../stocktake/entities/stocktake.entity'
+import { InspectionEntity } from '../quality/entities/inspection.entity'
 
 /**
  * 审计目标类型 → 实体类
@@ -53,6 +54,7 @@ export const AUDIT_TARGET_ENTITIES: Record<string, EntityTarget<never>> = {
   production_order: ProductionOrderEntity as unknown as EntityTarget<never>,
   inventory_document: InventoryDocumentEntity as unknown as EntityTarget<never>,
   stocktake: StocktakeEntity as unknown as EntityTarget<never>,
+  inspection: InspectionEntity as unknown as EntityTarget<never>,
 }
 
 /**

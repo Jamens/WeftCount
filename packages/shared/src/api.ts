@@ -130,6 +130,7 @@ export const AUDIT_TARGET_TYPES = [
   'production_order',
   'inventory_document',
   'stocktake',
+  'inspection',
 ] as const
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number]

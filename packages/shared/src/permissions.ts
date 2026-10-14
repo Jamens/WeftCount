@@ -71,6 +71,10 @@ export const Permission = {
   // 库存
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_MANAGE: 'inventory.manage',
+  // 质检
+  QUALITY_VIEW: 'quality.view',
+  QUALITY_INSPECT: 'quality.inspect',
+  QUALITY_REVIEW: 'quality.review',
   // 采购
   PURCHASE_VIEW: 'purchase.view',
   PURCHASE_MANAGE: 'purchase.manage',

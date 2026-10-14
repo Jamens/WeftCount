@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import type { GreigeGrade } from '@weftcount/shared'
 
 export type RollStatus = 'in_stock' | 'consumed' | 'sold'
 
@@ -52,6 +53,22 @@ export class RollEntity {
 
   @Column({ type: 'enum', enum: ['in_stock', 'consumed', 'sold'], default: 'in_stock' })
   status!: RollStatus
+
+  /**
+   * 品等（由检验单定等后回写）
+   *
+   * 空 = 未检验。出库选匹、追溯、打印标签都直接读这里，不 join 检验单。
+   */
+  @Column({ type: 'enum', enum: ['A', 'B', 'C', 'D'], nullable: true })
+  grade!: GreigeGrade | null
+
+  /** 最近定等时间 */
+  @Column({ type: 'datetime', nullable: true })
+  inspectedAt!: Date | null
+
+  /** 最近定等的检验单（该单作废时据此回退等级） */
+  @Column({ type: 'char', length: 36, nullable: true })
+  lastInspectionId!: string | null
 
   /** 来源入库单 */
   @Column({ type: 'char', length: 36, nullable: true })
