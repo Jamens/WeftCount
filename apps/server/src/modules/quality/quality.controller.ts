@@ -171,6 +171,19 @@ export class QualityController {
 
   // ------------------------------------------------------------ 检验单
 
+  /**
+   * 按件卡号查待检匹 —— **验布扫码接这里**
+   *
+   * 权限只要 `quality.inspect`。库存那边的 `/inventory/rolls/lookup` 要
+   * `inventory.manage`，质检员不该为了验布被授予库存管理权。
+   */
+  @Get('rolls/lookup')
+  @RequirePermission(Permission.QUALITY_INSPECT)
+  @ApiOperation({ summary: '按件卡号查待检匹（含当前品等，复验时先给质检员看）' })
+  lookupRoll(@CurrentUser() ctx: RequestContext, @Query('rollNo') rollNo: string) {
+    return this.svc.lookupRoll(ctx, rollNo)
+  }
+
   @Post('inspections')
   @RequirePermission(Permission.QUALITY_INSPECT)
   @Audit({ action: 'create', module: 'quality.inspection', targetType: 'inspection' })

@@ -116,6 +116,7 @@ export const WORKSHOP_VIEW_PERM = {
   label: Permission.INVENTORY_VIEW,      // 布匹标签打印
   rollcard: Permission.INVENTORY_VIEW,   // 件卡打印
   scan: Permission.REPORT_VIEW,          // 扫码查询（件卡/批次追溯）
+  inspect: Permission.QUALITY_INSPECT,   // 验布录入（逐匹疵点 → 定等）
 } as const
 
 export type WorkshopView = keyof typeof WORKSHOP_VIEW_PERM

@@ -169,6 +169,32 @@ export class QualityService {
 
   // ---------------------------------------------------------------- 检验单
 
+  /**
+   * 按件卡号查待检匹（验布扫码用）
+   *
+   * ## 为什么不复用 `/inventory/rolls/lookup`
+   * 那个接口要 `inventory.manage`（它是发货扫码用的，顺带查库存）。
+   * 质检员通常只被授予 `quality.inspect`，**不该为了验布就把库存管理权也发出去**。
+   * 所以这里单独开一个口子，权限与验布动作对齐。
+   *
+   * 顺带把当前品等带回去：复验时质检员能先看到「这匹已经是 B 等」，
+   * 不会在不知情的情况下把一匹降级布又验成一等。
+   */
+  async lookupRoll(ctx: { tenantId: string; companyId: string }, rollNo: string) {
+    const no = String(rollNo ?? '').trim()
+    if (!no) throw new BadRequestException('件卡号不能为空')
+    const roll = await this.rolls.findOne({ where: { rollNo: no, companyId: ctx.companyId } })
+    if (!roll) throw new NotFoundException(`件卡 ${no} 不存在`)
+    return {
+      id: roll.id,
+      rollNo: roll.rollNo,
+      meters: toNum(roll.remainingM ?? roll.meters),
+      grade: roll.grade,
+      inspectedAt: roll.inspectedAt,
+      status: roll.status,
+    }
+  }
+
   async createInspection(
     ctx: { tenantId: string; companyId: string; userId: string },
     input: { batchId?: string | null; warehouseId?: string | null; inspectedAt?: string | null; mode?: InspectionMode | null; sampleRate?: number | null; remark?: string | null },

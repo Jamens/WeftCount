@@ -155,6 +155,7 @@ export const api = {
   get: <T,>(url: string): Promise<T> => request<T>('get', url),
   post: <T,>(url: string, data?: unknown): Promise<T> => request<T>('post', url, data),
   patch: <T,>(url: string, data?: unknown): Promise<T> => request<T>('patch', url, data),
+  put: <T,>(url: string, data?: unknown): Promise<T> => request<T>('put', url, data),
 }
 
 /** 写操作结果：正常成功，或已存入离线队列待重放 */

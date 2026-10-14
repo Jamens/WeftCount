@@ -22,6 +22,7 @@ import {
   SunOutlined,
   MoonOutlined,
   InboxOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons'
 import { api, authStore, sessionStore, flushOfflineQueue, type SessionInfo } from './lib/api'
 import { offlineQueue } from './lib/offline-queue'
@@ -33,12 +34,13 @@ import BoardPage from './pages/BoardPage'
 import LabelPage from './pages/LabelPage'
 import RollCardPage from './pages/RollCardPage'
 import ScanPage from './pages/ScanPage'
+import InspectPage from './pages/InspectPage'
 import PickPage from './pages/PickPage'
 import PickInPage from './pages/PickInPage'
 
 const { Text } = Typography
 
-type View = 'report' | 'board' | 'label' | 'rollcard' | 'scan' | 'pick' | 'pickin'
+type View = 'report' | 'board' | 'label' | 'rollcard' | 'scan' | 'pick' | 'pickin' | 'inspect'
 
 /** 车间视图→权限码：取自 shared 单一事实源（与后端端点权限一一对应） */
 const VIEW_PERM = WORKSHOP_VIEW_PERM
@@ -216,6 +218,7 @@ export default function App() {
                 { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
                 { key: 'rollcard', icon: <BarcodeOutlined />, label: '件卡打印' },
                 { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
+                { key: 'inspect', icon: <FileSearchOutlined />, label: '验布录入' },
               ]
                 // 菜单按权限门控：低权限账号(如挡车工)看不到无权访问的车间页，
                 // 避免「点了才报无权限」。与后端端点权限码一一对应。
@@ -264,7 +267,7 @@ export default function App() {
   }
 
   const page =
-    safeView === 'report' ? <ReportPage /> : safeView === 'board' ? <BoardPage /> : safeView === 'label' ? <LabelPage /> : safeView === 'rollcard' ? <RollCardPage /> : safeView === 'pick' ? <PickPage /> : safeView === 'pickin' ? <PickInPage /> : <ScanPage />
+    safeView === 'report' ? <ReportPage /> : safeView === 'board' ? <BoardPage /> : safeView === 'label' ? <LabelPage /> : safeView === 'rollcard' ? <RollCardPage /> : safeView === 'pick' ? <PickPage /> : safeView === 'pickin' ? <PickInPage /> : safeView === 'inspect' ? <InspectPage /> : <ScanPage />
 
   return shell(page)
 }
