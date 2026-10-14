@@ -15,6 +15,7 @@ import { MaterialService } from '../material/material.service'
 import { PartnerService } from '../partner/partner.service'
 import { OrderService } from '../order/order.service'
 import { WarehouseService } from '../warehouse/warehouse.service'
+import { QualityService } from '../quality/quality.service'
 import { InventoryBatchEntity } from './entities/inventory-batch.entity'
 import { RollEntity } from './entities/roll.entity'
 import { RollOutboundEntity } from './entities/roll-outbound.entity'
@@ -111,6 +112,7 @@ export class InventoryService {
     private readonly partners: PartnerService,
     private readonly orders: OrderService,
     private readonly warehouses: WarehouseService,
+    private readonly quality: QualityService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -987,6 +989,11 @@ export class InventoryService {
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const plan = await this.planConsumption(manager, ctx, input, snapshot, widthCm)
+      // 销售出库：未显式传单价时，按本次实际发出的件卡等级加权算（显式传了就以显式为准）
+      const pricing =
+        docType === 'sales_outbound'
+          ? await this.resolveSalesPricing(ctx, orderId, orderItemId, input, plan)
+          : { unitPrice: input.unitPrice ?? null, priceSnapshot: null }
       const docNo = await this.nextDocNo(ctx.companyId, docType)
       const doc = manager.create(InventoryDocumentEntity, {
         clientRequestId: input.clientRequestId ?? null,
@@ -1003,8 +1010,9 @@ export class InventoryService {
         quantityM: num(plan.totalM, 3),
         weightKg: num(plan.totalKg, 3),
         areaM2: num(plan.totalM2, 4),
-        unitPrice: input.unitPrice != null ? num(input.unitPrice, 4) : null,
-        totalAmount: input.unitPrice != null ? num(input.unitPrice * plan.totalM, 2) : null,
+        unitPrice: pricing.unitPrice != null ? num(pricing.unitPrice, 4) : null,
+        totalAmount: pricing.unitPrice != null ? num(pricing.unitPrice * plan.totalM, 2) : null,
+        priceSnapshot: pricing.priceSnapshot,
         partnerId: partner.partnerId,
         partnerName: partner.partnerName,
         orderId,
@@ -1021,6 +1029,63 @@ export class InventoryService {
       await this.orders.recomputeFulfillment(ctx.tenantId, ctx.companyId, orderId)
     }
     return saved
+  }
+
+  /**
+   * 销售出库取价：显式单价优先，否则按本次实际发出的件卡等级加权算
+   *
+   * ## 为什么显式传了就以显式为准
+   * 分等价目是**默认规则**，不是强制折扣。客户抹零、等外品包退、急单加价
+   * 这些临时议价必须能覆盖它，否则业务被系统绑死。
+   *
+   * ## 为什么只有件卡逐匹发货支持自动算
+   * 逐匹发货才知道每一匹的等级；FIFO 与扫码拣货是**批次级**消耗，
+   * 一个批次里可能混着不同等级的匹（验布是逐匹的），无从分摊。
+   * 那两种模式返回 null（金额留空），宁可不计价，也不猜一个价出来。
+   *
+   * ## 基准价从哪来
+   * 订单行单价。订单行同时给出 `contractItemId`，
+   * 决定按哪份合同的协议价去取分等价——不关联订单行就不自动计价。
+   */
+  private async resolveSalesPricing(
+    ctx: { tenantId: string; companyId: string },
+    orderId: string | null,
+    orderItemId: string | null,
+    input: CreateDocInput,
+    plan: ConsumptionPlan,
+  ): Promise<{ unitPrice: number | null; priceSnapshot: InventoryDocumentEntity["priceSnapshot"] }> {
+    if (input.unitPrice != null) return { unitPrice: input.unitPrice, priceSnapshot: null }
+
+    const rollTakes = plan.rollTakes
+    if (!rollTakes || rollTakes.length === 0) return { unitPrice: null, priceSnapshot: null }
+
+    let basePrice: number | null = null
+    let contractItemId: string | null = null
+    if (orderId && orderItemId) {
+      const items = await this.orders.listItems(ctx.tenantId, ctx.companyId, orderId)
+      const item = items.find((i) => i.id === orderItemId)
+      if (item?.unitPrice != null) {
+        basePrice = Number(item.unitPrice)
+        contractItemId = item.contractItemId
+      }
+    }
+    if (basePrice == null || !Number.isFinite(basePrice)) return { unitPrice: null, priceSnapshot: null }
+
+    const r = await this.quality.weightedGradePrice(ctx, {
+      rollTakes: rollTakes.map((rt) => ({ rollId: rt.rollId, meters: rt.meters })),
+      basePrice,
+      contractItemId,
+      specId: input.specId,
+    })
+    return {
+      unitPrice: r.price,
+      priceSnapshot: {
+        source: r.source,
+        basePrice: r.basePrice,
+        weightedPrice: r.price,
+        breakdown: r.breakdown.map((b) => ({ grade: b.grade, meters: b.meters, price: b.price })),
+      },
+    }
   }
 
   /** 生产领用（按长度录入） */

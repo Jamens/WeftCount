@@ -7,6 +7,7 @@ import {
   gradeByDensity,
   RECEIVING_LIMIT_PER_100_SQYD,
   scoreRoll,
+  weightedGradePrice,
   type GradePriceRule,
   type RollScoreInput,
 } from '../grade'
@@ -183,5 +184,62 @@ describe('分等计价 calcGradePrice', () => {
     for (let i = 1; i < prices.length; i++) {
       expect(prices[i]!).toBeLessThan(prices[i - 1]!)
     }
+  })
+})
+
+describe('分等加权计价 weightedGradePrice', () => {
+  it('等量不同价 → 算术平均', () => {
+    const price = weightedGradePrice([
+      { grade: 'A', meters: 50, price: 12.5 },
+      { grade: 'B', meters: 50, price: 11.5 },
+    ])
+    expectNumber('等量', price, (12.5 * 50 + 11.5 * 50) / 100)
+  })
+
+  it('米数不等 → 按米数加权，不是取平均等级', () => {
+    const price = weightedGradePrice([
+      { grade: 'A', meters: 60, price: 12.5 },
+      { grade: 'B', meters: 40, price: 11.5 },
+    ])
+    expectNumber('加权', price, (12.5 * 60 + 11.5 * 40) / 100)
+    // 反证：若取两级的算术平均价会得到 12.0，与加权结果不同
+    expect(price).not.toBeCloseTo(12.0, 3)
+  })
+
+  it('单一品等 → 就是该等级单价', () => {
+    expect(weightedGradePrice([{ grade: 'C', meters: 30, price: 9.25 }])).toBe(9.25)
+  })
+
+  it('未检验的匹(grade=null)按基准价照常参与加权，不跳过', () => {
+    const price = weightedGradePrice([
+      { grade: null, meters: 100, price: 10 },
+      { grade: 'A', meters: 100, price: 12 },
+    ])
+    expectNumber('含未检验', price, (10 * 100 + 12 * 100) / 200)
+  })
+
+  it('等级越低整体单价越低（单调性）', () => {
+    const mix = (aPrice: number, bPrice: number) =>
+      weightedGradePrice([
+        { grade: 'A', meters: 50, price: aPrice },
+        { grade: 'B', meters: 50, price: bPrice },
+      ])
+    expect(mix(12.5, 11.5)).toBeLessThan(mix(12.5, 12.5))
+    expect(mix(12.5, 9)).toBeLessThan(mix(12.5, 11.5))
+  })
+
+  it('总米数为 0 → 返回 0，让调用方走「不自动计价」而不是猜价', () => {
+    expect(weightedGradePrice([])).toBe(0)
+    expect(weightedGradePrice([{ grade: 'A', meters: 0, price: 12.5 }])).toBe(0)
+    expect(weightedGradePrice([{ grade: 'A', meters: -5, price: 12.5 }])).toBe(0)
+  })
+
+  it('保留 4 位小数，与 agreed_price 的 scale 对齐', () => {
+    const price = weightedGradePrice([
+      { grade: 'A', meters: 3, price: 12.3456789 },
+      { grade: 'B', meters: 7, price: 11.1111111 },
+    ])
+    const raw = (12.3456789 * 3 + 11.1111111 * 7) / 10
+    expect(price).toBe(Math.round(raw * 1e4) / 1e4)
   })
 })

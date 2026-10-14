@@ -15,6 +15,7 @@ import { PartnerModule } from '../partner/partner.module'
 import { OrderModule } from '../order/order.module'
 import { WarehouseModule } from '../warehouse/warehouse.module'
 import { AuthModule } from '../auth/auth.module'
+import { QualityModule } from '../quality/quality.module'
 
 @Module({
   imports: [
@@ -24,6 +25,8 @@ import { AuthModule } from '../auth/auth.module'
     OrderModule,
     // 批次归仓 + 调拨需要仓库服务（单向：inventory → warehouse，无循环）
     WarehouseModule,
+    // 销售出库按品等计价：inventory → quality 单向，quality 不依赖 inventory，无循环
+    QualityModule,
     AuthModule,
   ],
   controllers: [InventoryController],

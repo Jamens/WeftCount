@@ -200,3 +200,34 @@ export function calcGradePrice(basePrice: number, rule?: GradePriceRule | null):
   if (!Number.isFinite(result) || result < 0) result = 0
   return Math.round(result * 1e4) / 1e4
 }
+
+/**
+ * 按品等分组的「米数 × 单价」加权算整单价
+ *
+ * ## 为什么是加权，而不是取最高/最低/平均等级
+ * 一单可能同时发一等品和等外品：
+ * - 取最高等级算整单价 → 等外那部分白送
+ * - 取平均等级 → 算出库里根本不存在的价
+ * 正确口径：**各等级分别取价，再按本次发出的米数加权**。
+ *
+ * 例：60m 一等品 @12.5 + 40m 二等品 @11.5
+ * → (12.5×60 + 11.5×40) / 100 = **12.1 元/米**
+ *
+ * `grade: null` 的组照常参与加权（未检验的匹按基准价计）——
+ * 权重是米数，与有没有等级无关。
+ */
+export function weightedGradePrice(
+  groups: { grade: GreigeGrade | null; meters: number; price: number }[],
+): number {
+  let totalMeters = 0
+  let amount = 0
+  for (const g of groups) {
+    const meters = Number.isFinite(g.meters) ? Math.max(0, g.meters) : 0
+    const price = Number.isFinite(g.price) ? Math.max(0, g.price) : 0
+    totalMeters += meters
+    amount += price * meters
+  }
+  // 没米数无从加权：返回 0 让调用方走「不自动计价」的分支，不猜一个价
+  if (totalMeters <= 0) return 0
+  return Math.round((amount / totalMeters) * 1e4) / 1e4
+}

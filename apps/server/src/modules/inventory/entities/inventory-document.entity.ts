@@ -102,6 +102,20 @@ export class InventoryDocumentEntity {
   totalAmount!: string | null
 
   /**
+   * 分等计价快照（仅销售出库）
+   *
+   * 单价本可由件卡等级重算，但 `rolls.grade` 会因复验被覆盖——
+   * 不冻结快照，三个月后这单为什么是这个价就说不清，对账时无法自证。
+   */
+  @Column({ type: 'json', nullable: true })
+  priceSnapshot!: {
+    source: 'contract_item' | 'spec' | 'base'
+    basePrice: number
+    weightedPrice: number
+    breakdown: { grade: string | null; meters: number; price: number }[]
+  } | null
+
+  /**
    * 往来单位（供应商 / 客户），关联 partners.id。
    * 采购入库=供应商，销售出库=客户，生产领用为内部转移不适用（null）。
    * 停用/删除 partner 不会影响已开单据——这里只存 id + 名称快照。

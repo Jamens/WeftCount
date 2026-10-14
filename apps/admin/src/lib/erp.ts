@@ -114,6 +114,18 @@ export interface DocWire {
   remark: string | null
   createdAt: string
   updatedAt: string
+  /**
+   * 分等计价快照（仅销售出库，未配分等价目时为 null）
+   *
+   * 件卡等级会因复验改变，所以定这一单的当口把依据冻结下来——
+   * 否则三个月后这单为什么是这个价就说不清。
+   */
+  priceSnapshot?: {
+    source: 'contract_item' | 'spec' | 'base'
+    basePrice: number
+    weightedPrice: number
+    breakdown: { grade: string | null; meters: number; price: number }[]
+  } | null
 }
 
 export interface TxnWire {

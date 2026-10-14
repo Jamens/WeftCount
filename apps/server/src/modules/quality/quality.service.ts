@@ -10,6 +10,7 @@ import {
   GREIGE_GRADES,
   MAX_POINTS_PER_DEFECT,
   scoreRoll,
+  weightedGradePrice,
   type GreigeGrade,
   type GradePriceMode,
   type GradePriceRule,
@@ -561,6 +562,73 @@ export class QualityService {
     }
 
     return { price: basePrice, basePrice, source: 'base' }
+  }
+
+  /**
+   * 按本次实际发出的件卡等级**加权**算单价
+   *
+   * ## 为什么是加权，而不是取最高/最低/平均等级
+   * 一单可能同时发一等品和等外品。取最高等级算整单价，等外那部分就白送了；
+   * 取平均等级又会算出库里不存在的价。正确口径：**各等级分别取价，再按本次发出的米数加权**。
+   *
+   * ## 为什么只有件卡逐匹发货支持
+   * 逐匹发货才知道每一匹的等级；FIFO 与扫码拣货是**批次级**消耗，
+   * 一个批次里可能混着不同等级的匹（验布是逐匹的），无从分摊。
+   * 那两种模式仍须调用方显式传单价——宁可不自动计价，也不猜一个价出来。
+   *
+   * ## 未检验的匹怎么算
+   * `grade` 为 null 单独归一组，按基准价计。不猜它的等级。
+   */
+  async weightedGradePrice(
+    ctx: { tenantId: string; companyId: string },
+    input: {
+      rollTakes: { rollId: string; meters: number }[]
+      basePrice: number
+      contractItemId?: string | null
+      specId?: string | null
+    },
+  ): Promise<{
+    price: number
+    basePrice: number
+    source: 'contract_item' | 'spec' | 'base'
+    breakdown: { grade: GreigeGrade | null; meters: number; price: number }[]
+  }> {
+    const rollIds = [...new Set(input.rollTakes.map((r) => r.rollId))]
+    const rolls = rollIds.length
+      ? await this.rolls.find({ where: { id: In(rollIds), companyId: ctx.companyId } })
+      : []
+    const gradeByRoll = new Map(rolls.map((r) => [r.id, r.grade]))
+
+    const metersByGrade = new Map<GreigeGrade | null, number>()
+    for (const rt of input.rollTakes) {
+      const g = gradeByRoll.get(rt.rollId) ?? null
+      metersByGrade.set(g, (metersByGrade.get(g) ?? 0) + rt.meters)
+    }
+
+    const breakdown: { grade: GreigeGrade | null; meters: number; price: number }[] = []
+    const sourceByGrade = new Map<GreigeGrade | null, 'contract_item' | 'spec' | 'base'>()
+    for (const [grade, meters] of metersByGrade) {
+      const resolved = await this.resolveUnitPrice(ctx, {
+        basePrice: input.basePrice,
+        grade,
+        contractItemId: input.contractItemId ?? null,
+        specId: input.specId ?? null,
+      })
+      breakdown.push({ grade, meters, price: resolved.price })
+      sourceByGrade.set(grade, resolved.source)
+    }
+
+    const totalMeters = breakdown.reduce((s, b) => s + b.meters, 0)
+    // 占米数最多的那一组决定「这单的价目来源」，便于展示与排查
+    const dominant = [...metersByGrade.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+
+    return {
+      // 加权口径收敛在 shared 的 weightedGradePrice，前后端与报表同一套
+      price: totalMeters > 0 ? weightedGradePrice(breakdown) : input.basePrice,
+      basePrice: input.basePrice,
+      source: sourceByGrade.get(dominant) ?? 'base',
+      breakdown,
+    }
   }
 
   /** 当前生效的定等规则（供前端预览「改了规则会怎样」） */
