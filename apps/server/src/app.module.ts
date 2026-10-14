@@ -16,6 +16,7 @@ import { ProductionModule } from './modules/production/production.module'
 import { CostModule } from './modules/cost/cost.module'
 import { WarehouseModule } from './modules/warehouse/warehouse.module'
 import { StocktakeModule } from './modules/stocktake/stocktake.module'
+import { QualityModule } from './modules/quality/quality.module'
 import { TraceabilityModule } from './modules/traceability/traceability.module'
 import { ContractModule } from './modules/contract/contract.module'
 import { AiModule } from './modules/ai/ai.module'
@@ -61,6 +62,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     CostModule,
     WarehouseModule,
     StocktakeModule,
+    QualityModule,
     TraceabilityModule,
     ContractModule,
     AiModule,
