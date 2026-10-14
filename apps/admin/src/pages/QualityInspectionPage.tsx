@@ -103,7 +103,7 @@ export default function QualityInspectionPage() {
       { title: '总扣分', dataIndex: 'totalPoints', width: 90, align: 'right' as const },
       {
         title: '平均扣分密度',
-        dataIndex: 'avgPointsPer100SqYd',
+        dataIndex: 'avgPenaltyDensity',
         width: 130,
         align: 'right' as const,
         render: (v: string) => fmt(v, 2),

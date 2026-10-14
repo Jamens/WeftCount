@@ -205,7 +205,7 @@ export default function QualityInspectionDetailPage() {
           <Card size="small">
             <Statistic
               title="平均扣分密度"
-              value={fmt(inspection.avgPointsPer100SqYd, 2)}
+              value={fmt(inspection.avgPenaltyDensity, 2)}
               suffix="分/100平方码"
             />
           </Card>
@@ -246,7 +246,7 @@ export default function QualityInspectionDetailPage() {
                 },
                 {
                   title: '密度',
-                  dataIndex: 'pointsPer100SqYd',
+                  dataIndex: 'penaltyDensity',
                   width: 80,
                   align: 'right',
                   render: (v: number) => fmt(v, 1),
@@ -423,7 +423,7 @@ export default function QualityInspectionDetailPage() {
                   <Text type="secondary">面积</Text>
                   <Text>{fmt(current.sqYards, 2)} 平方码</Text>
                   <Text type="secondary">密度</Text>
-                  <Text strong>{fmt(current.pointsPer100SqYd, 2)} 分/100平方码</Text>
+                  <Text strong>{fmt(current.penaltyDensity, 2)} 分/100平方码</Text>
                   <Text type="secondary">品等</Text>
                   {current.grade ? (
                     <Tag color={GRADE_COLOR[current.grade]}>{GRADE_LABELS[current.grade]}</Tag>

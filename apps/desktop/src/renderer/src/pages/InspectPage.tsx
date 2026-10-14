@@ -64,7 +64,7 @@ interface RollWire {
   widthInch: number
   sqYards: number
   totalPoints: number
-  pointsPer100SqYd: number
+  penaltyDensity: number
   overReceivingLimit: boolean
   grade: GreigeGrade | null
   defects: DefectWire[]
@@ -77,7 +77,7 @@ interface InspectionWire {
   rollCount: number
   totalPoints: number
   totalSqYd: string
-  avgPointsPer100SqYd: string
+  avgPenaltyDensity: string
   passRate: string | null
 }
 
@@ -338,7 +338,7 @@ export default function InspectPage() {
                       </div>
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {r.meters.toFixed(1)} m · {r.widthInch.toFixed(1)} 英寸 · 扣分 {r.totalPoints} · 密度{' '}
-                        {r.pointsPer100SqYd.toFixed(1)}
+                        {r.penaltyDensity.toFixed(1)}
                       </Text>
                     </Card>
                   ))}
@@ -508,7 +508,7 @@ export default function InspectPage() {
             <Space size={6}>
               <Text type="secondary">密度</Text>
               <Text strong style={{ fontSize: 18 }}>
-                {activeRoll.pointsPer100SqYd.toFixed(2)}
+                {activeRoll.penaltyDensity.toFixed(2)}
               </Text>
               <Text type="secondary">分/100平方码</Text>
             </Space>

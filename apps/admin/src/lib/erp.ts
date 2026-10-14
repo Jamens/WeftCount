@@ -1120,7 +1120,7 @@ export interface InspectionWire {
   rollCount: number
   totalPoints: number
   totalSqYd: string
-  avgPointsPer100SqYd: string
+  avgPenaltyDensity: string
   passRate: string | null
   remark: string | null
   createdAt: string
@@ -1144,7 +1144,7 @@ export interface InspectionRollView {
   widthInch: number
   sqYards: number
   totalPoints: number
-  pointsPer100SqYd: number
+  penaltyDensity: number
   overReceivingLimit: boolean
   grade: GreigeGrade | null
   remark: string | null

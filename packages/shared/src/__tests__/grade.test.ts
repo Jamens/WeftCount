@@ -57,25 +57,25 @@ describe('整匹扣分密度 scoreRoll', () => {
   it('扣分密度 = 总扣分 × 100 / 平方码', () => {
     const s = scoreRoll(roll)
     const sqYd = sqYardsOf(roll.meters, roll.widthInch)
-    expectNumber('扣分密度', s.pointsPer100SqYd, (roll.totalPoints * 100) / sqYd)
+    expectNumber('扣分密度', s.penaltyDensity, (roll.totalPoints * 100) / sqYd)
   })
 
   it('短匹同样扣分 → 密度更高（分母是面积，不是匹长）', () => {
     const long = scoreRoll({ meters: 1000, widthInch: 63, totalPoints: 4 })
     const short = scoreRoll({ meters: 10, widthInch: 63, totalPoints: 4 })
-    expectNumber('长匹密度', long.pointsPer100SqYd, (4 * 100) / sqYardsOf(1000, 63))
-    expectNumber('短匹密度', short.pointsPer100SqYd, (4 * 100) / sqYardsOf(10, 63))
-    expect(short.pointsPer100SqYd).toBeGreaterThan(long.pointsPer100SqYd)
+    expectNumber('长匹密度', long.penaltyDensity, (4 * 100) / sqYardsOf(1000, 63))
+    expectNumber('短匹密度', short.penaltyDensity, (4 * 100) / sqYardsOf(10, 63))
+    expect(short.penaltyDensity).toBeGreaterThan(long.penaltyDensity)
   })
 
   it('匹长或门幅为 0 → 面积 0、密度 0，不除零', () => {
     const s = scoreRoll({ meters: 0, widthInch: 63, totalPoints: 8 })
     expect(s.sqYards).toBe(0)
-    expect(s.pointsPer100SqYd).toBe(0)
+    expect(s.penaltyDensity).toBe(0)
 
     const s2 = scoreRoll({ meters: 100, widthInch: 0, totalPoints: 8 })
     expect(s2.sqYards).toBe(0)
-    expect(s2.pointsPer100SqYd).toBe(0)
+    expect(s2.penaltyDensity).toBe(0)
   })
 
   it('收货红线独立判定：密度 > 4 才报警，与定等无关', () => {
@@ -85,7 +85,7 @@ describe('整匹扣分密度 scoreRoll', () => {
 
     expect(clean.overReceivingLimit).toBe(false)
     expect(dirty.overReceivingLimit).toBe(true)
-    expectNumber('红线处密度', atLimit.pointsPer100SqYd, RECEIVING_LIMIT_PER_100_SQYD)
+    expectNumber('红线处密度', atLimit.penaltyDensity, RECEIVING_LIMIT_PER_100_SQYD)
     // 恰好等于红线不算超（标准是「不超过」）
     expect(atLimit.overReceivingLimit).toBe(false)
   })
@@ -115,15 +115,15 @@ describe('定等 gradeByDensity', () => {
   it('默认规则最后一条必须是 D 且上限无穷，否则上面这条会失效', () => {
     const last = DEFAULT_GRADE_RULES[DEFAULT_GRADE_RULES.length - 1]!
     expect(last.grade).toBe('D')
-    expect(last.maxPointsPer100SqYd).toBe(Number.POSITIVE_INFINITY)
+    expect(last.maxPenaltyDensity).toBe(Number.POSITIVE_INFINITY)
   })
 
   it('规则可配置：客户收紧标准时整批复算', () => {
     const strict = [
-      { grade: 'A' as const, maxPointsPer100SqYd: 10 },
-      { grade: 'B' as const, maxPointsPer100SqYd: 15 },
-      { grade: 'C' as const, maxPointsPer100SqYd: 20 },
-      { grade: 'D' as const, maxPointsPer100SqYd: Number.POSITIVE_INFINITY },
+      { grade: 'A' as const, maxPenaltyDensity: 10 },
+      { grade: 'B' as const, maxPenaltyDensity: 15 },
+      { grade: 'C' as const, maxPenaltyDensity: 20 },
+      { grade: 'D' as const, maxPenaltyDensity: Number.POSITIVE_INFINITY },
     ]
     // 同一匹布，默认规则下是 A，收紧后掉到 C
     expect(gradeByDensity(20)).toBe('A')

@@ -71,7 +71,7 @@ export class InspectionEntity {
 
   /** 定等规则快照（JSON），避免规则改了之后历史单据无法复核 */
   @Column({ type: 'json', nullable: true })
-  gradeRuleSnapshot!: { grade: string; maxPointsPer100SqYd: number }[] | null
+  gradeRuleSnapshot!: { grade: string; maxPenaltyDensity: number }[] | null
 
   @Column({ type: 'enum', enum: ['draft', 'done', 'void'], default: 'draft' })
   status!: InspectionStatus
@@ -90,7 +90,7 @@ export class InspectionEntity {
 
   /** 平均扣分密度（分 / 100 平方码）= 全单的加权口径，不是各匹密度的算术平均 */
   @Column({ type: 'decimal', precision: 10, scale: 4, default: 0 })
-  avgPointsPer100SqYd!: string
+  avgPenaltyDensity!: string
 
   /** 合格率（%）——未超收货红线的匹数占比 */
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })

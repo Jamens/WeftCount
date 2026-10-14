@@ -62,7 +62,7 @@ export const RECEIVING_LIMIT_PER_100_SQYD = 4
 export interface GradeRule {
   grade: GreigeGrade
   /** 扣分密度上限（分 / 100 平方码），**含等于** */
-  maxPointsPer100SqYd: number
+  maxPenaltyDensity: number
 }
 
 /**
@@ -73,10 +73,10 @@ export interface GradeRule {
  * 写死在代码里等于逼用户迁就系统。
  */
 export const DEFAULT_GRADE_RULES: readonly GradeRule[] = [
-  { grade: 'A', maxPointsPer100SqYd: 20 },
-  { grade: 'B', maxPointsPer100SqYd: 28 },
-  { grade: 'C', maxPointsPer100SqYd: 40 },
-  { grade: 'D', maxPointsPer100SqYd: Number.POSITIVE_INFINITY },
+  { grade: 'A', maxPenaltyDensity: 20 },
+  { grade: 'B', maxPenaltyDensity: 28 },
+  { grade: 'C', maxPenaltyDensity: 40 },
+  { grade: 'D', maxPenaltyDensity: Number.POSITIVE_INFINITY },
 ]
 
 export interface DefectPenaltyInput {
@@ -114,7 +114,7 @@ export interface RollScore {
   /** 匹面积（平方码） */
   sqYards: number
   /** 扣分密度（分 / 100 平方码） */
-  pointsPer100SqYd: number
+  penaltyDensity: number
   /** 是否超出收货红线（> 4 分 / 100 平方码） */
   overReceivingLimit: boolean
 }
@@ -133,12 +133,12 @@ export function scoreRoll(input: RollScoreInput): RollScore {
   const areaM2 = meters * widthM
   const sqYards = areaM2 > 0 ? convert(areaM2, 'm2', 'sqyd') : 0
 
-  const pointsPer100SqYd = sqYards > 0 ? (points * 100) / sqYards : 0
+  const penaltyDensity = sqYards > 0 ? (points * 100) / sqYards : 0
 
   return {
     sqYards,
-    pointsPer100SqYd,
-    overReceivingLimit: pointsPer100SqYd > RECEIVING_LIMIT_PER_100_SQYD,
+    penaltyDensity,
+    overReceivingLimit: penaltyDensity > RECEIVING_LIMIT_PER_100_SQYD,
   }
 }
 
@@ -148,12 +148,12 @@ export function scoreRoll(input: RollScoreInput): RollScore {
  * 未命中任何区间时落到**最后一条**规则（等外品），不抛错。
  */
 export function gradeByDensity(
-  pointsPer100SqYd: number,
+  penaltyDensity: number,
   rules: readonly GradeRule[] = DEFAULT_GRADE_RULES,
 ): GreigeGrade {
   if (rules.length === 0) return 'D'
   for (const rule of rules) {
-    if (pointsPer100SqYd <= rule.maxPointsPer100SqYd) return rule.grade
+    if (penaltyDensity <= rule.maxPenaltyDensity) return rule.grade
   }
   return rules[rules.length - 1]!.grade
 }

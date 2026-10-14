@@ -213,7 +213,7 @@ export class QualityService {
         sampleRate: input.sampleRate != null ? num(input.sampleRate, 2) : null,
         gradeRuleSnapshot: DEFAULT_GRADE_RULES.map((r) => ({
           grade: r.grade,
-          maxPointsPer100SqYd: r.maxPointsPer100SqYd === Number.POSITIVE_INFINITY ? null : r.maxPointsPer100SqYd,
+          maxPenaltyDensity: r.maxPenaltyDensity === Number.POSITIVE_INFINITY ? null : r.maxPenaltyDensity,
         })) as unknown as InspectionEntity['gradeRuleSnapshot'],
         status: 'draft',
         remark: input.remark ?? null,
@@ -265,7 +265,7 @@ export class QualityService {
         meters: toNum(r.meters),
         widthInch: toNum(r.widthInch),
         sqYards: toNum(r.sqYards),
-        pointsPer100SqYd: toNum(r.pointsPer100SqYd),
+        penaltyDensity: toNum(r.penaltyDensity),
         defects: defects
           .filter((d) => d.inspectionRollId === r.id)
           .map((d) => ({ ...d, positionM: toNum(d.positionM), lengthInch: toNum(d.lengthInch) })),
@@ -316,7 +316,7 @@ export class QualityService {
           widthInch: num(widthInch, 2),
           sqYards: num(sqYards, 4),
           totalPoints: 0,
-          pointsPer100SqYd: '0',
+          penaltyDensity: '0',
           overReceivingLimit: false,
           grade: null,
         }),
@@ -389,12 +389,12 @@ export class QualityService {
     const totalPoints = rows.reduce((s, r) => s + r.penalty, 0)
     const meters = toNum(ir.meters)
     const widthInch = toNum(ir.widthInch)
-    const { sqYards, pointsPer100SqYd, overReceivingLimit } = scoreRoll({ meters, widthInch, totalPoints })
+    const { sqYards, penaltyDensity, overReceivingLimit } = scoreRoll({ meters, widthInch, totalPoints })
     ir.totalPoints = totalPoints
     ir.sqYards = num(sqYards, 4)
-    ir.pointsPer100SqYd = num(pointsPer100SqYd, 4)
+    ir.penaltyDensity = num(penaltyDensity, 4)
     ir.overReceivingLimit = overReceivingLimit
-    ir.grade = gradeByDensity(pointsPer100SqYd)
+    ir.grade = gradeByDensity(penaltyDensity)
     await manager.save(ir)
   }
 
@@ -408,7 +408,7 @@ export class QualityService {
     insp.rollCount = rolls.length
     insp.totalPoints = totalPoints
     insp.totalSqYd = num(totalSqYd, 4)
-    insp.avgPointsPer100SqYd = num(totalSqYd > 0 ? (totalPoints * 100) / totalSqYd : 0, 4)
+    insp.avgPenaltyDensity = num(totalSqYd > 0 ? (totalPoints * 100) / totalSqYd : 0, 4)
     insp.passRate =
       rolls.length > 0 ? num((rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) * 100, 2) : null
     await manager.save(insp)

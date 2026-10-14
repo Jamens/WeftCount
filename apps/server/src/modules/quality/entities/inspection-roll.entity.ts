@@ -59,7 +59,7 @@ export class InspectionRollEntity {
 
   /** 扣分密度（分 / 100 平方码） */
   @Column({ type: 'decimal', precision: 10, scale: 4 })
-  pointsPer100SqYd!: string
+  penaltyDensity!: string
 
   /** 是否超出收货红线（> 4 分 / 100 平方码） */
   @Column({ type: 'boolean', default: false })
