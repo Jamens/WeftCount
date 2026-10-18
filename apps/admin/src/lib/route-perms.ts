@@ -61,6 +61,7 @@ export const ROUTE_PERMS: Record<string, string[]> = {
   '/quality/defect-types': [Permission.QUALITY_VIEW],
   '/quality/grade-prices': [Permission.QUALITY_VIEW],
   '/receivables': [Permission.REPORT_SALES],
+  '/machine-maintenance': [Permission.PRODUCTION_VIEW],
 }
 
 /** 某路径是否被权限门控保护 */

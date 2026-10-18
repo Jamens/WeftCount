@@ -47,6 +47,10 @@ export class MachineEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   remark!: string | null
 
+  /** 最近一次维保日期，由 maintenance_records 回写（机台主数据直接看保养状态） */
+  @Column({ type: 'date', nullable: true })
+  lastMaintenanceDate!: string | null
+
   @CreateDateColumn()
   createdAt!: Date
 

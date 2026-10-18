@@ -820,6 +820,67 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 - 冒烟 `11-receivable`（9 个用例）覆盖：出库单自动成应收、核销多单减未收、分配合计须等于收款额、
   超额被拒、非客户被拒、账龄按客户汇总、作废回退、对账单流水。**该冒烟文件已写入并注册到 `run.mjs`，
   但本轮回未执行**——`test:smoke` 需 `build:server` 并启动服务进程，按「不主动跑构建/起服务去验证」的约定留待你触发。
+### 设备维保
+
+**背景**：`machines` 此前只有主数据 CRUD（编码/名称/型号/状态），机台是织造厂「买得起养不起」的
+资产——电费占织造成本 25~40%，停机一小时就是真金白银。没有保养计划与故障统计，排产靠记忆、
+成本靠拍脑袋，机台的最近保养状态在哪都查不到。
+
+**为什么维保记录是「回写机台 + 计划」而不是「另建一张状态表」**：机台的最近维保日期、计划的
+下次到期日都是围绕「一条执行记录」派生出来的。另建状态表要把这些信息再抄一遍，抄错抄漏都对不上。
+直接让执行记录在一个事务里回写 `machines.last_maintenance_date` 和 `maintenance_plans.next_due_date`
+——单一事实源，不漂移。
+
+**数据模型**（迁移 `1732900000000-MachineMaintenance`）：
+
+| 表 / 字段 | 作用 |
+| --- | --- |
+| `machines.last_maintenance_date` | 最近一次维保日期，由 `maintenance_records` 回写，机台主数据直接可见 |
+| `maintenance_plans` | 保养计划：每台周期性任务（巡检/润滑/维修/大修），按天或运转小时循环，推算 `next_due_date` |
+| `maintenance_plans.next_due_date` | 下次到期日 = `last_done_date + cycle_value`；无执行记录时以今天为基准 |
+| `maintenance_records` | 维保执行 / 故障停机：一条记录一次保养或一次故障，故障带停机时长，是 MTBF 口径来源 |
+| `spare_parts` | 备件主数据 + 库存 + 安全库存，低于即预警 |
+| `maintenance_spare_parts` | 备件耗用明细：一条记录可挂多个耗用备件，耗用即出库（减库存） |
+
+**录执行记录是有状态推进，必须在一个事务里**：写记录 + 逐条扣减备件库存（不足即拒）+ 回写计划
+`last_done_date`/`next_due_date` + 回写机台 `last_maintenance_date` 四者要么同时成立要么同时回滚——
+否则会出现「记录了保养但备件没扣、或计划没顺延」这种说不清的状态。备件扣减前校验 `stock - qty >= 0`，
+负数直接拒绝，不偷偷把库存扣成负。
+
+**读接口**（权限 `production.view`，机台是生产资源）：
+
+- `GET /machine-maintenance/overview`：设备数 / 启用计划 / 7 天内到期 / 已逾期 / 本月故障 / 备件预警 六指标
+- `GET /machine-maintenance/plans`：计划列表（`dueSoon` 看即将到期，按 `next_due_date` 距今天数染色）
+- `GET /machine-maintenance/records`：执行 / 故障记录列表（带机台、计划、耗用备件名）
+- `GET /machine-maintenance/mtbf`：按机台故障次数 / 总停机 / 平均间隔（取相邻故障的日历日差均值，样本 <2 返回 null）
+
+**写接口**（权限 `production.order.edit`，保养是生产动作，不与只读角色混）：
+
+- `POST /machine-maintenance/plans` 建计划（自动推算 `next_due_date`）
+- `PUT /machine-maintenance/plans/:id` 改计划（改基准日 / 循环值会重算 `next_due_date`）
+- `POST /machine-maintenance/records` 录执行 / 故障（事务扣备件 + 回写计划与机台）
+- `POST /machine-maintenance/spare-parts` · `PUT /machine-maintenance/spare-parts/:id` 备件 CRUD
+
+**admin 页** `/machine-maintenance`：总览卡 + 计划 / 执行 / 备件 / MTBF 四 Tab。计划 Tab 建单自动
+出下次到期日并染色；执行 Tab 用 `Form.List` 挂多个耗用备件，选「故障」才显示停机时长。
+
+> 权限**复用** `production.view` / `production.order.edit`，未新增 `machine.*` 码：机台本就是生产资源，
+> 厂长/工艺员持 `production.*`、仓管持 `production.view` 已覆盖预期角色，避免触发角色权限重播
+> （`seed.ts` 本轮未读，无法验证新码的角色落点，复用现有码零漂移风险）。
+
+### 设备维保（本轮新增）验证状态
+
+- 迁移 `1732900000000-MachineMaintenance` **未在本环境实跑**——本环境 MySQL 拒绝
+  `root@172.17.0.1` 连接（`ER_ACCESS_DENIED_ERROR`，属环境/库可达性问题非代码缺陷），需可达库环境
+  手动 `pnpm --filter @weftcount/server migration:run` 才会新建 4 张表、`machines` 加列。
+- 三端 `tsc -b --noEmit`（**注意是 `tsc -b` 不是 `tsc -p`**）全过。本轮顺带修掉了此前被
+  `tsc -p tsconfig.json`（admin/desktop 的 `tsconfig.json` 是 `files: []`，等于空跑）漏掉的几处真实类型错误：
+  `maintenance.service.ts` 把 `date` 列（类型 `string`）误当 `Date` 构造、`MachineMaintenancePage.tsx`
+  未用参数 `r` 与 `s.qty` 可能 undefined。
+- 冒烟 `12-maintenance`（6 个用例）覆盖：按天推算下次到期、不存在机台被拒、录计划保养回写计划+机台+
+  扣备件、备件不足被拒、故障 MTBF（2 次/180 分/≈14 天）、总览。**该冒烟文件已写入并注册到 `run.mjs`，
+  但本轮回未执行**——`test:smoke` 需 `build:server` 并启动服务进程，按「不主动跑构建/起服务去验证」的约定留待你触发。
+
 ### 阶段三 ~ 八 · 待推进
 
 本轮按代码逐条盘点了缺口（结论附证据位置），**尚未实现**的按对织造厂 MES 的业务价值排序：
@@ -830,7 +891,7 @@ Electron 客户端直连后端（默认本机 3180，后端已开 CORS），把�
 | --- | --- | --- |
 | ~~**质检 + 疵点 + 坯布分等**~~ | ✅ 已完成（见上文「坯布检验分等」，含分等计价联动） | ~1000 行 |
 | ~~**应收账款 / 客户对账**~~ | ✅ 已完成（见上文「应收账款 / 客户对账」：台账/账龄/对账单/总览 + 核销事务） | ~1300 行 |
-| 设备维保 | 保养计划、维保执行、故障停机、备件、MTBF。当前 `machines` 仅主数据 CRUD | ~1000 行 |
+| ~~**设备维保**~~ | ✅ 已完成（见上文「设备维保」：计划/执行/故障停机/备件/MTBF + 事务回写） | ~1000 行 |
 | 计件工资 | 挡车工按匹计件。报工数据已完备（`outputM` + `stoppageMinutes`），只差聚合层 | ~800 行 |
 
 **第二梯队 · 削弱竞争力**
