@@ -29,6 +29,7 @@ import {
   InboxOutlined,
   FileExcelOutlined,
   DollarOutlined,
+  TransactionOutlined,
 } from '@ant-design/icons'
 import { api, tokenStore } from './lib/api'
 import { useAuthStore } from './stores/auth.store'
@@ -65,6 +66,7 @@ import QualityInspectionPage from './pages/QualityInspectionPage'
 import QualityInspectionDetailPage from './pages/QualityInspectionDetailPage'
 import QualityDefectTypePage from './pages/QualityDefectTypePage'
 import QualityGradePricePage from './pages/QualityGradePricePage'
+import ReceivablesPage from './pages/ReceivablesPage'
 import { routePerms } from './lib/route-perms'
 import { useThemeStore } from './stores/theme.store'
 
@@ -219,6 +221,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       { key: '/quality/inspections', icon: <FileSearchOutlined />, label: '坯布检验分等' },
       { key: '/quality/defect-types', icon: <ExperimentOutlined />, label: '疵点类型' },
       { key: '/quality/grade-prices', icon: <DollarOutlined />, label: '分等价目' },
+      { key: '/receivables', icon: <TransactionOutlined />, label: '应收账款' },
     ])),
       { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
       { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
@@ -390,6 +393,7 @@ const PROTECTED_ROUTES: { path: string; page: React.ReactNode }[] = [
   { path: '/quality/inspections/:id', page: <QualityInspectionDetailPage /> },
   { path: '/quality/defect-types', page: <QualityDefectTypePage /> },
   { path: '/quality/grade-prices', page: <QualityGradePricePage /> },
+  { path: '/receivables', page: <ReceivablesPage /> },
 ]
 
 /**

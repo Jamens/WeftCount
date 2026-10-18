@@ -24,6 +24,7 @@ import { AlertModule } from './modules/alert/alert.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { ImportExportModule } from './modules/import-export/import-export.module'
 import { DashboardModule } from './modules/dashboard/dashboard.module'
+import { ReceivableModule } from './modules/receivable/receivable.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -70,6 +71,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     AnalyticsModule,
     ImportExportModule,
     DashboardModule,
+    ReceivableModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 import type { PartnerStatus, PartnerType } from './entities/partner.entity'
 
 export class CreatePartnerDto {
@@ -31,6 +31,10 @@ export class CreatePartnerDto {
 
   @IsOptional() @IsString() @MaxLength(255)
   remark?: string
+
+  /** 信用账期（天），用于推算销售出库到期日；不传=按系统默认账期 */
+  @IsOptional() @IsInt() @Min(0)
+  creditDays?: number | null
 }
 
 export class UpdatePartnerDto {
@@ -63,6 +67,10 @@ export class UpdatePartnerDto {
 
   @IsOptional() @IsString() @MaxLength(255)
   remark?: string | null
+
+  /** 信用账期（天），不传则不修改 */
+  @IsOptional() @IsInt() @Min(0)
+  creditDays?: number | null
 }
 
 export class PartnerFilterDto {

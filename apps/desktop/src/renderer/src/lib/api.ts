@@ -146,7 +146,7 @@ interface Envelope<T> {
   data: T
 }
 
-async function request<T>(method: 'get' | 'post' | 'patch', url: string, data?: unknown): Promise<T> {
+async function request<T>(method: 'get' | 'post' | 'patch' | 'put', url: string, data?: unknown): Promise<T> {
   const res = await instance.request<Envelope<T>>({ method, url, data })
   return res.data.data
 }

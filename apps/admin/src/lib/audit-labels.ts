@@ -20,6 +20,7 @@ export const TARGET_LABELS: Record<AuditTargetType, string> = {
   production_order: '生产工单',
   inventory_document: '出入库单据',
   stocktake: '盘点单',
+  inspection: '坯布检验',
 }
 
 /** 查不到就原样显示英文 key——空字符串会让用户以为没有值 */

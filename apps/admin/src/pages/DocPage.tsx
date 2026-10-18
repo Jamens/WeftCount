@@ -504,8 +504,6 @@ export default function DocPage() {
               >
                 <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="可选" />
               </Form.Item>
-                <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="可选" />
-              </Form.Item>
               {creating && creating !== 'production_issue' && (
                 <Form.Item name="orderId" label="关联订单（可选，选后自动带出往来单位/明细行）">
                   <Select

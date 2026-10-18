@@ -59,7 +59,7 @@ export default function QualityInspectionDetailPage() {
   const load = useCallback(async () => {
     const res = await api.get<InspectionDetailWire>(`/quality/inspections/${id}`)
     setDetail(res.data.data)
-    setSelectedRollId((prev) => prev ?? res.data.rolls[0]?.rollId ?? null)
+    setSelectedRollId((prev) => prev ?? res.data.data.rolls[0]?.rollId ?? null)
   }, [id])
 
   useEffect(() => {

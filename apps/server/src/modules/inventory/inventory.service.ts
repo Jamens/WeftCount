@@ -33,6 +33,9 @@ const DOC_PREFIX: Record<InventoryDocType, string> = {
 }
 const BATCH_PREFIX = 'PC' // 批次
 
+/** 客户未设账期时的默认信用天数（天），用于推算销售出库到期日 */
+const DEFAULT_CREDIT_DAYS = 30
+
 /** 列精度的四舍五入工具（decimal 用 string 存，写入前统一规整） */
 function num(n: number, scale: number): string {
   const f = 10 ** scale
@@ -76,6 +79,11 @@ export interface CreateDocInput {
    */
   rolls?: { rollNo: string; meters: number }[] | null
   remark?: string | null
+  /**
+   * 到期日覆盖（仅销售出库）。不传则由系统按客户账期推算；
+   * 传了则以传入值为准（如预收/现结业务直接传开票当日）。
+   */
+  dueDate?: string | null
 }
 
 /** FIFO 消耗规划结果 */
@@ -199,7 +207,7 @@ export class InventoryService {
     ctx: { tenantId: string; companyId: string },
     partnerId: string | null | undefined,
     docType: InventoryDocType,
-  ): Promise<{ partnerId: string | null; partnerName: string | null }> {
+  ): Promise<{ partnerId: string | null; partnerName: string | null; creditDays: number | null }> {
     if (docType === 'production_issue') {
       if (partnerId) {
         throw new BadRequestException({
@@ -207,7 +215,7 @@ export class InventoryService {
           message: '生产领用为内部转移，不设往来单位',
         })
       }
-      return { partnerId: null, partnerName: null }
+      return { partnerId: null, partnerName: null, creditDays: null }
     }
 
     if (!partnerId) {
@@ -238,7 +246,16 @@ export class InventoryService {
           : `「${p.name}」不是客户，不能用于销售出库`,
       })
     }
-    return { partnerId: p.id, partnerName: p.name }
+    return { partnerId: p.id, partnerName: p.name, creditDays: p.creditDays }
+  }
+
+  /** 销售出库到期日：按客户账期推算，未设账期走默认 30 天；现金客户账期=0 即开票当日 */
+  private computeDueDate(creditDays: number | null | undefined): Date {
+    const days = creditDays && creditDays > 0 ? creditDays : DEFAULT_CREDIT_DAYS
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    d.setDate(d.getDate() + days)
+    return d
   }
 
   /**
@@ -995,6 +1012,13 @@ export class InventoryService {
           ? await this.resolveSalesPricing(ctx, orderId, orderItemId, input, plan)
           : { unitPrice: input.unitPrice ?? null, priceSnapshot: null }
       const docNo = await this.nextDocNo(ctx.companyId, docType)
+      // 销售出库：已核销额初始为 0，到期日按客户账期推算（允许建单时覆盖）
+      const dueDate =
+        docType === 'sales_outbound'
+          ? input.dueDate
+            ? new Date(input.dueDate)
+            : this.computeDueDate(partner.creditDays)
+          : null
       const doc = manager.create(InventoryDocumentEntity, {
         clientRequestId: input.clientRequestId ?? null,
         tenantId: ctx.tenantId,
@@ -1019,6 +1043,8 @@ export class InventoryService {
         orderItemId,
         operatorId: ctx.userId,
         remark: input.remark ?? null,
+        settledAmount: num(0, 2),
+        dueDate,
       })
       const savedDoc = await manager.save(doc)
       await this.executeConsumption(manager, ctx, savedDoc.id, txnType, input, plan)

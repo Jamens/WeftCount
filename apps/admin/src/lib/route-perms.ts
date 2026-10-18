@@ -60,6 +60,7 @@ export const ROUTE_PERMS: Record<string, string[]> = {
   '/quality/inspections/:id': [Permission.QUALITY_VIEW],
   '/quality/defect-types': [Permission.QUALITY_VIEW],
   '/quality/grade-prices': [Permission.QUALITY_VIEW],
+  '/receivables': [Permission.REPORT_SALES],
 }
 
 /** 某路径是否被权限门控保护 */

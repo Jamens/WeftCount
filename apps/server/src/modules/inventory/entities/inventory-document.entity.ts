@@ -150,6 +150,21 @@ export class InventoryDocumentEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   remark!: string | null
 
+  /**
+   * 已核销金额（元），仅销售出库有意义。
+   * 收款核销时按明细累加；等于 totalAmount 即该张应收结清。
+   * 采购/领用单据恒为 0.00（它们不是应收）。
+   */
+  @Column({ type: 'decimal', precision: 16, scale: 2, default: '0.00' })
+  settledAmount!: string
+
+  /**
+   * 到期日（销售出库）。建单时按客户账期推算（现金客户=开票当日）；
+   * 账龄分析以此为准。采购/领用为 null。
+   */
+  @Column({ type: 'date', nullable: true })
+  dueDate!: Date | null
+
   @CreateDateColumn()
   createdAt!: Date
 

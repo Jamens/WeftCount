@@ -119,6 +119,11 @@ class CreateDocDto implements CreateDocInput {
   @IsString()
   @MaxLength(255)
   remark?: string | null
+
+  /** 到期日覆盖（仅销售出库，ISO 日期）；不传按客户账期推算 */
+  @IsOptional()
+  @IsString()
+  dueDate?: string | null
 }
 
 class TransferDto {

@@ -125,6 +125,7 @@ export class PartnerService {
           bankAccount: input.bankAccount ?? null,
           status: 'active',
           remark: input.remark ?? null,
+          creditDays: input.creditDays ?? null,
         }),
       )
     })
@@ -190,6 +191,7 @@ export class PartnerService {
     if (input.bankName !== undefined) p.bankName = input.bankName ?? null
     if (input.bankAccount !== undefined) p.bankAccount = input.bankAccount ?? null
     if (input.remark !== undefined) p.remark = input.remark ?? null
+    if (input.creditDays !== undefined) p.creditDays = input.creditDays ?? null
     return this.partners.save(p)
   }
 

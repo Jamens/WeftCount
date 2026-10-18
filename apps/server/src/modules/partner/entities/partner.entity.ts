@@ -62,6 +62,14 @@ export class PartnerEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   remark!: string | null
 
+  /**
+   * 信用账期（天）。销售出库单据此推算到期日，是应收账龄分析的基准。
+   * 不设为 null 时按系统默认账期（见 DEFAULT_CREDIT_DAYS）推算——
+   * 现金客户把这里填 0，到期日即开票当日，不产生账龄。
+   */
+  @Column({ type: 'int', nullable: true })
+  creditDays!: number | null
+
   @CreateDateColumn()
   createdAt!: Date
 
