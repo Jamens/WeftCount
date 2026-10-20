@@ -69,6 +69,7 @@ import QualityDefectTypePage from './pages/QualityDefectTypePage'
 import QualityGradePricePage from './pages/QualityGradePricePage'
 import ReceivablesPage from './pages/ReceivablesPage'
 import MachineMaintenancePage from './pages/MachineMaintenancePage'
+import PayrollPage from './pages/PayrollPage'
 import { routePerms } from './lib/route-perms'
 import { useThemeStore } from './stores/theme.store'
 
@@ -197,6 +198,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       { key: '/', icon: <DashboardOutlined />, label: '工作台' },
       { key: '/production', icon: <ClusterOutlined />, label: '生产管理' },
       { key: '/machine-maintenance', icon: <ToolOutlined />, label: '设备维保' },
+      { key: '/wages', icon: <DollarOutlined />, label: '计件工资' },
       { key: '/alerts', icon: <BellOutlined />, label: '预警中心' },
     ])),
     g('基础资料', items([
@@ -398,6 +400,7 @@ const PROTECTED_ROUTES: { path: string; page: React.ReactNode }[] = [
   { path: '/quality/grade-prices', page: <QualityGradePricePage /> },
   { path: '/receivables', page: <ReceivablesPage /> },
   { path: '/machine-maintenance', page: <MachineMaintenancePage /> },
+  { path: '/wages', page: <PayrollPage /> },
 ]
 
 /**

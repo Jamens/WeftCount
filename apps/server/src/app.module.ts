@@ -26,6 +26,7 @@ import { ImportExportModule } from './modules/import-export/import-export.module
 import { DashboardModule } from './modules/dashboard/dashboard.module'
 import { ReceivableModule } from './modules/receivable/receivable.module'
 import { MaintenanceModule } from './modules/maintenance/maintenance.module'
+import { PayrollModule } from './modules/payroll/payroll.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 @Module({
@@ -74,6 +75,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     DashboardModule,
     ReceivableModule,
     MaintenanceModule,
+    PayrollModule,
   ],
   controllers: [HealthController],
   providers: [
