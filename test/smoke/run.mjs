@@ -78,7 +78,7 @@ async function main() {
   }
   console.log('[smoke] 测试后端就绪')
 
-  const testFiles = ['01-auth', '02-inventory', '03-order-contract', '04-ai', '05-alert', '06-import-export', '07-report-export', '08-dashboard', '09-integrity', '10-quality', '11-receivable', '12-maintenance', '13-payroll']
+  const testFiles = ['01-auth', '02-inventory', '03-order-contract', '04-ai', '05-alert', '06-import-export', '07-report-export', '08-dashboard', '09-integrity', '10-quality', '11-receivable', '12-maintenance', '13-payroll', '14-energy']
     .map((n) => join(__dirname, `${n}.test.mjs`))
   // --test-concurrency=1：测试文件串行。node --test 默认并行跑文件，而这些用例共享同一个
   // 测试数据库、都会创建单据，并行会撞 nextDocNo 的单号（唯一键冲突）。串行也符合冒烟的真实语义。

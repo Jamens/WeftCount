@@ -63,6 +63,7 @@ export const ROUTE_PERMS: Record<string, string[]> = {
   '/receivables': [Permission.REPORT_SALES],
   '/machine-maintenance': [Permission.PRODUCTION_VIEW],
   '/wages': [Permission.COST_MANAGE],
+  '/energy': [Permission.COST_VIEW],
 }
 
 /** 某路径是否被权限门控保护 */

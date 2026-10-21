@@ -70,6 +70,7 @@ import QualityGradePricePage from './pages/QualityGradePricePage'
 import ReceivablesPage from './pages/ReceivablesPage'
 import MachineMaintenancePage from './pages/MachineMaintenancePage'
 import PayrollPage from './pages/PayrollPage'
+import EnergyPage from './pages/EnergyPage'
 import { routePerms } from './lib/route-perms'
 import { useThemeStore } from './stores/theme.store'
 
@@ -229,6 +230,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       { key: '/receivables', icon: <TransactionOutlined />, label: '应收账款' },
     ])),
       { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
+      { key: '/energy', icon: <ThunderboltOutlined />, label: '设备能耗' },
       { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
       { key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' },
     ])),
@@ -401,6 +403,7 @@ const PROTECTED_ROUTES: { path: string; page: React.ReactNode }[] = [
   { path: '/receivables', page: <ReceivablesPage /> },
   { path: '/machine-maintenance', page: <MachineMaintenancePage /> },
   { path: '/wages', page: <PayrollPage /> },
+  { path: '/energy', page: <EnergyPage /> },
 ]
 
 /**
