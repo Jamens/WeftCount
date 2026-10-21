@@ -223,16 +223,16 @@ function Shell({ children }: { children: React.ReactNode }) {
       { key: '/stocktakes', icon: <FileDoneOutlined />, label: '库存盘点' },
     ])),
     g('成本与报表', items([
+      { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
+      { key: '/energy', icon: <ThunderboltOutlined />, label: '设备能耗' },
+      { key: '/receivables', icon: <TransactionOutlined />, label: '应收账款' },
+      { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
+      { key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' },
+    ])),
     g('质检', items([
       { key: '/quality/inspections', icon: <FileSearchOutlined />, label: '坯布检验分等' },
       { key: '/quality/defect-types', icon: <ExperimentOutlined />, label: '疵点类型' },
       { key: '/quality/grade-prices', icon: <DollarOutlined />, label: '分等价目' },
-      { key: '/receivables', icon: <TransactionOutlined />, label: '应收账款' },
-    ])),
-      { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
-      { key: '/energy', icon: <ThunderboltOutlined />, label: '设备能耗' },
-      { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
-      { key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' },
     ])),
     g('AI 智能', items([
       { key: '/ai-quote', icon: <RobotOutlined />, label: '智能核价' },
