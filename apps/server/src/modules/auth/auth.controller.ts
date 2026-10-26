@@ -99,7 +99,9 @@ export class AuthController {
     @CurrentUser() ctx: RequestContext,
     @Body() dto: ChangePasswordDto,
   ): Promise<{ ok: true }> {
-    return this.auth.changePassword(ctx.userId, dto.oldPassword, dto.newPassword).then(() => ({ ok: true }))
+    return this.auth
+      .changePassword(ctx.userId, dto.oldPassword, dto.newPassword)
+      .then(() => ({ ok: true }))
   }
 
   @Get('permissions')

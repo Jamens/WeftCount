@@ -1,7 +1,16 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator'
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'
@@ -53,7 +62,9 @@ class CreateDocDto implements CreateDocInput {
    * 客户端幂等键（可选）：桌面端离线队列重放时复用同一个值，
    * 服务端据此去重，避免同一笔单据被重复过账。
    */
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   clientRequestId?: string | null
 
   @IsString()
@@ -179,7 +190,11 @@ export class InventoryController {
   @Get('rolls')
   @RequirePermission(Permission.INVENTORY_VIEW)
   @ApiOperation({ summary: '列件卡(可按批次/状态过滤)，件卡标签打印用' })
-  listRolls(@CurrentUser() ctx: RequestContext, @Query('batchId') batchId?: string, @Query('status') status?: string) {
+  listRolls(
+    @CurrentUser() ctx: RequestContext,
+    @Query('batchId') batchId?: string,
+    @Query('status') status?: string,
+  ) {
     return this.inventory.listRolls(ctx.tenantId, ctx.companyId, { batchId, status })
   }
 
@@ -225,7 +240,11 @@ export class InventoryController {
   @Get('transactions')
   @RequirePermission(Permission.INVENTORY_VIEW)
   @ApiOperation({ summary: '事务流水' })
-  transactions(@CurrentUser() ctx: RequestContext, @Query('batchId') batchId?: string, @Query('docId') docId?: string) {
+  transactions(
+    @CurrentUser() ctx: RequestContext,
+    @Query('batchId') batchId?: string,
+    @Query('docId') docId?: string,
+  ) {
     return this.inventory.listTransactions(ctx.tenantId, ctx.companyId, { batchId, docId })
   }
 

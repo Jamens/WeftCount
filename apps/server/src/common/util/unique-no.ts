@@ -2,7 +2,12 @@ import { BadRequestException } from '@nestjs/common'
 
 /** 判断是否 MySQL 唯一键冲突（1062 / ER_DUP_ENTRY） */
 export function isDuplicateEntryError(e: unknown): boolean {
-  const err = e as { code?: string; errno?: number; driverError?: { code?: string }; message?: string }
+  const err = e as {
+    code?: string
+    errno?: number
+    driverError?: { code?: string }
+    message?: string
+  }
   return (
     err?.code === 'ER_DUP_ENTRY' ||
     err?.errno === 1062 ||

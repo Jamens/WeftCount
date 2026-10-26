@@ -1,0 +1,15 @@
+# 统一换行符为 LF，保证 Prettier 在 Windows/macOS/Linux 行为一致
+* text=auto eol=lf
+
+# 锁定不应转换的二进制/数据文件
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+pnpm-lock.yaml text eol=lf linguist-generated=true

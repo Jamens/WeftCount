@@ -79,8 +79,18 @@ export interface BatchWire {
 
 /** 批次来源链（简化，用于扫码查询页展示） */
 export type BatchOrigin =
-  | { kind: 'production'; workOrder: { orderNo: string; status: string }; machine: { name: string; model: string | null } | null; report: { reportDate: string; outputM: string } }
-  | { kind: 'purchase'; purchaseDoc: { docNo: string }; supplier: { id: string; name: string } | null; purchaseOrder: { orderNo: string } | null }
+  | {
+      kind: 'production'
+      workOrder: { orderNo: string; status: string }
+      machine: { name: string; model: string | null } | null
+      report: { reportDate: string; outputM: string }
+    }
+  | {
+      kind: 'purchase'
+      purchaseDoc: { docNo: string }
+      supplier: { id: string; name: string } | null
+      purchaseOrder: { orderNo: string } | null
+    }
   | { kind: 'transfer'; fromBatchNo: string; origin: BatchOrigin | null }
   | { kind: 'unknown'; sourceType: string }
 

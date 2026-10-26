@@ -151,7 +151,10 @@ export default function PartnerPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             往来单位
@@ -215,7 +218,11 @@ export default function PartnerPage() {
           dataSource={data}
           onRow={(r) => ({ onClick: () => setDetail(r) })}
           scroll={{ y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 90 },
             { title: '名称', dataIndex: 'name', width: 160 },
@@ -225,9 +232,25 @@ export default function PartnerPage() {
               width: 130,
               render: (v: PartnerTypeValue) => <Tag color="blue">{PARTNER_TYPE_LABEL[v] ?? v}</Tag>,
             },
-            { title: '联系人', dataIndex: 'contact', width: 90, render: (v: string | null) => v ?? '-' },
-            { title: '电话', dataIndex: 'phone', width: 130, render: (v: string | null) => v ?? '-' },
-            { title: '税号', dataIndex: 'taxNo', width: 140, ellipsis: true, render: (v: string | null) => v ?? '-' },
+            {
+              title: '联系人',
+              dataIndex: 'contact',
+              width: 90,
+              render: (v: string | null) => v ?? '-',
+            },
+            {
+              title: '电话',
+              dataIndex: 'phone',
+              width: 130,
+              render: (v: string | null) => v ?? '-',
+            },
+            {
+              title: '税号',
+              dataIndex: 'taxNo',
+              width: 140,
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '状态',
               dataIndex: 'status',
@@ -244,7 +267,14 @@ export default function PartnerPage() {
               render: (_, r) =>
                 canEdit && r.status === 'active' ? (
                   <Space size={4}>
-                    <Button type="link" size="small" onClick={(e) => { e.stopPropagation(); openEdit(r) }}>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEdit(r)
+                      }}
+                    >
                       编辑
                     </Button>
                     <Popconfirm title="确认停用该往来单位？" onConfirm={() => void onDisable(r.id)}>
@@ -262,7 +292,12 @@ export default function PartnerPage() {
       </Card>
 
       {/* 详情抽屉（只读） */}
-      <Drawer title="往来单位详情" width={480} open={detail !== null} onClose={() => setDetail(null)}>
+      <Drawer
+        title="往来单位详情"
+        width={480}
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+      >
         {detail && (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Detail label="编码" value={detail.code} />
@@ -274,7 +309,10 @@ export default function PartnerPage() {
             <Detail label="地址" value={detail.address ?? '-'} />
             <Detail label="开户行" value={detail.bankName ?? '-'} />
             <Detail label="银行账号" value={detail.bankAccount ?? '-'} />
-            <Detail label="状态" value={PARTNER_STATUS_LABEL[detail.status]?.text ?? detail.status} />
+            <Detail
+              label="状态"
+              value={PARTNER_STATUS_LABEL[detail.status]?.text ?? detail.status}
+            />
             <Detail label="备注" value={detail.remark ?? '-'} />
           </Space>
         )}
@@ -299,7 +337,11 @@ export default function PartnerPage() {
           <Form.Item name="code" label="编码" extra="留空则由系统按 P + 流水自动生成（如 P0001）">
             <Input placeholder="可选" maxLength={32} />
           </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入单位名称' }]}>
+          <Form.Item
+            name="name"
+            label="名称"
+            rules={[{ required: true, message: '请输入单位名称' }]}
+          >
             <Input placeholder="如：绍兴某某纺织有限公司" maxLength={128} />
           </Form.Item>
           <Form.Item name="type" label="类型" rules={[{ required: true }]}>

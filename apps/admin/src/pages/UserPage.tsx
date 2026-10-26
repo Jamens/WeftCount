@@ -55,7 +55,11 @@ export default function UserPage() {
   const [editing, setEditing] = useState<UserWire | null>(null)
   // 账号有效权限（多角色并集）
   const [permUser, setPermUser] = useState<UserWire | null>(null)
-  const [permData, setPermData] = useState<{ roles: { code: string; name: string; permissions: string[] }[]; effective: string[]; workshopViews: string[] } | null>(null)
+  const [permData, setPermData] = useState<{
+    roles: { code: string; name: string; permissions: string[] }[]
+    effective: string[]
+    workshopViews: string[]
+  } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm<UserForm>()
 
@@ -91,9 +95,11 @@ export default function UserPage() {
     setPermUser(u)
     setPermData(null)
     try {
-      const res = await api.get<{ roles: { code: string; name: string; permissions: string[] }[]; effective: string[]; workshopViews: string[] }>(
-        `/users/${u.id}/permissions`
-      )
+      const res = await api.get<{
+        roles: { code: string; name: string; permissions: string[] }[]
+        effective: string[]
+        workshopViews: string[]
+      }>(`/users/${u.id}/permissions`)
       setPermData(res.data.data)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载账号权限失败')
@@ -132,7 +138,11 @@ export default function UserPage() {
         await api.patch(`/users/${editing.id}`, payload)
         message.success('用户已更新')
       } else {
-        await api.post('/users', { ...payload, username: values.username, password: values.password })
+        await api.post('/users', {
+          ...payload,
+          username: values.username,
+          password: values.password,
+        })
         message.success('用户已创建')
       }
       setOpen(false)
@@ -160,7 +170,10 @@ export default function UserPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             用户管理
@@ -188,23 +201,55 @@ export default function UserPage() {
           loading={loading}
           dataSource={users}
           scroll={{ y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 人`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 人`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '账号', dataIndex: 'username', width: 120 },
             { title: '姓名', dataIndex: 'realName', width: 110 },
-            { title: '电话', dataIndex: 'phone', width: 130, render: (v: string | null) => v ?? '-' },
-            { title: '邮箱', dataIndex: 'email', ellipsis: true, render: (v: string | null) => v ?? '-' },
+            {
+              title: '电话',
+              dataIndex: 'phone',
+              width: 130,
+              render: (v: string | null) => v ?? '-',
+            },
+            {
+              title: '邮箱',
+              dataIndex: 'email',
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '所属公司',
               dataIndex: 'companyNames',
               render: (names: string[]) =>
-                names.length ? <Space size={[2, 2]} wrap>{names.map((n) => <Tag key={n}>{n}</Tag>)}</Space> : '-',
+                names.length ? (
+                  <Space size={[2, 2]} wrap>
+                    {names.map((n) => (
+                      <Tag key={n}>{n}</Tag>
+                    ))}
+                  </Space>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: '角色',
               dataIndex: 'roleNames',
               render: (names: string[]) =>
-                names.length ? <Space size={[2, 2]} wrap>{names.map((n) => <Tag color="blue" key={n}>{n}</Tag>)}</Space> : '-',
+                names.length ? (
+                  <Space size={[2, 2]} wrap>
+                    {names.map((n) => (
+                      <Tag color="blue" key={n}>
+                        {n}
+                      </Tag>
+                    ))}
+                  </Space>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: '状态',
@@ -263,11 +308,23 @@ export default function UserPage() {
           </Space>
         }
       >
-        <Form<UserForm> form={form} layout="vertical" initialValues={{ companyIds: [], roleCodes: [] }}>
-          <Form.Item name="username" label="登录账号" rules={[{ required: !editing, message: '请输入账号' }]}>
+        <Form<UserForm>
+          form={form}
+          layout="vertical"
+          initialValues={{ companyIds: [], roleCodes: [] }}
+        >
+          <Form.Item
+            name="username"
+            label="登录账号"
+            rules={[{ required: !editing, message: '请输入账号' }]}
+          >
             <Input placeholder="如：zhangsan" maxLength={64} disabled={!!editing} />
           </Form.Item>
-          <Form.Item name="realName" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
+          <Form.Item
+            name="realName"
+            label="姓名"
+            rules={[{ required: true, message: '请输入姓名' }]}
+          >
             <Input placeholder="如：张三" maxLength={64} />
           </Form.Item>
           <Form.Item
@@ -294,10 +351,18 @@ export default function UserPage() {
           <Form.Item name="email" label="邮箱">
             <Input placeholder="可选" maxLength={128} />
           </Form.Item>
-          <Form.Item name="companyIds" label="所属公司" rules={[{ required: true, message: '至少选择一个公司' }]}>
+          <Form.Item
+            name="companyIds"
+            label="所属公司"
+            rules={[{ required: true, message: '至少选择一个公司' }]}
+          >
             <Select mode="multiple" allowClear placeholder="选择公司" options={companyOptions} />
           </Form.Item>
-          <Form.Item name="roleCodes" label="角色" rules={[{ required: true, message: '至少分配一个角色' }]}>
+          <Form.Item
+            name="roleCodes"
+            label="角色"
+            rules={[{ required: true, message: '至少分配一个角色' }]}
+          >
             <Select mode="multiple" allowClear placeholder="选择角色" options={roleOptions} />
           </Form.Item>
           {editing && (
@@ -339,7 +404,9 @@ export default function UserPage() {
                 {permData.workshopViews.length ? (
                   <Space size={[4, 4]} wrap>
                     {permData.workshopViews.map((v) => (
-                      <Tag color="blue" key={v}>{WORKSHOP_VIEW_LABEL[v] ?? v}</Tag>
+                      <Tag color="blue" key={v}>
+                        {WORKSHOP_VIEW_LABEL[v] ?? v}
+                      </Tag>
                     ))}
                   </Space>
                 ) : (

@@ -15,7 +15,14 @@ export interface LabelData {
 function barcodeSvg(code: string): string {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   try {
-    JsBarcode(svg, code, { format: 'CODE128', displayValue: true, height: 44, width: 1.6, fontSize: 13, margin: 6 })
+    JsBarcode(svg, code, {
+      format: 'CODE128',
+      displayValue: true,
+      height: 44,
+      width: 1.6,
+      fontSize: 13,
+      margin: 6,
+    })
   } catch {
     // 条码内容非法时给出占位，避免整张标签打不出来
     return `<div style="font:14px monospace;padding:8px">${code}</div>`

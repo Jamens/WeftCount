@@ -1,10 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { App as AntdApp, Button, Card, Col, Empty, Row, Select, Space, Table, Tag, Typography, theme } from 'antd'
+import {
+  App as AntdApp,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  theme,
+} from 'antd'
 import { PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import { buildLabelHtml, type LabelData } from '../lib/label'
-import { fmt, type BatchWire, type GreigeSpecWire, type MaterialWire, type WarehouseWire } from '../lib/types'
+import {
+  fmt,
+  type BatchWire,
+  type GreigeSpecWire,
+  type MaterialWire,
+  type WarehouseWire,
+} from '../lib/types'
 
 const { Title, Text } = Typography
 
@@ -54,7 +73,9 @@ export default function LabelPage() {
       specName: specs.find((s) => s.id === target.specId)?.name ?? '-',
       quantityM: fmt(target.quantity, 1),
       weightKg: fmt(target.weightKg, 1),
-      warehouseName: target.warehouseId ? (warehouses.find((w) => w.id === target.warehouseId)?.name ?? '-') : '未指定',
+      warehouseName: target.warehouseId
+        ? (warehouses.find((w) => w.id === target.warehouseId)?.name ?? '-')
+        : '未指定',
       date: dayjs(target.inboundAt).format('YYYY-MM-DD'),
     }
   }, [target, materials, specs, warehouses])
@@ -92,7 +113,9 @@ export default function LabelPage() {
                   onChange={setWarehouseId}
                   options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
                 />
-                <Button icon={<ReloadOutlined />} onClick={() => void load()}>刷新</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => void load()}>
+                  刷新
+                </Button>
               </Space>
             }
           >
@@ -104,13 +127,40 @@ export default function LabelPage() {
                 size="small"
                 pagination={{ pageSize: 8, showSizeChanger: false }}
                 dataSource={filtered}
-                onRow={(r) => ({ onClick: () => setTarget(r), style: { cursor: 'pointer', background: target?.id === r.id ? token.colorPrimaryBg : undefined } })}
+                onRow={(r) => ({
+                  onClick: () => setTarget(r),
+                  style: {
+                    cursor: 'pointer',
+                    background: target?.id === r.id ? token.colorPrimaryBg : undefined,
+                  },
+                })}
                 columns={[
                   { title: '批次号', dataIndex: 'batchNo', width: 140 },
-                  { title: '物料', dataIndex: 'materialId', width: 130, render: (v: string) => materials.find((m) => m.id === v)?.name ?? '-' },
-                  { title: '规格', dataIndex: 'specId', width: 120, render: (v: string) => specs.find((s) => s.id === v)?.name ?? '-' },
-                  { title: '数量(米)', dataIndex: 'quantity', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
-                  { title: '状态', dataIndex: 'status', width: 80, render: (s: string) => <Tag>{s}</Tag> },
+                  {
+                    title: '物料',
+                    dataIndex: 'materialId',
+                    width: 130,
+                    render: (v: string) => materials.find((m) => m.id === v)?.name ?? '-',
+                  },
+                  {
+                    title: '规格',
+                    dataIndex: 'specId',
+                    width: 120,
+                    render: (v: string) => specs.find((s) => s.id === v)?.name ?? '-',
+                  },
+                  {
+                    title: '数量(米)',
+                    dataIndex: 'quantity',
+                    width: 90,
+                    align: 'right',
+                    render: (v: string) => fmt(v, 0),
+                  },
+                  {
+                    title: '状态',
+                    dataIndex: 'status',
+                    width: 80,
+                    render: (s: string) => <Tag>{s}</Tag>,
+                  },
                 ]}
               />
             )}
@@ -122,7 +172,13 @@ export default function LabelPage() {
             size="small"
             title="标签预览"
             extra={
-              <Button type="primary" icon={<PrinterOutlined />} loading={printing} disabled={!target} onClick={() => void onPrint()}>
+              <Button
+                type="primary"
+                icon={<PrinterOutlined />}
+                loading={printing}
+                disabled={!target}
+                onClick={() => void onPrint()}
+              >
                 打印
               </Button>
             }
@@ -132,7 +188,12 @@ export default function LabelPage() {
                 <iframe
                   title="label-preview"
                   srcDoc={labelHtml}
-                  style={{ width: '100%', height: 380, border: `1px solid ${token.colorBorder}`, borderRadius: 4 }}
+                  style={{
+                    width: '100%',
+                    height: 380,
+                    border: `1px solid ${token.colorBorder}`,
+                    borderRadius: 4,
+                  }}
                 />
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   打印走本地系统打印机（离线可用）；扫标签上的条码可在「扫码查询」查这批布的档案与来源。

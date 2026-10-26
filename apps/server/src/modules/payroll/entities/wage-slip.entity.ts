@@ -19,7 +19,9 @@ import {
  */
 @Entity('wage_slips')
 @Index('idx_slips_no_company', ['slipNo', 'companyId'], { unique: true })
-@Index('idx_slips_user_period', ['companyId', 'userId', 'periodStart', 'periodEnd'], { unique: true })
+@Index('idx_slips_user_period', ['companyId', 'userId', 'periodStart', 'periodEnd'], {
+  unique: true,
+})
 @Index('idx_slips_company', ['companyId'])
 @Index('idx_slips_user', ['companyId', 'userId'])
 @Index('idx_slips_period', ['companyId', 'periodStart', 'periodEnd'])

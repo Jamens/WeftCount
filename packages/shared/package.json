@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "echo \"shared: no lint yet\""
+    "lint": "eslint ."
   },
   "devDependencies": {
     "typescript": "^5.7.3",

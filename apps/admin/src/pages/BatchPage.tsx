@@ -51,7 +51,8 @@ export default function BatchPage() {
       .catch(() => setWarehouses([]))
   }, [])
 
-  const warehouseName = (id: string | null) => (id ? (warehouses.find((w) => w.id === id)?.name ?? id) : '未指定')
+  const warehouseName = (id: string | null) =>
+    id ? (warehouses.find((w) => w.id === id)?.name ?? id) : '未指定'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -99,7 +100,10 @@ export default function BatchPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             库存批次
@@ -135,7 +139,10 @@ export default function BatchPage() {
               ...(Object.keys(BATCH_STATUS_LABEL) as BatchWire['status'][]).map((k) => ({
                 value: k,
                 // 耗尽批次文案点明它仍可查——避免被误解为「垃圾数据」而想删
-                label: k === 'depleted' ? `${BATCH_STATUS_LABEL[k].text}（已归档，仍可追溯）` : BATCH_STATUS_LABEL[k].text,
+                label:
+                  k === 'depleted'
+                    ? `${BATCH_STATUS_LABEL[k].text}（已归档，仍可追溯）`
+                    : BATCH_STATUS_LABEL[k].text,
               })),
               { value: 'all', label: '全部（含已归档）' },
             ]}
@@ -163,7 +170,11 @@ export default function BatchPage() {
           loading={loading}
           dataSource={data}
           scroll={{ x: 1100, y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '批次号', dataIndex: 'batchNo', width: 130, fixed: 'left' },
             {
@@ -182,7 +193,8 @@ export default function BatchPage() {
               title: '仓库',
               dataIndex: 'warehouseId',
               width: 110,
-              render: (v: string | null) => (v ? <Tag>{warehouseName(v)}</Tag> : <Text type="secondary">未指定</Text>),
+              render: (v: string | null) =>
+                v ? <Tag>{warehouseName(v)}</Tag> : <Text type="secondary">未指定</Text>,
             },
             {
               title: '操作',
@@ -190,14 +202,25 @@ export default function BatchPage() {
               fixed: 'right',
               render: (_, r) =>
                 canManage && r.remainingQuantity !== '0.000' && Number(r.remainingQuantity) > 0 ? (
-                  <Button type="link" size="small" icon={<SwapOutlined />} onClick={() => openTransfer(r)}>
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<SwapOutlined />}
+                    onClick={() => openTransfer(r)}
+                  >
                     调拨
                   </Button>
                 ) : (
                   <Text type="secondary">-</Text>
                 ),
             },
-            { title: '门幅', dataIndex: 'widthCm', width: 80, align: 'right', render: (v: string) => `${fmt(v, 1)}cm` },
+            {
+              title: '门幅',
+              dataIndex: 'widthCm',
+              width: 80,
+              align: 'right',
+              render: (v: string) => `${fmt(v, 1)}cm`,
+            },
             {
               title: '入库量',
               width: 110,
@@ -220,9 +243,7 @@ export default function BatchPage() {
               title: '剩余量',
               width: 110,
               align: 'right',
-              render: (_, r) => (
-                <Text strong>{`${fmt(r.remainingQuantity, 2)} m`}</Text>
-              ),
+              render: (_, r) => <Text strong>{`${fmt(r.remainingQuantity, 2)} m`}</Text>,
             },
             {
               title: '剩余重',
@@ -275,7 +296,11 @@ export default function BatchPage() {
             <Form.Item label="源批次剩余">
               <Text strong>{fmt(transferring.remainingQuantity, 2)} m</Text>
             </Form.Item>
-            <Form.Item name="toWarehouseId" label="目标仓库" rules={[{ required: true, message: '请选择目标仓库' }]}>
+            <Form.Item
+              name="toWarehouseId"
+              label="目标仓库"
+              rules={[{ required: true, message: '请选择目标仓库' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -285,7 +310,11 @@ export default function BatchPage() {
                   .map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` }))}
               />
             </Form.Item>
-            <Form.Item name="quantityM" label="调拨数量（米）" rules={[{ required: true, message: '请输入调拨数量' }]}>
+            <Form.Item
+              name="quantityM"
+              label="调拨数量（米）"
+              rules={[{ required: true, message: '请输入调拨数量' }]}
+            >
               <InputNumber
                 style={{ width: '100%' }}
                 min={0.0001}

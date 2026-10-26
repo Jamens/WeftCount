@@ -36,21 +36,24 @@ export default function TransactionPage() {
   const filtered = useMemo(
     () =>
       data.filter(
-        (t) =>
-          (!specId || t.specId === specId) && (!direction || t.direction === direction),
+        (t) => (!specId || t.specId === specId) && (!direction || t.direction === direction),
       ),
     [data, specId, direction],
   )
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             库存事务流水
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            每一次出入库落一条流水，方向 + 变化量 + 变化后余额三件套；同一笔移动用米/公斤/平方米三本账记录
+            每一次出入库落一条流水，方向 + 变化量 +
+            变化后余额三件套；同一笔移动用米/公斤/平方米三本账记录
           </Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void load()}>
@@ -91,7 +94,11 @@ export default function TransactionPage() {
           loading={loading}
           dataSource={filtered}
           scroll={{ x: 1200, y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 30 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 30,
+          }}
           columns={[
             {
               title: '时间',
@@ -113,7 +120,12 @@ export default function TransactionPage() {
               render: (v: StockTxnTypeValue) => STOCK_TXN_LABEL[v] ?? v,
             },
             { title: '规格', dataIndex: 'specId', width: 160, render: (v: string) => specName(v) },
-            { title: '物料', dataIndex: 'materialId', width: 130, render: (v: string) => materialName(v) },
+            {
+              title: '物料',
+              dataIndex: 'materialId',
+              width: 130,
+              render: (v: string) => materialName(v),
+            },
             {
               title: '变化量(m)',
               dataIndex: 'changeQuantity',
@@ -156,7 +168,11 @@ export default function TransactionPage() {
               title: '来源单据',
               dataIndex: 'docId',
               width: 120,
-              render: (v: string) => <Text code style={{ fontSize: 11 }}>{v.slice(0, 8)}…</Text>,
+              render: (v: string) => (
+                <Text code style={{ fontSize: 11 }}>
+                  {v.slice(0, 8)}…
+                </Text>
+              ),
             },
           ]}
         />

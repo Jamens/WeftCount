@@ -1,7 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, In, Like, Repository, type EntityManager } from 'typeorm'
-import { contextFromSnapshot, convertQuantity, ErrorCode, type SpecCalculationSnapshot } from '@weftcount/shared'
+import {
+  contextFromSnapshot,
+  convertQuantity,
+  ErrorCode,
+  type SpecCalculationSnapshot,
+} from '@weftcount/shared'
 import { StocktakeEntity, type StocktakeStatus } from './entities/stocktake.entity'
 import { StocktakeItemEntity } from './entities/stocktake-item.entity'
 import { RollEntity } from '../inventory/entities/roll.entity'
@@ -71,9 +76,18 @@ export class StocktakeService {
    */
   async create(
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { warehouseId: string; stocktakeDate?: string | null; remark?: string | null; mode?: 'batch' | 'roll' | null },
+    input: {
+      warehouseId: string
+      stocktakeDate?: string | null
+      remark?: string | null
+      mode?: 'batch' | 'roll' | null
+    },
   ): Promise<StocktakeEntity> {
-    const warehouse = await this.warehouses.requireActive(ctx.tenantId, ctx.companyId, input.warehouseId)
+    const warehouse = await this.warehouses.requireActive(
+      ctx.tenantId,
+      ctx.companyId,
+      input.warehouseId,
+    )
     const stocktakeNo = await this.nextNo(ctx.companyId)
     const stocktakeDate = input.stocktakeDate ?? new Date().toISOString().slice(0, 10)
 
@@ -99,7 +113,9 @@ export class StocktakeService {
         // 件卡级：逐匹快照「在库」件卡（remaining_m > 0），账面量=该匹剩余米数
         const batchIds = countable.map((b) => b.id)
         const rolls = batchIds.length
-          ? await manager.find(RollEntity, { where: { companyId: ctx.companyId, batchId: In(batchIds), status: 'in_stock' } })
+          ? await manager.find(RollEntity, {
+              where: { companyId: ctx.companyId, batchId: In(batchIds), status: 'in_stock' },
+            })
           : []
         const items = rolls
           .filter((r) => (r.remainingM == null ? Number(r.meters) : Number(r.remainingM)) > 1e-6)
@@ -140,7 +156,11 @@ export class StocktakeService {
     })
   }
 
-  async findAll(tenantId: string, companyId: string, status?: StocktakeStatus): Promise<StocktakeEntity[]> {
+  async findAll(
+    tenantId: string,
+    companyId: string,
+    status?: StocktakeStatus,
+  ): Promise<StocktakeEntity[]> {
     const qb = this.stocktakes
       .createQueryBuilder('s')
       .where('s.tenant_id = :tenantId', { tenantId })
@@ -177,7 +197,11 @@ export class StocktakeService {
     return { stocktake, items: itemViews }
   }
 
-  private async requireDraft(tenantId: string, companyId: string, id: string): Promise<StocktakeEntity> {
+  private async requireDraft(
+    tenantId: string,
+    companyId: string,
+    id: string,
+  ): Promise<StocktakeEntity> {
     const st = await this.findOne(tenantId, companyId, id)
     if (st.status !== 'draft') {
       throw new BadRequestException({
@@ -203,7 +227,10 @@ export class StocktakeService {
       const it = byId.get(r.itemId)
       if (!it) continue
       if (r.countedQuantityM < 0) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '实盘量不能为负' })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '实盘量不能为负',
+        })
       }
       it.countedQuantityM = num(r.countedQuantityM, 3)
       updated.push(it)
@@ -218,10 +245,17 @@ export class StocktakeService {
    * 盘亏不会把批次扣成负数（实盘为 0 即扣完并标记 depleted）。全程单事务。
    * 未录实盘数的明细按「账实相符」处理（不调整）。
    */
-  async complete(tenantId: string, companyId: string, userId: string, id: string): Promise<StocktakeEntity> {
+  async complete(
+    tenantId: string,
+    companyId: string,
+    userId: string,
+    id: string,
+  ): Promise<StocktakeEntity> {
     const st = await this.requireDraft(tenantId, companyId, id)
     return this.dataSource.transaction(async (manager) => {
-      const items = await manager.find(StocktakeItemEntity, { where: { stocktakeId: id, tenantId, companyId } })
+      const items = await manager.find(StocktakeItemEntity, {
+        where: { stocktakeId: id, tenantId, companyId },
+      })
       for (const it of items) {
         // 件卡级明细：countedQuantityM 为 null 表示**没盘到这一匹**（缺失），
         // 需按该匹 remaining_m 写损并把件卡归零——这是件卡级的核心价值：
@@ -260,11 +294,22 @@ export class StocktakeService {
           await manager.save(batch)
           await manager.save(
             manager.create(InventoryTransactionEntity, {
-              tenantId, companyId, batchId: batch.id, materialId: batch.materialId, specId: batch.specId,
-              direction: 'in', txnType: 'count_gain',
-              changeQuantity: num(deltaM, 3), changeWeightKg: num(deltaKg, 3), changeAreaM2: num(deltaM2, 4),
-              afterQuantity: num(afterM, 3), afterWeightKg: batch.remainingWeightKg, afterAreaM2: batch.remainingAreaM2,
-              unitPrice: null, docId: st.id, operatorId: userId,
+              tenantId,
+              companyId,
+              batchId: batch.id,
+              materialId: batch.materialId,
+              specId: batch.specId,
+              direction: 'in',
+              txnType: 'count_gain',
+              changeQuantity: num(deltaM, 3),
+              changeWeightKg: num(deltaKg, 3),
+              changeAreaM2: num(deltaM2, 4),
+              afterQuantity: num(afterM, 3),
+              afterWeightKg: batch.remainingWeightKg,
+              afterAreaM2: batch.remainingAreaM2,
+              unitPrice: null,
+              docId: st.id,
+              operatorId: userId,
               remark: `盘盈 ${num(deltaM, 2)}m（盘点 ${st.stocktakeNo}）`,
             }),
           )
@@ -279,11 +324,22 @@ export class StocktakeService {
           await manager.save(batch)
           await manager.save(
             manager.create(InventoryTransactionEntity, {
-              tenantId, companyId, batchId: batch.id, materialId: batch.materialId, specId: batch.specId,
-              direction: 'out', txnType: 'count_loss',
-              changeQuantity: num(-loss, 3), changeWeightKg: num(-deltaKg, 3), changeAreaM2: num(-deltaM2, 4),
-              afterQuantity: num(afterM, 3), afterWeightKg: batch.remainingWeightKg, afterAreaM2: batch.remainingAreaM2,
-              unitPrice: null, docId: st.id, operatorId: userId,
+              tenantId,
+              companyId,
+              batchId: batch.id,
+              materialId: batch.materialId,
+              specId: batch.specId,
+              direction: 'out',
+              txnType: 'count_loss',
+              changeQuantity: num(-loss, 3),
+              changeWeightKg: num(-deltaKg, 3),
+              changeAreaM2: num(-deltaM2, 4),
+              afterQuantity: num(afterM, 3),
+              afterWeightKg: batch.remainingWeightKg,
+              afterAreaM2: batch.remainingAreaM2,
+              unitPrice: null,
+              docId: st.id,
+              operatorId: userId,
               remark: `盘亏 ${num(loss, 2)}m（盘点 ${st.stocktakeNo}）`,
             }),
           )
@@ -306,7 +362,9 @@ export class StocktakeService {
     it: StocktakeItemEntity,
     userId: string,
   ): Promise<void> {
-    const roll = await manager.findOne(RollEntity, { where: { id: it.rollId!, companyId: it.companyId } })
+    const roll = await manager.findOne(RollEntity, {
+      where: { id: it.rollId!, companyId: it.companyId },
+    })
     if (!roll) return
     const remain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
     if (remain <= 1e-6) return // 已无剩余，无需再写损
@@ -333,7 +391,9 @@ export class StocktakeService {
     diff: number,
     userId: string,
   ): Promise<void> {
-    const roll = await manager.findOne(RollEntity, { where: { id: it.rollId!, companyId: it.companyId } })
+    const roll = await manager.findOne(RollEntity, {
+      where: { id: it.rollId!, companyId: it.companyId },
+    })
     if (!roll) return
     const book = Number(it.bookQuantityM)
     const counted = Number(it.countedQuantityM)
@@ -352,20 +412,44 @@ export class StocktakeService {
       // 盘盈：匹与批次同步增
       roll.remainingM = num(remain + deltaRoll, 3)
       await manager.save(roll)
-      await this.postCountLoss(manager, st, batch, it, -deltaRoll, userId, `件卡 ${roll.rollNo} 盘盈`, kgDelta, m2Delta, true)
+      await this.postCountLoss(
+        manager,
+        st,
+        batch,
+        it,
+        -deltaRoll,
+        userId,
+        `件卡 ${roll.rollNo} 盘盈`,
+        kgDelta,
+        m2Delta,
+        true,
+      )
     } else {
       // 盘亏：匹剩余不得为负；不超扣
       const loss = Math.min(-deltaRoll, remain, Number(batch.remainingQuantity))
       if (loss <= 1e-6) return
       roll.remainingM = num(remain - loss, 3)
-      roll.remainingKg = num(Math.max(Number(roll.remainingKg ?? 0) - (roll.remainingKg == null ? 0 : kgDelta), 0), 3)
+      roll.remainingKg = num(
+        Math.max(Number(roll.remainingKg ?? 0) - (roll.remainingKg == null ? 0 : kgDelta), 0),
+        3,
+      )
       if (Number(roll.remainingM) <= 1e-6) {
         roll.remainingM = num(0, 3)
         roll.remainingKg = num(0, 3)
         roll.status = 'consumed'
       }
       await manager.save(roll)
-      await this.postCountLoss(manager, st, batch, it, loss, userId, `件卡 ${roll.rollNo} 盘亏`, kgDelta, m2Delta)
+      await this.postCountLoss(
+        manager,
+        st,
+        batch,
+        it,
+        loss,
+        userId,
+        `件卡 ${roll.rollNo} 盘亏`,
+        kgDelta,
+        m2Delta,
+      )
     }
   }
 
@@ -395,11 +479,22 @@ export class StocktakeService {
       await manager.save(batch)
       await manager.save(
         manager.create(InventoryTransactionEntity, {
-          tenantId: it.tenantId, companyId: it.companyId, batchId: batch.id, materialId: batch.materialId, specId: batch.specId,
-          direction: 'in', txnType: 'count_gain',
-          changeQuantity: num(abs, 3), changeWeightKg: num(kg, 3), changeAreaM2: num(m2, 4),
-          afterQuantity: num(Number(batch.remainingQuantity), 3), afterWeightKg: batch.remainingWeightKg, afterAreaM2: batch.remainingAreaM2,
-          unitPrice: null, docId: st.id, operatorId: userId,
+          tenantId: it.tenantId,
+          companyId: it.companyId,
+          batchId: batch.id,
+          materialId: batch.materialId,
+          specId: batch.specId,
+          direction: 'in',
+          txnType: 'count_gain',
+          changeQuantity: num(abs, 3),
+          changeWeightKg: num(kg, 3),
+          changeAreaM2: num(m2, 4),
+          afterQuantity: num(Number(batch.remainingQuantity), 3),
+          afterWeightKg: batch.remainingWeightKg,
+          afterAreaM2: batch.remainingAreaM2,
+          unitPrice: null,
+          docId: st.id,
+          operatorId: userId,
           remark: `${label} ${num(abs, 2)}m（盘点 ${st.stocktakeNo}）`,
         }),
       )
@@ -416,11 +511,22 @@ export class StocktakeService {
     await manager.save(batch)
     await manager.save(
       manager.create(InventoryTransactionEntity, {
-        tenantId: it.tenantId, companyId: it.companyId, batchId: batch.id, materialId: batch.materialId, specId: batch.specId,
-        direction: 'out', txnType: 'count_loss',
-        changeQuantity: num(-loss, 3), changeWeightKg: num(-kg, 3), changeAreaM2: num(-m2, 4),
-        afterQuantity: num(Number(batch.remainingQuantity), 3), afterWeightKg: batch.remainingWeightKg, afterAreaM2: batch.remainingAreaM2,
-        unitPrice: null, docId: st.id, operatorId: userId,
+        tenantId: it.tenantId,
+        companyId: it.companyId,
+        batchId: batch.id,
+        materialId: batch.materialId,
+        specId: batch.specId,
+        direction: 'out',
+        txnType: 'count_loss',
+        changeQuantity: num(-loss, 3),
+        changeWeightKg: num(-kg, 3),
+        changeAreaM2: num(-m2, 4),
+        afterQuantity: num(Number(batch.remainingQuantity), 3),
+        afterWeightKg: batch.remainingWeightKg,
+        afterAreaM2: batch.remainingAreaM2,
+        unitPrice: null,
+        docId: st.id,
+        operatorId: userId,
         remark: `${label} ${num(loss, 2)}m（盘点 ${st.stocktakeNo}）`,
       }),
     )

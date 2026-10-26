@@ -40,5 +40,15 @@ export function useLookups() {
   const specName = (id: string): string => specs.find((s) => s.id === id)?.name ?? id
   const specCode = (id: string): string => specs.find((s) => s.id === id)?.code ?? ''
 
-  return { materials, specs, loading, error, refresh: load, materialName, materialCode, specName, specCode }
+  return {
+    materials,
+    specs,
+    loading,
+    error,
+    refresh: load,
+    materialName,
+    materialCode,
+    specName,
+    specCode,
+  }
 }

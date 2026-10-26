@@ -48,7 +48,10 @@ export default function StocktakePage() {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   // 详情：单 + 明细（可录实盘数）
-  const [detail, setDetail] = useState<{ stocktake: StocktakeWire; items: StocktakeItemView[] } | null>(null)
+  const [detail, setDetail] = useState<{
+    stocktake: StocktakeWire
+    items: StocktakeItemView[]
+  } | null>(null)
   // 录入中的实盘数 itemId -> 值
   const [counts, setCounts] = useState<Record<string, number | undefined>>({})
   const [form] = Form.useForm<CreateForm>()
@@ -82,7 +85,11 @@ export default function StocktakePage() {
     const v = await form.validateFields()
     setSubmitting(true)
     try {
-      await api.post('/stocktakes', { warehouseId: v.warehouseId, remark: v.remark ?? null, mode: v.mode ?? 'batch' })
+      await api.post('/stocktakes', {
+        warehouseId: v.warehouseId,
+        remark: v.remark ?? null,
+        mode: v.mode ?? 'batch',
+      })
       message.success('盘点单已创建（已快照账面量）')
       setOpen(false)
       await load()
@@ -95,7 +102,9 @@ export default function StocktakePage() {
 
   const openDetail = async (id: string) => {
     try {
-      const res = await api.get<{ stocktake: StocktakeWire; items: StocktakeItemView[] }>(`/stocktakes/${id}`)
+      const res = await api.get<{ stocktake: StocktakeWire; items: StocktakeItemView[] }>(
+        `/stocktakes/${id}`,
+      )
       setDetail(res.data.data)
       // 预填已有实盘数
       const init: Record<string, number | undefined> = {}
@@ -127,7 +136,8 @@ export default function StocktakePage() {
       .filter(([, v]) => v != null)
       .map(([itemId, v]) => ({ itemId, countedQuantityM: v as number }))
     try {
-      if (records.length > 0) await api.post(`/stocktakes/${detail.stocktake.id}/counts`, { records })
+      if (records.length > 0)
+        await api.post(`/stocktakes/${detail.stocktake.id}/counts`, { records })
       await api.post(`/stocktakes/${detail.stocktake.id}/complete`)
       message.success('盘点已过账，差异已调整批次与流水')
       setDetail(null)
@@ -167,7 +177,10 @@ export default function StocktakePage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             库存盘点
@@ -199,10 +212,25 @@ export default function StocktakePage() {
           pagination={{ showTotal: (t) => `共 ${t} 单`, showSizeChanger: false }}
           columns={[
             { title: '盘点单号', dataIndex: 'stocktakeNo', width: 150 },
-            { title: '仓库', dataIndex: 'warehouseId', width: 120, render: (v: string) => warehouseName(v) },
+            {
+              title: '仓库',
+              dataIndex: 'warehouseId',
+              width: 120,
+              render: (v: string) => warehouseName(v),
+            },
             { title: '盘点日期', dataIndex: 'stocktakeDate', width: 110 },
-            { title: '状态', dataIndex: 'status', width: 90, render: (v: StocktakeStatusValue) => statusTag(v) },
-            { title: '备注', dataIndex: 'remark', ellipsis: true, render: (v: string | null) => v ?? '-' },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 90,
+              render: (v: StocktakeStatusValue) => statusTag(v),
+            },
+            {
+              title: '备注',
+              dataIndex: 'remark',
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '操作',
               width: 130,
@@ -227,9 +255,21 @@ export default function StocktakePage() {
       </Card>
 
       {/* 建盘点单 */}
-      <Modal title="建盘点单" open={open} onCancel={() => setOpen(false)} onOk={() => void onCreate()} confirmLoading={submitting} okText="创建" destroyOnClose>
+      <Modal
+        title="建盘点单"
+        open={open}
+        onCancel={() => setOpen(false)}
+        onOk={() => void onCreate()}
+        confirmLoading={submitting}
+        okText="创建"
+        destroyOnClose
+      >
         <Form<CreateForm> form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="warehouseId" label="盘点仓库" rules={[{ required: true, message: '请选择仓库' }]}>
+          <Form.Item
+            name="warehouseId"
+            label="盘点仓库"
+            rules={[{ required: true, message: '请选择仓库' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -265,7 +305,10 @@ export default function StocktakePage() {
           detail && canManage && detail.stocktake.status === 'draft' ? (
             <Space>
               <Button onClick={() => void saveCounts()}>保存实盘数</Button>
-              <Popconfirm title="完成盘点并将差异过账？过账后不可再改" onConfirm={() => void doComplete()}>
+              <Popconfirm
+                title="完成盘点并将差异过账？过账后不可再改"
+                onConfirm={() => void doComplete()}
+              >
                 <Button type="primary">完成过账</Button>
               </Popconfirm>
             </Space>

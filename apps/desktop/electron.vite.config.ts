@@ -24,7 +24,9 @@ export default defineConfig({
     resolve: {
       alias: {
         '@renderer': fileURLToPath(new URL('./src/renderer', import.meta.url)),
-        '@weftcount/shared': fileURLToPath(new URL('../../packages/shared/dist-esm/index.js', import.meta.url)),
+        '@weftcount/shared': fileURLToPath(
+          new URL('../../packages/shared/dist-esm/index.js', import.meta.url),
+        ),
       },
     },
     plugins: [react()],

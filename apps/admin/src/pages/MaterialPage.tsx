@@ -16,22 +16,23 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
+import { fmt, fmtMoney, PERM, type MaterialWire, LIST_TABLE_SCROLL_Y } from '../lib/erp'
 import {
-  fmt,
-  fmtMoney,
-  PERM,
-  type MaterialWire,
-  LIST_TABLE_SCROLL_Y,
-} from '../lib/erp'
-import { MATERIAL_CATEGORY_LABEL, MEASURE_MODE_LABEL, type MaterialCategoryValue, type MeasureMode } from '@weftcount/shared'
+  MATERIAL_CATEGORY_LABEL,
+  MEASURE_MODE_LABEL,
+  type MaterialCategoryValue,
+  type MeasureMode,
+} from '@weftcount/shared'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
 
-const CATEGORY_OPTIONS = (Object.keys(MATERIAL_CATEGORY_LABEL) as MaterialCategoryValue[]).map((k) => ({
-  value: k,
-  label: MATERIAL_CATEGORY_LABEL[k],
-}))
+const CATEGORY_OPTIONS = (Object.keys(MATERIAL_CATEGORY_LABEL) as MaterialCategoryValue[]).map(
+  (k) => ({
+    value: k,
+    label: MATERIAL_CATEGORY_LABEL[k],
+  }),
+)
 
 const MEASURE_OPTIONS = (Object.keys(MEASURE_MODE_LABEL) as MeasureMode[]).map((k) => ({
   value: k,
@@ -92,7 +93,7 @@ export default function MaterialPage() {
         ...values,
         standardPrice: values.standardPrice ?? null,
         safetyStock: values.safetyStock ?? null,
-      leadTimeDays: values.leadTimeDays ?? null,
+        leadTimeDays: values.leadTimeDays ?? null,
         remark: values.remark ?? null,
       })
       message.success('物料已创建')
@@ -128,7 +129,10 @@ export default function MaterialPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             物料主数据
@@ -192,7 +196,11 @@ export default function MaterialPage() {
           dataSource={data}
           onRow={(r) => ({ onClick: () => setDetail(r) })}
           scroll={{ y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 90 },
             { title: '名称', dataIndex: 'name', width: 160 },
@@ -255,7 +263,10 @@ export default function MaterialPage() {
                       </Button>
                     </Popconfirm>
                   ) : (
-                    <Popconfirm title="确认恢复启用该物料？" onConfirm={() => void onActivate(r.id)}>
+                    <Popconfirm
+                      title="确认恢复启用该物料？"
+                      onConfirm={() => void onActivate(r.id)}
+                    >
                       <Button type="link" size="small">
                         启用
                       </Button>
@@ -275,13 +286,22 @@ export default function MaterialPage() {
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Detail label="编码" value={detail.code} />
             <Detail label="名称" value={detail.name} />
-            <Detail label="大类" value={MATERIAL_CATEGORY_LABEL[detail.category] ?? detail.category} />
+            <Detail
+              label="大类"
+              value={MATERIAL_CATEGORY_LABEL[detail.category] ?? detail.category}
+            />
             <Detail label="规格描述" value={detail.specification} />
             <Detail label="主单位" value={detail.primaryUnit} />
             <Detail label="允许单位" value={detail.allowedUnits.join('、')} />
             <Detail label="批次管理" value={detail.batchManaged ? '是' : '否'} />
-            <Detail label="参考单价" value={detail.standardPrice == null ? '-' : fmtMoney(detail.standardPrice)} />
-            <Detail label="安全库存" value={detail.safetyStock == null ? '-' : fmt(detail.safetyStock, 2)} />
+            <Detail
+              label="参考单价"
+              value={detail.standardPrice == null ? '-' : fmtMoney(detail.standardPrice)}
+            />
+            <Detail
+              label="安全库存"
+              value={detail.safetyStock == null ? '-' : fmt(detail.safetyStock, 2)}
+            />
             <Detail label="备注" value={detail.remark ?? '-'} />
           </Space>
         )}
@@ -312,10 +332,18 @@ export default function MaterialPage() {
           <Form.Item name="category" label="大类" rules={[{ required: true }]}>
             <Select options={CATEGORY_OPTIONS} />
           </Form.Item>
-          <Form.Item name="specification" label="规格描述" rules={[{ required: true, message: '请输入规格描述' }]}>
+          <Form.Item
+            name="specification"
+            label="规格描述"
+            rules={[{ required: true, message: '请输入规格描述' }]}
+          >
             <Input placeholder="如：40S/2 精梳棉" maxLength={255} />
           </Form.Item>
-          <Form.Item name="measureMode" label="主计量方式" extra="留空则按大类默认（纱线→重量，坯布→长度）">
+          <Form.Item
+            name="measureMode"
+            label="主计量方式"
+            extra="留空则按大类默认（纱线→重量，坯布→长度）"
+          >
             <Select allowClear placeholder="按大类默认" options={MEASURE_OPTIONS} />
           </Form.Item>
           <Form.Item name="standardPrice" label="参考单价（元）">

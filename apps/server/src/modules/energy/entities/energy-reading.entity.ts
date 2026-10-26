@@ -18,7 +18,9 @@ import {
  * 读数回退只可能是抄错或误改表，直接拒绝，不开「回退量」的例外口子。
  */
 @Entity('machine_energy_readings')
-@Index('idx_energy_reading_key', ['companyId', 'machineId', 'meterNo', 'readingDate'], { unique: true })
+@Index('idx_energy_reading_key', ['companyId', 'machineId', 'meterNo', 'readingDate'], {
+  unique: true,
+})
 @Index('idx_energy_machine', ['companyId', 'machineId'])
 @Index('idx_energy_date', ['companyId', 'readingDate'])
 export class EnergyReadingEntity {

@@ -37,7 +37,9 @@ export class DashboardController {
     Permission.PURCHASE_VIEW,
     Permission.SALES_VIEW,
   )
-  @ApiOperation({ summary: '首页概览：库存/采购/销售/生产/待办 + 近7日日产量（确定性聚合，无预测）' })
+  @ApiOperation({
+    summary: '首页概览：库存/采购/销售/生产/待办 + 近7日日产量（确定性聚合，无预测）',
+  })
   overview(@CurrentUser() ctx: RequestContext) {
     return this.svc.overview(ctx.companyId)
   }

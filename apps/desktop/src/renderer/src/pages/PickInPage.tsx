@@ -17,7 +17,16 @@ import {
 } from 'antd'
 import { BarcodeOutlined, InboxOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { fmt, num, type BatchOrigin, type BatchWire, type GreigeSpecWire, type MaterialWire, type PartnerWire, type WarehouseWire } from '../lib/types'
+import {
+  fmt,
+  num,
+  type BatchOrigin,
+  type BatchWire,
+  type GreigeSpecWire,
+  type MaterialWire,
+  type PartnerWire,
+  type WarehouseWire,
+} from '../lib/types'
 
 const { Title, Text } = Typography
 
@@ -85,7 +94,8 @@ export default function PickInPage() {
     setRollCode('')
   }
 
-  const removeRoll = (rollNo: string) => setRollList((prev) => prev.filter((r) => r.rollNo !== rollNo))
+  const removeRoll = (rollNo: string) =>
+    setRollList((prev) => prev.filter((r) => r.rollNo !== rollNo))
   const [qty, setQty] = useState<number | null>(null)
   const [price, setPrice] = useState<number | null>(null)
   const [warehouseId, setWarehouseId] = useState<string | undefined>()
@@ -113,7 +123,10 @@ export default function PickInPage() {
   }, [message])
 
   const specName = useCallback((id: string) => specs.find((s) => s.id === id)?.name ?? id, [specs])
-  const materialName = useCallback((id: string) => materials.find((m) => m.id === id)?.name ?? id, [materials])
+  const materialName = useCallback(
+    (id: string) => materials.find((m) => m.id === id)?.name ?? id,
+    [materials],
+  )
 
   const onScan = async () => {
     const c = code.trim()
@@ -124,7 +137,13 @@ export default function PickInPage() {
       const q = new URLSearchParams({ code: c })
       if (supplierId) q.set('supplierId', supplierId)
       const hit = await api.get<
-        | { ambiguous: false; supplierId: string; materialId: string; specId: string; supplierCode: string }
+        | {
+            ambiguous: false
+            supplierId: string
+            materialId: string
+            specId: string
+            supplierCode: string
+          }
         | { ambiguous: true }
         | null
       >(`/supplier-codes/lookup?${q.toString()}`)
@@ -137,9 +156,16 @@ export default function PickInPage() {
         setSupplierId(hit.supplierId)
         setMaterialId(hit.materialId)
         setSpecId(hit.specId)
-        setTemplate({ batchNo: hit.supplierCode, materialId: hit.materialId, specId: hit.specId, source: 'supplier_code' })
+        setTemplate({
+          batchNo: hit.supplierCode,
+          materialId: hit.materialId,
+          specId: hit.specId,
+          source: 'supplier_code',
+        })
         setCode('')
-        message.success(`供应商条码「${hit.supplierCode}」已识别：${materialName(hit.materialId)} / ${specName(hit.specId)}`)
+        message.success(
+          `供应商条码「${hit.supplierCode}」已识别：${materialName(hit.materialId)} / ${specName(hit.specId)}`,
+        )
         inputRef.current?.focus()
         return
       }
@@ -160,11 +186,15 @@ export default function PickInPage() {
     setWarehouseId(b.warehouseId ?? warehouseId)
     setCode('')
     try {
-      const t = await api.get<{ origin: BatchOrigin | null; consumedBy: unknown[] }>(`/traceability/batch/${b.id}`)
+      const t = await api.get<{ origin: BatchOrigin | null; consumedBy: unknown[] }>(
+        `/traceability/batch/${b.id}`,
+      )
       const sup = supplierFromOrigin(t.origin)
       if (sup.id) {
         setSupplierId(sup.id)
-        setTemplate((prev) => (prev ? { ...prev, supplierId: sup.id, supplierName: sup.name } : prev))
+        setTemplate((prev) =>
+          prev ? { ...prev, supplierId: sup.id, supplierName: sup.name } : prev,
+        )
       }
     } catch {
       /* 追溯查不到供应商不影响主流程 */
@@ -218,7 +248,9 @@ export default function PickInPage() {
         /* 忽略 */
       }
       setLastBatchNo(newBatchNo || res.docNo)
-      message.success(`入库成功：单据 ${res.docNo}${newBatchNo ? `，批次 ${newBatchNo}` : ''}${rollMode ? `，${rollList.length} 匹` : ''}`)
+      message.success(
+        `入库成功：单据 ${res.docNo}${newBatchNo ? `，批次 ${newBatchNo}` : ''}${rollMode ? `，${rollList.length} 匹` : ''}`,
+      )
       clearTemplate()
       setQty(null)
       setPrice(null)
@@ -236,7 +268,9 @@ export default function PickInPage() {
         <Col span={24}>
           <Card size="small">
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <Title level={4} style={{ margin: 0 }}>扫码入库（收货建批次）</Title>
+              <Title level={4} style={{ margin: 0 }}>
+                扫码入库（收货建批次）
+              </Title>
               <Text type="secondary">
                 扫「上批同款」的批次标签作模板，自动带出物料/规格/供应商；再填数量即建新批次。
               </Text>
@@ -250,7 +284,9 @@ export default function PickInPage() {
                   onChange={(e) => setCode(e.target.value)}
                   onPressEnter={() => void onScan()}
                 />
-                <Button type="primary" size="large" onClick={() => void onScan()}>取模板</Button>
+                <Button type="primary" size="large" onClick={() => void onScan()}>
+                  取模板
+                </Button>
               </Space.Compact>
             </Space>
           </Card>
@@ -261,7 +297,11 @@ export default function PickInPage() {
             <Alert
               type="success"
               showIcon
-              message={template.source === 'supplier_code' ? `已识别供应商条码「${template.batchNo}」` : `已以批次 ${template.batchNo} 为模板`}
+              message={
+                template.source === 'supplier_code'
+                  ? `已识别供应商条码「${template.batchNo}」`
+                  : `已以批次 ${template.batchNo} 为模板`
+              }
               description={
                 <Space wrap>
                   <Tag color={template.source === 'supplier_code' ? 'purple' : 'default'}>
@@ -272,7 +312,11 @@ export default function PickInPage() {
                   {template.supplierName && <Tag color="blue">供应商 {template.supplierName}</Tag>}
                 </Space>
               }
-              action={<Button size="small" onClick={clearTemplate}>清除模板</Button>}
+              action={
+                <Button size="small" onClick={clearTemplate}>
+                  清除模板
+                </Button>
+              }
             />
           </Col>
         )}
@@ -284,16 +328,28 @@ export default function PickInPage() {
                 <Col span={12}>
                   <Text type="secondary">物料</Text>
                   <Select
-                    showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="选择物料"
-                    value={materialId} onChange={setMaterialId} disabled={!!template}
-                    options={materials.filter((m) => m.category === 'greige' || m.category === 'yarn').map((m) => ({ value: m.id, label: `${m.code} ${m.name}` }))}
+                    showSearch
+                    optionFilterProp="label"
+                    style={{ width: '100%' }}
+                    placeholder="选择物料"
+                    value={materialId}
+                    onChange={setMaterialId}
+                    disabled={!!template}
+                    options={materials
+                      .filter((m) => m.category === 'greige' || m.category === 'yarn')
+                      .map((m) => ({ value: m.id, label: `${m.code} ${m.name}` }))}
                   />
                 </Col>
                 <Col span={12}>
                   <Text type="secondary">规格</Text>
                   <Select
-                    showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="选择规格"
-                    value={specId} onChange={setSpecId} disabled={!!template}
+                    showSearch
+                    optionFilterProp="label"
+                    style={{ width: '100%' }}
+                    placeholder="选择规格"
+                    value={specId}
+                    onChange={setSpecId}
+                    disabled={!!template}
                     options={specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` }))}
                   />
                 </Col>
@@ -302,15 +358,24 @@ export default function PickInPage() {
                 <Col span={12}>
                   <Text type="secondary">供应商</Text>
                   <Select
-                    showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="选择供应商"
-                    value={supplierId} onChange={setSupplierId}
-                    options={suppliers.map((s) => ({ value: s.id, label: `${s.name}（${s.code}）` }))}
+                    showSearch
+                    optionFilterProp="label"
+                    style={{ width: '100%' }}
+                    placeholder="选择供应商"
+                    value={supplierId}
+                    onChange={setSupplierId}
+                    options={suppliers.map((s) => ({
+                      value: s.id,
+                      label: `${s.name}（${s.code}）`,
+                    }))}
                   />
                 </Col>
                 <Col span={12}>
                   <Text type="secondary">入库仓库</Text>
                   <Select
-                    style={{ width: '100%' }} value={warehouseId} onChange={setWarehouseId}
+                    style={{ width: '100%' }}
+                    value={warehouseId}
+                    onChange={setWarehouseId}
                     options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
                   />
                 </Col>
@@ -318,25 +383,44 @@ export default function PickInPage() {
               <Row gutter={12}>
                 <Col span={6}>
                   <Text type="secondary">单位</Text>
-                  <Select style={{ width: '100%' }} value={rollMode ? 'm' : unit} onChange={setUnit} disabled={rollMode} options={UNITS.map((u) => ({ value: u, label: u }))} />
+                  <Select
+                    style={{ width: '100%' }}
+                    value={rollMode ? 'm' : unit}
+                    onChange={setUnit}
+                    disabled={rollMode}
+                    options={UNITS.map((u) => ({ value: u, label: u }))}
+                  />
                 </Col>
                 <Col span={6}>
                   <Text type="secondary">{rollMode ? '数量（各匹合计）' : '数量'}</Text>
                   <InputNumber
-                    style={{ width: '100%' }} min={0.001} precision={1}
+                    style={{ width: '100%' }}
+                    min={0.001}
+                    precision={1}
                     value={(rollMode ? rollTotal : qty) || undefined}
                     onChange={(v) => !rollMode && setQty(v ?? null)}
-                    readOnly={rollMode} placeholder={rollMode ? '扫件卡自动累计' : '收货数量'}
+                    readOnly={rollMode}
+                    placeholder={rollMode ? '扫件卡自动累计' : '收货数量'}
                   />
                 </Col>
                 <Col span={6}>
                   <Text type="secondary">单价（元/米，可选）</Text>
-                  <InputNumber style={{ width: '100%' }} min={0} precision={4} value={price ?? undefined} onChange={(v) => setPrice(v ?? null)} />
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={0}
+                    precision={4}
+                    value={price ?? undefined}
+                    onChange={(v) => setPrice(v ?? null)}
+                  />
                 </Col>
                 <Col span={6}>
                   <Text type="secondary">逐匹计数</Text>
                   <Space.Compact style={{ width: '100%' }}>
-                    <Button style={{ width: '100%' }} type={rollMode ? 'primary' : 'default'} onClick={() => setRollMode(!rollMode)}>
+                    <Button
+                      style={{ width: '100%' }}
+                      type={rollMode ? 'primary' : 'default'}
+                      onClick={() => setRollMode(!rollMode)}
+                    >
                       {rollMode ? '逐匹模式·开' : '逐匹模式·关'}
                     </Button>
                   </Space.Compact>
@@ -344,27 +428,45 @@ export default function PickInPage() {
               </Row>
 
               {rollMode && (
-                <Card size="small" title={`逐匹计数（已扫 ${rollList.length} 匹 · 合计 ${rollTotal.toFixed(1)} m）`} style={{ background: '#fafafa' }}>
+                <Card
+                  size="small"
+                  title={`逐匹计数（已扫 ${rollList.length} 匹 · 合计 ${rollTotal.toFixed(1)} m）`}
+                  style={{ background: '#fafafa' }}
+                >
                   <Space direction="vertical" size={8} style={{ width: '100%' }}>
                     <Space.Compact style={{ width: '100%' }}>
                       <Input
-                        size="large" prefix={<BarcodeOutlined />} placeholder="扫描件卡（序列号）后回车"
-                        value={rollCode} onChange={(e) => setRollCode(e.target.value)}
+                        size="large"
+                        prefix={<BarcodeOutlined />}
+                        placeholder="扫描件卡（序列号）后回车"
+                        value={rollCode}
+                        onChange={(e) => setRollCode(e.target.value)}
                         onPressEnter={addRoll}
                       />
                       <InputNumber
-                        size="large" min={0.001} precision={2} style={{ width: 140 }}
-                        value={rollDefaultMeters} onChange={(v) => setRollDefaultMeters(v ?? 25)}
+                        size="large"
+                        min={0.001}
+                        precision={2}
+                        style={{ width: 140 }}
+                        value={rollDefaultMeters}
+                        onChange={(v) => setRollDefaultMeters(v ?? 25)}
                         addonBefore="每匹m"
                       />
-                      <Button type="primary" size="large" onClick={addRoll}>计入一匹</Button>
+                      <Button type="primary" size="large" onClick={addRoll}>
+                        计入一匹
+                      </Button>
                     </Space.Compact>
                     {rollList.length > 0 && (
                       <Space wrap size={4}>
                         {rollList.map((r) => (
                           <Tag
-                            key={r.rollNo} closable color="blue"
-                            onClose={(e) => { e.preventDefault(); removeRoll(r.rollNo) }}
+                            key={r.rollNo}
+                            closable
+                            color="blue"
+                            onClose={(e) => {
+                              e.preventDefault()
+                              removeRoll(r.rollNo)
+                            }}
                           >
                             {r.rollNo} · {r.meters}m
                           </Tag>
@@ -372,16 +474,29 @@ export default function PickInPage() {
                       </Space>
                     )}
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      扫一张件卡计一匹（默认每匹 {rollDefaultMeters}m，可改）；同号不可重复扫。确认入库时按各匹合计建批次。
+                      扫一张件卡计一匹（默认每匹 {rollDefaultMeters}
+                      m，可改）；同号不可重复扫。确认入库时按各匹合计建批次。
                     </Text>
                   </Space>
                 </Card>
               )}
-              <Button type="primary" size="large" block icon={<InboxOutlined />} loading={submitting} onClick={() => void onSubmit()}>
+              <Button
+                type="primary"
+                size="large"
+                block
+                icon={<InboxOutlined />}
+                loading={submitting}
+                onClick={() => void onSubmit()}
+              >
                 确认入库（建新批次）
               </Button>
               {lastBatchNo && (
-                <Alert type="info" showIcon message={`最近入库批次：${lastBatchNo}`} description="可在「标签打印」为该批次打印布匹标签，下次收货即可扫它作模板。" />
+                <Alert
+                  type="info"
+                  showIcon
+                  message={`最近入库批次：${lastBatchNo}`}
+                  description="可在「标签打印」为该批次打印布匹标签，下次收货即可扫它作模板。"
+                />
               )}
             </Space>
           </Card>

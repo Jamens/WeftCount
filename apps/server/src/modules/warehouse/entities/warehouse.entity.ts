@@ -37,7 +37,11 @@ export class WarehouseEntity {
   @Column({ type: 'varchar', length: 64 })
   name!: string
 
-  @Column({ type: 'enum', enum: ['raw', 'greige', 'finished', 'auxiliary', 'scrap', 'other'], default: 'other' })
+  @Column({
+    type: 'enum',
+    enum: ['raw', 'greige', 'finished', 'auxiliary', 'scrap', 'other'],
+    default: 'other',
+  })
   type!: WarehouseType
 
   @Column({ type: 'varchar', length: 255, nullable: true })

@@ -20,14 +20,20 @@ export class ContractController {
   @RequirePermission(Permission.CONTRACT_MANAGE)
   @Audit({ action: 'create', module: 'contract', targetType: 'contract' })
   @ApiOperation({ summary: '新建合同（带多行明细与协议价）' })
-  create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateContractDto): Promise<ContractEntity> {
+  create(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateContractDto,
+  ): Promise<ContractEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)
   }
 
   @Get()
   @RequirePermission(Permission.CONTRACT_VIEW)
   @ApiOperation({ summary: '查询合同列表' })
-  findAll(@CurrentUser() ctx: RequestContext, @Query() filter: ContractFilterDto): Promise<ContractEntity[]> {
+  findAll(
+    @CurrentUser() ctx: RequestContext,
+    @Query() filter: ContractFilterDto,
+  ): Promise<ContractEntity[]> {
     return this.svc.findAll(ctx.tenantId, ctx.companyId, filter)
   }
 
@@ -42,7 +48,11 @@ export class ContractController {
   @RequirePermission(Permission.CONTRACT_MANAGE)
   @Audit({ action: 'update', module: 'contract', targetIdParam: 'id' })
   @ApiOperation({ summary: '更新合同（仅草稿，整体替换明细）' })
-  update(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateContractDto): Promise<ContractEntity> {
+  update(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateContractDto,
+  ): Promise<ContractEntity> {
     return this.svc.update(ctx.tenantId, ctx.companyId, id, dto)
   }
 

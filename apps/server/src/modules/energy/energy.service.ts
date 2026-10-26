@@ -21,7 +21,9 @@ function round3(n: number): number {
 /** date 列转 YYYY-MM-DD（实体列标 string，驱动运行时可能回 Date） */
 function dateToISO(v: string | null): string {
   if (!v) return ''
-  return (v as unknown) instanceof Date ? (v as unknown as Date).toISOString().slice(0, 10) : String(v)
+  return (v as unknown) instanceof Date
+    ? (v as unknown as Date).toISOString().slice(0, 10)
+    : String(v)
 }
 
 /** 一条抄表记录 + 派生用量 */
@@ -86,8 +88,20 @@ export interface EnergyCompare {
   periodEnd: string
   prevStart: string
   prevEnd: string
-  current: { totalKwh: number; outputM: number; kwhPer100m: number | null; totalCost: number; costPerMeter: number | null }
-  prev: { totalKwh: number; outputM: number; kwhPer100m: number | null; totalCost: number; costPerMeter: number | null }
+  current: {
+    totalKwh: number
+    outputM: number
+    kwhPer100m: number | null
+    totalCost: number
+    costPerMeter: number | null
+  }
+  prev: {
+    totalKwh: number
+    outputM: number
+    kwhPer100m: number | null
+    totalCost: number
+    costPerMeter: number | null
+  }
   /** 单耗环比变化（本期 − 上期），任一侧缺数/为 0 则 null */
   kwhPer100mDelta: number | null
   /** 单耗环比百分比；上期单耗为 0 或缺数则 null（除零） */
@@ -97,9 +111,11 @@ export interface EnergyCompare {
 @Injectable()
 export class EnergyService {
   constructor(
-    @InjectRepository(EnergyReadingEntity) private readonly readings: Repository<EnergyReadingEntity>,
+    @InjectRepository(EnergyReadingEntity)
+    private readonly readings: Repository<EnergyReadingEntity>,
     @InjectRepository(MachineEntity) private readonly machines: Repository<MachineEntity>,
-    @InjectRepository(ProductionReportEntity) private readonly reports: Repository<ProductionReportEntity>,
+    @InjectRepository(ProductionReportEntity)
+    private readonly reports: Repository<ProductionReportEntity>,
   ) {}
 
   /**
@@ -110,7 +126,9 @@ export class EnergyService {
    * 授予生产数据权是错误的扩权——参照数据的读取权应随功能走，不随数据表走。
    * 只回 id/code/name/status，不外泄机台配置细节。
    */
-  async listMachineOptions(ctx: RequestContext): Promise<{ id: string; code: string; name: string; status: string }[]> {
+  async listMachineOptions(
+    ctx: RequestContext,
+  ): Promise<{ id: string; code: string; name: string; status: string }[]> {
     const rows = await this.machines.find({
       where: { tenantId: ctx.tenantId, companyId: ctx.companyId },
       order: { code: 'ASC' },
@@ -120,9 +138,17 @@ export class EnergyService {
 
   // ---------- 写：抄表 ----------
 
-  async createReading(ctx: RequestContext, dto: {
-    machineId: string; meterNo: string; readingDate: string; reading: number; tariff: number; remark?: string | null
-  }): Promise<ReadingView> {
+  async createReading(
+    ctx: RequestContext,
+    dto: {
+      machineId: string
+      meterNo: string
+      readingDate: string
+      reading: number
+      tariff: number
+      remark?: string | null
+    },
+  ): Promise<ReadingView> {
     const machine = await this.machines.findOne({
       where: { id: dto.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
     })
@@ -130,7 +156,12 @@ export class EnergyService {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '机台不存在' })
     }
     const dup = await this.readings.findOne({
-      where: { machineId: dto.machineId, meterNo: dto.meterNo, readingDate: dto.readingDate, companyId: ctx.companyId },
+      where: {
+        machineId: dto.machineId,
+        meterNo: dto.meterNo,
+        readingDate: dto.readingDate,
+        companyId: ctx.companyId,
+      },
     })
     if (dup) {
       throw new BadRequestException({
@@ -149,22 +180,30 @@ export class EnergyService {
       })
     }
 
-    const saved = await this.readings.save(this.readings.create({
-      tenantId: ctx.tenantId,
-      companyId: ctx.companyId,
-      machineId: dto.machineId,
-      meterNo: dto.meterNo,
-      readingDate: dto.readingDate,
-      reading: String(dto.reading),
-      tariff: String(dto.tariff),
-      remark: dto.remark ?? null,
-    }))
+    const saved = await this.readings.save(
+      this.readings.create({
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        machineId: dto.machineId,
+        meterNo: dto.meterNo,
+        readingDate: dto.readingDate,
+        reading: String(dto.reading),
+        tariff: String(dto.tariff),
+        remark: dto.remark ?? null,
+      }),
+    )
     const views = await this.buildViews(ctx, [saved.id])
     return views[0]
   }
 
-  async updateReading(ctx: RequestContext, id: string, dto: { tariff?: number; remark?: string | null }): Promise<ReadingView> {
-    const r = await this.readings.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+  async updateReading(
+    ctx: RequestContext,
+    id: string,
+    dto: { tariff?: number; remark?: string | null },
+  ): Promise<ReadingView> {
+    const r = await this.readings.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!r) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '抄表记录不存在' })
     if (dto.tariff !== undefined) r.tariff = String(dto.tariff)
     if (dto.remark !== undefined) r.remark = dto.remark ?? null
@@ -174,20 +213,28 @@ export class EnergyService {
   }
 
   async deleteReading(ctx: RequestContext, id: string): Promise<void> {
-    const r = await this.readings.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const r = await this.readings.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!r) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '抄表记录不存在' })
     await this.readings.delete({ id })
   }
 
   // ---------- 读：抄表列表（带派生用量） ----------
 
-  async listReadings(ctx: RequestContext, filter: { machineId?: string; meterNo?: string; from?: string; to?: string }): Promise<ReadingView[]> {
+  async listReadings(
+    ctx: RequestContext,
+    filter: { machineId?: string; meterNo?: string; from?: string; to?: string },
+  ): Promise<ReadingView[]> {
     const where: Record<string, unknown> = { tenantId: ctx.tenantId, companyId: ctx.companyId }
     if (filter.machineId) where.machineId = filter.machineId
     if (filter.meterNo) where.meterNo = filter.meterNo
     if (filter.from) where.readingDate = Between(filter.from, filter.to ?? '9999-12-31')
     else if (filter.to) where.readingDate = Between('0000-01-01', filter.to)
-    const rows = await this.readings.find({ where, order: { readingDate: 'DESC', createdAt: 'DESC' } })
+    const rows = await this.readings.find({
+      where,
+      order: { readingDate: 'DESC', createdAt: 'DESC' },
+    })
     return this.toViews(ctx, rows)
   }
 
@@ -201,7 +248,11 @@ export class EnergyService {
    *    归到本期这条读表的日期上。跨期补抄不会被劈成两半。
    * 2. **合计用总量算**，不是各机台单耗取平均——平均的平均会把高耗机台的异常摊平。
    */
-  async getStats(ctx: RequestContext, periodStart: string, periodEnd: string): Promise<EnergyStats> {
+  async getStats(
+    ctx: RequestContext,
+    periodStart: string,
+    periodEnd: string,
+  ): Promise<EnergyStats> {
     this.assertPeriod(periodStart, periodEnd)
 
     // 全量序列算差值后再按期间筛：某表在期间内的第一条可能需要「期间之前」的读数当上期
@@ -213,40 +264,41 @@ export class EnergyService {
     })
 
     const outputByMachine = await this.outputByMachine(ctx, periodStart, periodEnd)
-    const machineIds = [...new Set([
-      ...inPeriod.map((r) => r.machineId),
-      ...[...outputByMachine.keys()],
-    ])]
+    const machineIds = [
+      ...new Set([...inPeriod.map((r) => r.machineId), ...[...outputByMachine.keys()]]),
+    ]
     const machineMap = await this.machineMap(machineIds)
 
-    const rows: MachineEnergyRow[] = machineIds.map((id) => {
-      const m = machineMap.get(id)
-      const readingsOf = inPeriod.filter((r) => r.machineId === id)
-      const hasReading = readingsOf.length > 0
-      let kwh = 0
-      let cost = 0
-      let lastReadingDate: string | null = null
-      for (const r of readingsOf) {
-        const consumed = consumedMap.get(r.id)
-        if (consumed == null) continue // 基线，不出量
-        kwh += consumed
-        cost += consumed * toNum(r.tariff)
-        const d = dateToISO(r.readingDate)
-        if (!lastReadingDate || d > lastReadingDate) lastReadingDate = d
-      }
-      const outputM = round3(outputByMachine.get(id) ?? 0)
-      return {
-        machineId: id,
-        machineCode: m?.code ?? '',
-        machineName: m?.name ?? '未知机台',
-        totalKwh: hasReading ? round2(kwh) : null,
-        outputM,
-        kwhPer100m: hasReading && outputM > 0 ? round2(kwh / (outputM / 100)) : null,
-        totalCost: hasReading ? round2(cost) : null,
-        costPerMeter: hasReading && outputM > 0 ? round3(cost / outputM) : null,
-        lastReadingDate,
-      }
-    }).sort((a, b) => (b.totalKwh ?? -1) - (a.totalKwh ?? -1))
+    const rows: MachineEnergyRow[] = machineIds
+      .map((id) => {
+        const m = machineMap.get(id)
+        const readingsOf = inPeriod.filter((r) => r.machineId === id)
+        const hasReading = readingsOf.length > 0
+        let kwh = 0
+        let cost = 0
+        let lastReadingDate: string | null = null
+        for (const r of readingsOf) {
+          const consumed = consumedMap.get(r.id)
+          if (consumed == null) continue // 基线，不出量
+          kwh += consumed
+          cost += consumed * toNum(r.tariff)
+          const d = dateToISO(r.readingDate)
+          if (!lastReadingDate || d > lastReadingDate) lastReadingDate = d
+        }
+        const outputM = round3(outputByMachine.get(id) ?? 0)
+        return {
+          machineId: id,
+          machineCode: m?.code ?? '',
+          machineName: m?.name ?? '未知机台',
+          totalKwh: hasReading ? round2(kwh) : null,
+          outputM,
+          kwhPer100m: hasReading && outputM > 0 ? round2(kwh / (outputM / 100)) : null,
+          totalCost: hasReading ? round2(cost) : null,
+          costPerMeter: hasReading && outputM > 0 ? round3(cost / outputM) : null,
+          lastReadingDate,
+        }
+      })
+      .sort((a, b) => (b.totalKwh ?? -1) - (a.totalKwh ?? -1))
 
     const totalKwh = rows.reduce((s, r) => s + (r.totalKwh ?? 0), 0)
     const totalOutput = round3(rows.reduce((s, r) => s + r.outputM, 0))
@@ -274,7 +326,11 @@ export class EnergyService {
   }
 
   /** 环比：与上一个等长期间比（[start-len, start-1]） */
-  async getCompare(ctx: RequestContext, periodStart: string, periodEnd: string): Promise<EnergyCompare> {
+  async getCompare(
+    ctx: RequestContext,
+    periodStart: string,
+    periodEnd: string,
+  ): Promise<EnergyCompare> {
     this.assertPeriod(periodStart, periodEnd)
     const len = dayDiff(new Date(periodEnd), new Date(periodStart))
     const prevEnd = dayShift(periodStart, -1)
@@ -282,12 +338,19 @@ export class EnergyService {
 
     const cur = await this.periodTotals(ctx, periodStart, periodEnd)
     const prev = await this.periodTotals(ctx, prevStart, prevEnd)
-    const delta = cur.kwhPer100m != null && prev.kwhPer100m != null ? round2(cur.kwhPer100m - prev.kwhPer100m) : null
-    const pct = delta != null && prev.kwhPer100m != null && prev.kwhPer100m !== 0
-      ? round2((delta / prev.kwhPer100m) * 100)
-      : null
+    const delta =
+      cur.kwhPer100m != null && prev.kwhPer100m != null
+        ? round2(cur.kwhPer100m - prev.kwhPer100m)
+        : null
+    const pct =
+      delta != null && prev.kwhPer100m != null && prev.kwhPer100m !== 0
+        ? round2((delta / prev.kwhPer100m) * 100)
+        : null
     return {
-      periodStart, periodEnd, prevStart, prevEnd,
+      periodStart,
+      periodEnd,
+      prevStart,
+      prevEnd,
       current: cur,
       prev,
       kwhPer100mDelta: delta,
@@ -299,12 +362,23 @@ export class EnergyService {
 
   private assertPeriod(start: string, end: string): void {
     if (start > end) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '统计期间起不得晚于止' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '统计期间起不得晚于止',
+      })
     }
   }
 
-  private async periodTotals(ctx: RequestContext, start: string, end: string): Promise<{
-    totalKwh: number; outputM: number; kwhPer100m: number | null; totalCost: number; costPerMeter: number | null
+  private async periodTotals(
+    ctx: RequestContext,
+    start: string,
+    end: string,
+  ): Promise<{
+    totalKwh: number
+    outputM: number
+    kwhPer100m: number | null
+    totalCost: number
+    costPerMeter: number | null
   }> {
     const all = await this.sortedReadings(ctx)
     const consumedMap = this.consumeMap(all)
@@ -362,11 +436,18 @@ export class EnergyService {
     return out
   }
 
-  private async findPrevReading(ctx: RequestContext, machineId: string, meterNo: string, before: string): Promise<EnergyReadingEntity | null> {
+  private async findPrevReading(
+    ctx: RequestContext,
+    machineId: string,
+    meterNo: string,
+    before: string,
+  ): Promise<EnergyReadingEntity | null> {
     return this.readings.findOne({
       where: {
-        tenantId: ctx.tenantId, companyId: ctx.companyId,
-        machineId, meterNo,
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        machineId,
+        meterNo,
         readingDate: Between('0000-01-01', before),
       },
       order: { readingDate: 'DESC', createdAt: 'DESC' },
@@ -374,7 +455,11 @@ export class EnergyService {
   }
 
   /** 期间产量按机台聚合（与工资/成本核算同源，不另设一套产量口径） */
-  private async outputByMachine(ctx: RequestContext, start: string, end: string): Promise<Map<string, number>> {
+  private async outputByMachine(
+    ctx: RequestContext,
+    start: string,
+    end: string,
+  ): Promise<Map<string, number>> {
     const reports = await this.reports.find({
       where: { tenantId: ctx.tenantId, companyId: ctx.companyId, reportDate: Between(start, end) },
     })

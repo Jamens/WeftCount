@@ -1,10 +1,4 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  PrimaryGeneratedColumn,
-} from 'typeorm'
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { StockTxnTypeValue, TxnDirectionValue } from '@weftcount/shared'
 
 /**
@@ -42,7 +36,20 @@ export class InventoryTransactionEntity {
   @Column({ type: 'enum', enum: ['in', 'out'] })
   direction!: TxnDirectionValue
 
-  @Column({ type: 'enum', enum: ['purchase_in', 'production_in', 'material_issue', 'sales_out', 'stock_adjust', 'stock_transfer', 'count_gain', 'count_loss', 'scrap'] })
+  @Column({
+    type: 'enum',
+    enum: [
+      'purchase_in',
+      'production_in',
+      'material_issue',
+      'sales_out',
+      'stock_adjust',
+      'stock_transfer',
+      'count_gain',
+      'count_loss',
+      'scrap',
+    ],
+  })
   txnType!: StockTxnTypeValue
 
   /** 变化量（米，主单位） */

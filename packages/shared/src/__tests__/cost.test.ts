@@ -20,7 +20,12 @@ const snapshot: SpecCalculationSnapshot = {
   kgPerMeter: 0.1674,
   kgPerM2: 0.1116,
   dailyOutputM: 259,
-  coefficients: { warpLossRate: 0.055, weftLossRate: 0.05, widthAllowance: 10, machineRunRate: 0.85 },
+  coefficients: {
+    warpLossRate: 0.055,
+    weftLossRate: 0.05,
+    widthAllowance: 10,
+    machineRunRate: 0.85,
+  },
   calculatedAt: '2026-01-01T00:00:00.000Z',
 }
 
@@ -32,7 +37,12 @@ describe('computeSpecCost', () => {
   it('物成本 = 每百米经纬纱用量 × 单价 / 100', () => {
     const warpExp = (snapshot.warpKgPer100m * WARP_PRICE) / 100 // 2.092
     const weftExp = (snapshot.weftKgPer100m * WEFT_PRICE) / 100 // 1.1304
-    const r = computeSpecCost({ snapshot, warpYarnPrice: WARP_PRICE, weftYarnPrice: WEFT_PRICE, overheadPerMeter: 0 })
+    const r = computeSpecCost({
+      snapshot,
+      warpYarnPrice: WARP_PRICE,
+      weftYarnPrice: WEFT_PRICE,
+      overheadPerMeter: 0,
+    })
     expect(r.warpCostPerM).toBeCloseTo(warpExp, 6)
     expect(r.weftCostPerM).toBeCloseTo(weftExp, 6)
     expect(r.materialCostPerM).toBeCloseTo(warpExp + weftExp, 6)
@@ -41,7 +51,12 @@ describe('computeSpecCost', () => {
   it('制造成本 = 物成本 + 加工费', () => {
     const materialExp =
       (snapshot.warpKgPer100m * WARP_PRICE) / 100 + (snapshot.weftKgPer100m * WEFT_PRICE) / 100
-    const r = computeSpecCost({ snapshot, warpYarnPrice: WARP_PRICE, weftYarnPrice: WEFT_PRICE, overheadPerMeter: OVERHEAD })
+    const r = computeSpecCost({
+      snapshot,
+      warpYarnPrice: WARP_PRICE,
+      weftYarnPrice: WEFT_PRICE,
+      overheadPerMeter: OVERHEAD,
+    })
     expect(r.totalCostPerM).toBeCloseTo(materialExp + OVERHEAD, 6)
   })
 
@@ -50,7 +65,12 @@ describe('computeSpecCost', () => {
       (snapshot.warpKgPer100m * WARP_PRICE) / 100 + (snapshot.weftKgPer100m * WEFT_PRICE) / 100
     const total = materialExp + OVERHEAD
     const perKg = total / snapshot.kgPerMeter
-    const r = computeSpecCost({ snapshot, warpYarnPrice: WARP_PRICE, weftYarnPrice: WEFT_PRICE, overheadPerMeter: OVERHEAD })
+    const r = computeSpecCost({
+      snapshot,
+      warpYarnPrice: WARP_PRICE,
+      weftYarnPrice: WEFT_PRICE,
+      overheadPerMeter: OVERHEAD,
+    })
     expect(r.totalCostPerKg).toBeCloseTo(perKg, 6)
     expect(r.totalCostPerM2).toBeCloseTo(perKg * snapshot.kgPerM2, 6)
   })
@@ -60,13 +80,24 @@ describe('computeSpecCost', () => {
     const materialExp =
       (snapshot.warpKgPer100m * WARP_PRICE) / 100 + (snapshot.weftKgPer100m * WEFT_PRICE) / 100
     const total = materialExp + OVERHEAD
-    const r = computeSpecCost({ snapshot, warpYarnPrice: WARP_PRICE, weftYarnPrice: WEFT_PRICE, overheadPerMeter: OVERHEAD, salesPricePerMeter: SALE })
+    const r = computeSpecCost({
+      snapshot,
+      warpYarnPrice: WARP_PRICE,
+      weftYarnPrice: WEFT_PRICE,
+      overheadPerMeter: OVERHEAD,
+      salesPricePerMeter: SALE,
+    })
     expect(r.grossProfitPerM).toBeCloseTo(SALE - total, 6)
     expect(r.grossMarginRate).toBeCloseTo((SALE - total) / SALE, 6)
   })
 
   it('不提供售价时毛利为 null（不臆造）', () => {
-    const r = computeSpecCost({ snapshot, warpYarnPrice: WARP_PRICE, weftYarnPrice: WEFT_PRICE, overheadPerMeter: OVERHEAD })
+    const r = computeSpecCost({
+      snapshot,
+      warpYarnPrice: WARP_PRICE,
+      weftYarnPrice: WEFT_PRICE,
+      overheadPerMeter: OVERHEAD,
+    })
     expect(r.salesPricePerM).toBeNull()
     expect(r.grossProfitPerM).toBeNull()
     expect(r.grossMarginRate).toBeNull()

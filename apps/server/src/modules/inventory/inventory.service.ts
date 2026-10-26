@@ -23,7 +23,10 @@ import { ProductionReportEntity } from '../production/entities/production-report
 import { ProductionOrderEntity } from '../production/entities/production-order.entity'
 import { MachineEntity } from '../production/entities/machine.entity'
 import { InventoryTransactionEntity } from './entities/inventory-transaction.entity'
-import { InventoryDocumentEntity, type InventoryDocType } from './entities/inventory-document.entity'
+import {
+  InventoryDocumentEntity,
+  type InventoryDocType,
+} from './entities/inventory-document.entity'
 
 /** 单据号前缀 */
 const DOC_PREFIX: Record<InventoryDocType, string> = {
@@ -148,7 +151,10 @@ export class InventoryService {
   private translateConversionError(e: unknown): never {
     if (e instanceof Error && e.name === 'ConversionError') {
       const ce = e as ConversionError
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `换算失败：${ce.message}` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `换算失败：${ce.message}`,
+      })
     }
     throw e
   }
@@ -320,7 +326,6 @@ export class InventoryService {
     return withUniqueNo(() => this.doPurchaseInbound(ctx, input))
   }
 
-
   /**
    * **幂等去重**：同一 clientRequestId 已建过单 → 直接返回首次的单据，不重复过账。
    *
@@ -350,7 +355,10 @@ export class InventoryService {
       return this.translateConversionError(e)
     }
     if (meters <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '折算后长度必须为正' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '折算后长度必须为正',
+      })
     }
 
     const weightKg = this.metersToWeight(meters, c)
@@ -360,7 +368,13 @@ export class InventoryService {
     const batchNo = await this.nextBatchNo(ctx.companyId)
     const partner = await this.resolvePartner(ctx, input.partnerId, 'purchase_inbound')
     const { orderId, orderItemId } = await this.validateOrderLink(
-      ctx, input.orderId, 'purchase_inbound', partner.partnerId as string, input.materialId, input.specId, input.orderItemId,
+      ctx,
+      input.orderId,
+      'purchase_inbound',
+      partner.partnerId as string,
+      input.materialId,
+      input.specId,
+      input.orderItemId,
     )
     const warehouseId = await this.resolveWarehouse(ctx, input.warehouseId)
 
@@ -440,7 +454,16 @@ export class InventoryService {
 
       // 逐匹入库：按各匹米数校验总量并生成件卡记录
       if (input.rolls && input.rolls.length > 0) {
-        await this.persistRolls(manager, ctx, input.rolls, savedBatch.id, savedDoc.id, meters, weightKg, '入库总量')
+        await this.persistRolls(
+          manager,
+          ctx,
+          input.rolls,
+          savedBatch.id,
+          savedDoc.id,
+          meters,
+          weightKg,
+          '入库总量',
+        )
       }
 
       return savedDoc
@@ -465,10 +488,21 @@ export class InventoryService {
   async createProductionInbound(
     manager: EntityManager,
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { materialId: string; specId: string; quantityM: number; sourceDocId: string; warehouseId?: string | null; remark?: string | null; rolls?: { rollNo: string; meters: number }[] | null },
+    input: {
+      materialId: string
+      specId: string
+      quantityM: number
+      sourceDocId: string
+      warehouseId?: string | null
+      remark?: string | null
+      rolls?: { rollNo: string; meters: number }[] | null
+    },
   ): Promise<InventoryBatchEntity> {
     if (input.quantityM <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '入库产量必须为正' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '入库产量必须为正',
+      })
     }
     const spec = await this.materials.findSpec(ctx.tenantId, ctx.companyId, input.specId)
     const snapshot = this.materials.getSnapshot(spec)
@@ -528,7 +562,16 @@ export class InventoryService {
 
     // 报工按匹：织机产出按件卡登记（每匹一件卡，关联到本次产出批次）
     if (input.rolls && input.rolls.length > 0) {
-      await this.persistRolls(manager, ctx, input.rolls, batch.id, input.sourceDocId, meters, weightKg, '报工产量')
+      await this.persistRolls(
+        manager,
+        ctx,
+        input.rolls,
+        batch.id,
+        input.sourceDocId,
+        meters,
+        weightKg,
+        '报工产量',
+      )
     }
     return batch
   }
@@ -565,9 +608,16 @@ export class InventoryService {
     const kgPerM = expectedMeters > 0 ? expectedWeightKg / expectedMeters : 0
     const entities = rolls.map((r) => {
       const rollNo = String(r.rollNo).trim()
-      if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
+      if (!rollNo)
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '件卡号不能为空',
+        })
       if (seen.has(rollNo)) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡号 ${rollNo} 重复` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `件卡号 ${rollNo} 重复`,
+        })
       }
       seen.add(rollNo)
       const meters = Number(r.meters)
@@ -601,24 +651,46 @@ export class InventoryService {
   /** 仓间调拨：撞号重试（新批次号并发碰撞时整体重试） */
   async transfer(
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { sourceBatchId: string; toWarehouseId: string; quantityM: number; remark?: string | null },
+    input: {
+      sourceBatchId: string
+      toWarehouseId: string
+      quantityM: number
+      remark?: string | null
+    },
   ): Promise<{ sourceBatch: InventoryBatchEntity; targetBatch: InventoryBatchEntity }> {
     return withUniqueNo(() => this.doTransfer(ctx, input))
   }
 
   private async doTransfer(
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { sourceBatchId: string; toWarehouseId: string; quantityM: number; remark?: string | null },
+    input: {
+      sourceBatchId: string
+      toWarehouseId: string
+      quantityM: number
+      remark?: string | null
+    },
   ): Promise<{ sourceBatch: InventoryBatchEntity; targetBatch: InventoryBatchEntity }> {
-    const src = await this.batches.findOne({ where: { id: input.sourceBatchId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const src = await this.batches.findOne({
+      where: { id: input.sourceBatchId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!src) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '源批次不存在' })
-    const target = await this.warehouses.requireActive(ctx.tenantId, ctx.companyId, input.toWarehouseId)
+    const target = await this.warehouses.requireActive(
+      ctx.tenantId,
+      ctx.companyId,
+      input.toWarehouseId,
+    )
     if (src.warehouseId === target.id) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '源批次已在目标仓，无需调拨' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '源批次已在目标仓，无需调拨',
+      })
     }
     const q = input.quantityM
     if (q <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '调拨数量必须大于 0' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '调拨数量必须大于 0',
+      })
     }
     const remaining = Number(src.remainingQuantity)
     if (q > remaining + 1e-6) {
@@ -746,7 +818,10 @@ export class InventoryService {
       return this.translateConversionError(e)
     }
     if (need <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '折算后长度必须为正' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '折算后长度必须为正',
+      })
     }
 
     const available = await manager.find(InventoryBatchEntity, {
@@ -801,17 +876,29 @@ export class InventoryService {
     let totalKg = 0
     let totalM2 = 0
     for (const pick of input.pickedItems ?? []) {
-      const batch = await manager.findOne(InventoryBatchEntity, { where: { id: pick.batchId, companyId: ctx.companyId } })
-      if (!batch) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '扫码批次不存在' })
+      const batch = await manager.findOne(InventoryBatchEntity, {
+        where: { id: pick.batchId, companyId: ctx.companyId },
+      })
+      if (!batch)
+        throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '扫码批次不存在' })
       if (batch.status !== 'normal') {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `批次 ${batch.batchNo} 不可用（已耗尽/冻结）` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `批次 ${batch.batchNo} 不可用（已耗尽/冻结）`,
+        })
       }
       if (batch.specId !== input.specId) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `扫码批次 ${batch.batchNo} 规格与单据规格不一致` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `扫码批次 ${batch.batchNo} 规格与单据规格不一致`,
+        })
       }
       const take = pick.quantityM
       if (take <= 0) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `批次 ${batch.batchNo} 拣货数量必须大于 0` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `批次 ${batch.batchNo} 拣货数量必须大于 0`,
+        })
       }
       const rem = Number(batch.remainingQuantity)
       if (take > rem + 1e-6) {
@@ -828,7 +915,10 @@ export class InventoryService {
       totalM2 += m2
     }
     if (totalM <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '扫码拣货合计必须大于 0' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '扫码拣货合计必须大于 0',
+      })
     }
     return { need: totalM, portions, totalM, totalKg, totalM2 }
   }
@@ -859,30 +949,56 @@ export class InventoryService {
     let totalM2 = 0
     for (const pick of input.pickedRolls ?? []) {
       const rollNo = String(pick.rollNo).trim()
-      if (!rollNo) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡号不能为空' })
+      if (!rollNo)
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '件卡号不能为空',
+        })
       if (seen.has(rollNo)) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 重复扫码` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `件卡 ${rollNo} 重复扫码`,
+        })
       }
       seen.add(rollNo)
-      const roll = await manager.findOne(RollEntity, { where: { rollNo, companyId: ctx.companyId } })
-      if (!roll) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
+      const roll = await manager.findOne(RollEntity, {
+        where: { rollNo, companyId: ctx.companyId },
+      })
+      if (!roll)
+        throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
       if (roll.status !== 'in_stock') {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 不可用（已出库/已耗）` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `件卡 ${rollNo} 不可用（已出库/已耗）`,
+        })
       }
       const batch = await manager.findOne(InventoryBatchEntity, { where: { id: roll.batchId } })
-      if (!batch) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 所属批次不存在` })
+      if (!batch)
+        throw new NotFoundException({
+          code: ErrorCode.NOT_FOUND,
+          message: `件卡 ${rollNo} 所属批次不存在`,
+        })
       if (batch.specId !== input.specId) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 规格与单据规格不一致` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `件卡 ${rollNo} 规格与单据规格不一致`,
+        })
       }
       // remaining_m 是权威剩余量；历史数据回填为 meters
       const rollRemain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
       if (rollRemain <= 1e-9) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 剩余量为 0` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `件卡 ${rollNo} 剩余量为 0`,
+        })
       }
       // 不传 meters = 整匹发；传了 = 拆匹发该米数
       const take = pick.meters == null ? rollRemain : Number(pick.meters)
       if (!Number.isFinite(take) || take <= 0) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `件卡 ${rollNo} 发货米数必须大于 0` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `件卡 ${rollNo} 发货米数必须大于 0`,
+        })
       }
       if (take > rollRemain + 1e-6) {
         throw new BadRequestException({
@@ -906,7 +1022,10 @@ export class InventoryService {
       totalM2 += m2
     }
     if (totalM <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '件卡发货合计必须大于 0' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '件卡发货合计必须大于 0',
+      })
     }
     return { need: totalM, portions, totalM, totalKg, totalM2, rollTakes }
   }
@@ -924,8 +1043,14 @@ export class InventoryService {
       if (!batch) continue
       const newRem = Number(batch.remainingQuantity) - p.take
       batch.remainingQuantity = num(newRem, 3)
-      batch.remainingWeightKg = num(this.metersToWeight(newRem, this.ctxOf(batch.specSnapshot, Number(batch.widthCm))), 3)
-      batch.remainingAreaM2 = num(this.metersToArea(newRem, this.ctxOf(batch.specSnapshot, Number(batch.widthCm))), 4)
+      batch.remainingWeightKg = num(
+        this.metersToWeight(newRem, this.ctxOf(batch.specSnapshot, Number(batch.widthCm))),
+        3,
+      )
+      batch.remainingAreaM2 = num(
+        this.metersToArea(newRem, this.ctxOf(batch.specSnapshot, Number(batch.widthCm))),
+        4,
+      )
       batch.status = newRem <= 1e-9 ? 'depleted' : 'normal'
       await manager.save(batch)
 
@@ -958,7 +1083,8 @@ export class InventoryService {
         const roll = await manager.findOne(RollEntity, { where: { id: rt.rollId } })
         if (!roll) continue
         const remain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
-        const remainKg = roll.remainingKg == null ? Number(roll.weightKg ?? 0) : Number(roll.remainingKg)
+        const remainKg =
+          roll.remainingKg == null ? Number(roll.weightKg ?? 0) : Number(roll.remainingKg)
         // 按剩余比例折算本次出库重量，避免逐匹累计误差
         const kgOut = remain > 1e-9 ? (remainKg * rt.meters) / remain : rt.kg
         const newRemain = remain - rt.meters
@@ -1001,7 +1127,13 @@ export class InventoryService {
     const widthCm = Number(spec.finishedWidth)
     const partner = await this.resolvePartner(ctx, input.partnerId, docType)
     const { orderId, orderItemId } = await this.validateOrderLink(
-      ctx, input.orderId, docType, partner.partnerId ?? '', input.materialId, input.specId, input.orderItemId,
+      ctx,
+      input.orderId,
+      docType,
+      partner.partnerId ?? '',
+      input.materialId,
+      input.specId,
+      input.orderItemId,
     )
 
     const saved = await this.dataSource.transaction(async (manager) => {
@@ -1079,7 +1211,10 @@ export class InventoryService {
     orderItemId: string | null,
     input: CreateDocInput,
     plan: ConsumptionPlan,
-  ): Promise<{ unitPrice: number | null; priceSnapshot: InventoryDocumentEntity["priceSnapshot"] }> {
+  ): Promise<{
+    unitPrice: number | null
+    priceSnapshot: InventoryDocumentEntity['priceSnapshot']
+  }> {
     if (input.unitPrice != null) return { unitPrice: input.unitPrice, priceSnapshot: null }
 
     const rollTakes = plan.rollTakes
@@ -1095,7 +1230,8 @@ export class InventoryService {
         contractItemId = item.contractItemId
       }
     }
-    if (basePrice == null || !Number.isFinite(basePrice)) return { unitPrice: null, priceSnapshot: null }
+    if (basePrice == null || !Number.isFinite(basePrice))
+      return { unitPrice: null, priceSnapshot: null }
 
     const r = await this.quality.weightedGradePrice(ctx, {
       rollTakes: rollTakes.map((rt) => ({ rollId: rt.rollId, meters: rt.meters })),
@@ -1119,7 +1255,9 @@ export class InventoryService {
     ctx: { tenantId: string; companyId: string; userId: string },
     input: CreateDocInput,
   ): Promise<InventoryDocumentEntity> {
-    return withUniqueNo(() => this.doCreateOutbound(ctx, 'production_issue', 'material_issue', input))
+    return withUniqueNo(() =>
+      this.doCreateOutbound(ctx, 'production_issue', 'material_issue', input),
+    )
   }
 
   /** 销售出库（按面积录入） */
@@ -1145,7 +1283,11 @@ export class InventoryService {
     return this.batches.findOne({ where: { tenantId, companyId, sourceDocId } })
   }
 
-  async listRolls(tenantId: string, companyId: string, filter: { batchId?: string; status?: string }) {
+  async listRolls(
+    tenantId: string,
+    companyId: string,
+    filter: { batchId?: string; status?: string },
+  ) {
     const qb = this.rolls
       .createQueryBuilder('r')
       .where('r.company_id = :companyId', { companyId })
@@ -1155,14 +1297,14 @@ export class InventoryService {
     const rolls = await qb.getMany()
     // 带批次号/规格名，标签直接可用
     const batchIds = [...new Set(rolls.map((r) => r.batchId))]
-    const batches = batchIds.length
-      ? await this.batches.find({ where: { id: In(batchIds) } })
-      : []
+    const batches = batchIds.length ? await this.batches.find({ where: { id: In(batchIds) } }) : []
     const batchMap = new Map(batches.map((b) => [b.id, b]))
     return Promise.all(
       rolls.map(async (r) => {
         const b = batchMap.get(r.batchId)
-        const spec = b ? await this.materials.findSpec(tenantId, companyId, b.specId).catch(() => null) : null
+        const spec = b
+          ? await this.materials.findSpec(tenantId, companyId, b.specId).catch(() => null)
+          : null
         return {
           id: r.id,
           rollNo: r.rollNo,
@@ -1189,7 +1331,9 @@ export class InventoryService {
       throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
     }
     const batch = await this.batches.findOne({ where: { id: roll.batchId } })
-    const spec = batch ? await this.materials.findSpec(tenantId, companyId, batch.specId).catch(() => null) : null
+    const spec = batch
+      ? await this.materials.findSpec(tenantId, companyId, batch.specId).catch(() => null)
+      : null
     return {
       rollNo: roll.rollNo,
       meters: roll.meters,
@@ -1224,9 +1368,7 @@ export class InventoryService {
     const snap = batch.specSnapshot
     const spec = await this.materials.findSpec(tenantId, companyId, batch.specId).catch(() => null)
     const material = batch.materialId
-      ? await this.materials
-          .findOne(tenantId, companyId, batch.materialId)
-          .catch(() => null)
+      ? await this.materials.findOne(tenantId, companyId, batch.materialId).catch(() => null)
       : null
 
     // 来源：分两种——采购件看入库单(供应商+采购订单)；织造件看报工(工单+机台)。
@@ -1242,7 +1384,13 @@ export class InventoryService {
     if (roll.sourceDocId) {
       const inDoc = await this.docs.findOne({ where: { id: roll.sourceDocId, companyId } })
       if (inDoc) {
-        source = { docNo: inDoc.docNo, docType: inDoc.docType, partnerName: inDoc.partnerName, orderId: inDoc.orderId, date: inDoc.createdAt }
+        source = {
+          docNo: inDoc.docNo,
+          docType: inDoc.docType,
+          partnerName: inDoc.partnerName,
+          orderId: inDoc.orderId,
+          date: inDoc.createdAt,
+        }
       } else {
         // 织造件：sourceDocId = 报工 id
         const report = await this.reports.findOne({ where: { id: roll.sourceDocId } })
@@ -1258,7 +1406,9 @@ export class InventoryService {
             docType: 'production_report',
             partnerName: null,
             orderId: report.orderId,
-            date: report.reportDate ? new Date(report.reportDate) : report.createdAt ?? new Date(),
+            date: report.reportDate
+              ? new Date(report.reportDate)
+              : (report.createdAt ?? new Date()),
             machineName,
           }
         }
@@ -1295,8 +1445,13 @@ export class InventoryService {
       const d = await this.docs.findOne({ where: { id: roll.outboundDocId, companyId } })
       if (d) {
         destinations.push({
-          docNo: d.docNo, docType: d.docType, partnerName: d.partnerName,
-          orderId: d.orderId, date: d.createdAt, meters: roll.meters, weightKg: roll.weightKg,
+          docNo: d.docNo,
+          docType: d.docType,
+          partnerName: d.partnerName,
+          orderId: d.orderId,
+          date: d.createdAt,
+          meters: roll.meters,
+          weightKg: roll.weightKg,
         })
       }
     }
@@ -1341,7 +1496,8 @@ export class InventoryService {
       .andWhere('b.company_id = :companyId', { companyId })
     if (filter?.specId) qb.andWhere('b.spec_id = :specId', { specId: filter.specId })
     if (filter?.status) qb.andWhere('b.status = :status', { status: filter.status })
-    if (filter?.warehouseId) qb.andWhere('b.warehouse_id = :warehouseId', { warehouseId: filter.warehouseId })
+    if (filter?.warehouseId)
+      qb.andWhere('b.warehouse_id = :warehouseId', { warehouseId: filter.warehouseId })
     return qb.orderBy('b.inbound_at', 'DESC').getMany()
   }
 
@@ -1464,7 +1620,15 @@ export class InventoryService {
     const ensure = (specId: string) => {
       let g = groups.get(specId)
       if (!g) {
-        g = { purchaseKg: 0, productionInKg: 0, countGainKg: 0, productionOutKg: 0, salesOutKg: 0, countLossKg: 0, remainingKg: 0 }
+        g = {
+          purchaseKg: 0,
+          productionInKg: 0,
+          countGainKg: 0,
+          productionOutKg: 0,
+          salesOutKg: 0,
+          countLossKg: 0,
+          remainingKg: 0,
+        }
         groups.set(specId, g)
       }
       return g

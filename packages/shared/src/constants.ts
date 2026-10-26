@@ -21,7 +21,8 @@ export const DocNoPrefix = {
 export type DocNoPrefixValue = (typeof DocNoPrefix)[keyof typeof DocNoPrefix]
 
 /** 单据状态机 */
-export type DocStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'cancelled'
+export type DocStatus =
+  'draft' | 'submitted' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'cancelled'
 
 export const DOC_STATUS_FLOW: Record<DocStatus, DocStatus[]> = {
   draft: ['submitted', 'cancelled'],

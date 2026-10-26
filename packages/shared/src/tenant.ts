@@ -52,7 +52,10 @@ export type CompanyStatus = 'active' | 'closed'
  */
 export type SubscriptionPlan = 'basic' | 'professional' | 'flagship'
 
-export const PLAN_LIMITS: Record<SubscriptionPlan, { maxCompanies: number; maxUsers: number; aiEnabled: boolean; label: string }> = {
+export const PLAN_LIMITS: Record<
+  SubscriptionPlan,
+  { maxCompanies: number; maxUsers: number; aiEnabled: boolean; label: string }
+> = {
   basic: { maxCompanies: 1, maxUsers: 5, aiEnabled: false, label: '基础版 · 进销存' },
   professional: { maxCompanies: 3, maxUsers: 30, aiEnabled: false, label: '专业版 · 含工艺算法' },
   flagship: { maxCompanies: 999, maxUsers: 999, aiEnabled: true, label: '旗舰版 · 含 AI 引擎' },
@@ -109,9 +112,22 @@ export const BUILTIN_ROLES = [
     name: '厂长 / 公司管理员',
     description: '单公司全部经营操作，含工艺系数配置与授权',
     permissions: [
-      'material.*', 'partner.*', 'warehouse.*', 'inventory.*',
-      'purchase.*', 'sales.*', 'production.*', 'cost.*', 'contract.*',
-      'report.*', 'coefficient.*', 'user.view', 'user.manage', 'role.view', 'role.manage', 'audit.view',
+      'material.*',
+      'partner.*',
+      'warehouse.*',
+      'inventory.*',
+      'purchase.*',
+      'sales.*',
+      'production.*',
+      'cost.*',
+      'contract.*',
+      'report.*',
+      'coefficient.*',
+      'user.view',
+      'user.manage',
+      'role.view',
+      'role.manage',
+      'audit.view',
     ],
   },
   {
@@ -119,27 +135,54 @@ export const BUILTIN_ROLES = [
     name: '工艺员',
     description: '负责规格设定、系数调参与用料核算，不碰资金单据',
     permissions: [
-      'material.view', 'material.edit', 'coefficient.*',
-      'production.view', 'production.order.edit', 'tech.calc',
+      'material.view',
+      'material.edit',
+      'coefficient.*',
+      'production.view',
+      'production.order.edit',
+      'tech.calc',
     ],
   },
   {
     code: 'purchaser',
     name: '采购员',
     description: '供应商、比价、采购订单与到货跟踪',
-    permissions: ['material.view', 'partner.view', 'partner.edit', 'purchase.*', 'contract.*', 'inventory.view'],
+    permissions: [
+      'material.view',
+      'partner.view',
+      'partner.edit',
+      'purchase.*',
+      'contract.*',
+      'inventory.view',
+    ],
   },
   {
     code: 'warehouse_keeper',
     name: '仓管员',
     description: '出入库、盘点、移库、库存预警处理',
-    permissions: ['material.view', 'partner.view', 'warehouse.*', 'inventory.*', 'purchase.view', 'production.view', 'report.view'],
+    permissions: [
+      'material.view',
+      'partner.view',
+      'warehouse.*',
+      'inventory.*',
+      'purchase.view',
+      'production.view',
+      'report.view',
+    ],
   },
   {
     code: 'sales_clerk',
     name: '业务员',
     description: '报价、客户订单、出库送货与对账收款',
-    permissions: ['material.view', 'partner.view', 'partner.edit', 'sales.*', 'contract.*', 'inventory.view', 'report.sales'],
+    permissions: [
+      'material.view',
+      'partner.view',
+      'partner.edit',
+      'sales.*',
+      'contract.*',
+      'inventory.view',
+      'report.sales',
+    ],
   },
   {
     code: 'loom_operator',
@@ -151,7 +194,15 @@ export const BUILTIN_ROLES = [
     code: 'accountant',
     name: '会计',
     description: '成本核算、对账、报表与账务导出',
-    permissions: ['cost.*', 'report.*', 'contract.view', 'sales.view', 'purchase.view', 'inventory.view', 'partner.view'],
+    permissions: [
+      'cost.*',
+      'report.*',
+      'contract.view',
+      'sales.view',
+      'purchase.view',
+      'inventory.view',
+      'partner.view',
+    ],
   },
   {
     code: 'viewer',

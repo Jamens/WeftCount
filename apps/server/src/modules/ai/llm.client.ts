@@ -44,7 +44,10 @@ export class LlmClient {
     return !!this.config.get<string>('AI_API_KEY')
   }
 
-  async chat(messages: LlmMessage[], opts?: { temperature?: number; timeoutMs?: number }): Promise<LlmResult> {
+  async chat(
+    messages: LlmMessage[],
+    opts?: { temperature?: number; timeoutMs?: number },
+  ): Promise<LlmResult> {
     if (!this.enabled) {
       return {
         ok: false,
@@ -53,7 +56,10 @@ export class LlmClient {
       }
     }
     const apiKey = this.config.get<string>('AI_API_KEY')!
-    const baseUrl = (this.config.get<string>('AI_BASE_URL') ?? 'https://api.deepseek.com').replace(/\/+$/, '')
+    const baseUrl = (this.config.get<string>('AI_BASE_URL') ?? 'https://api.deepseek.com').replace(
+      /\/+$/,
+      '',
+    )
     const model = this.config.get<string>('AI_MODEL') ?? 'deepseek-chat'
     const timeoutMs = opts?.timeoutMs ?? 20000
     const controller = new AbortController()
@@ -79,7 +85,10 @@ export class LlmClient {
         ok: !!content,
         content,
         reason: content ? undefined : 'bad_json',
-        usage: { promptTokens: body.usage?.prompt_tokens, completionTokens: body.usage?.completion_tokens },
+        usage: {
+          promptTokens: body.usage?.prompt_tokens,
+          completionTokens: body.usage?.completion_tokens,
+        },
       }
     } catch (e) {
       const reason = e instanceof Error && e.name === 'AbortError' ? 'timeout' : 'network_error'

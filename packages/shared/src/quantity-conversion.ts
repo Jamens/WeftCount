@@ -34,27 +34,61 @@ type Dimension = 'weight' | 'length' | 'area' | 'count'
 
 const UNIT_DIMENSION: Record<string, Dimension> = {
   // 重量
-  mg: 'weight', g: 'weight', kg: 'weight', t: 'weight', lb: 'weight', jin: 'weight',
+  mg: 'weight',
+  g: 'weight',
+  kg: 'weight',
+  t: 'weight',
+  lb: 'weight',
+  jin: 'weight',
   // 长度
-  mm: 'length', cm: 'length', m: 'length', km: 'length',
-  yd: 'length', inch: 'length', ft: 'length', chi: 'length',
+  mm: 'length',
+  cm: 'length',
+  m: 'length',
+  km: 'length',
+  yd: 'length',
+  inch: 'length',
+  ft: 'length',
+  chi: 'length',
   // 面积
-  m2: 'area', cm2: 'area', ft2: 'area', yd2: 'area',
+  m2: 'area',
+  cm2: 'area',
+  ft2: 'area',
+  yd2: 'area',
   // 数量
-  piece: 'count', roll: 'count', cone: 'count', set: 'count',
+  piece: 'count',
+  roll: 'count',
+  cone: 'count',
+  set: 'count',
 }
 
 /** 单位换算到基本单位的系数（kg / m / m²） */
 const UNIT_FACTOR: Record<string, number> = {
   // 重量 → kg
-  mg: 1e-6, g: 0.001, kg: 1, t: 1000, lb: 0.45359237, jin: 0.5,
+  mg: 1e-6,
+  g: 0.001,
+  kg: 1,
+  t: 1000,
+  lb: 0.45359237,
+  jin: 0.5,
   // 长度 → m
-  mm: 0.001, cm: 0.01, m: 1, km: 1000,
-  yd: 0.9144, inch: 0.0254, ft: 0.3048, chi: 1 / 3,
+  mm: 0.001,
+  cm: 0.01,
+  m: 1,
+  km: 1000,
+  yd: 0.9144,
+  inch: 0.0254,
+  ft: 0.3048,
+  chi: 1 / 3,
   // 面积 → m²
-  m2: 1, cm2: 0.0001, ft2: 0.09290304, yd2: 0.83612736,
+  m2: 1,
+  cm2: 0.0001,
+  ft2: 0.09290304,
+  yd2: 0.83612736,
   // 数量：无系数
-  piece: 1, roll: 1, cone: 1, set: 1,
+  piece: 1,
+  roll: 1,
+  cone: 1,
+  set: 1,
 }
 
 function dimensionOf(unit: string): Dimension {
@@ -122,12 +156,10 @@ export function convertQuantity(
   // 长度 ↔ 面积：需要幅宽
   if ((dFrom === 'length' && dTo === 'area') || (dFrom === 'area' && dTo === 'length')) {
     if (!ctx.widthM || ctx.widthM <= 0) {
-      throw new ConversionError(
-        '长度与面积换算需要幅宽参数（widthM）',
-        'WIDTH_REQUIRED',
-      )
+      throw new ConversionError('长度与面积换算需要幅宽参数（widthM）', 'WIDTH_REQUIRED')
     }
-    const meters = dFrom === 'length' ? value * factorOf(fromUnit) : (value * factorOf(fromUnit)) / ctx.widthM
+    const meters =
+      dFrom === 'length' ? value * factorOf(fromUnit) : (value * factorOf(fromUnit)) / ctx.widthM
     const result = dFrom === 'length' ? meters * ctx.widthM : meters
     return {
       value: round6(result / factorOf(toUnit)),
@@ -139,10 +171,7 @@ export function convertQuantity(
   // 重量 ↔ 长度/面积：需要克重
   if (dFrom === 'weight' || dTo === 'weight') {
     if (!ctx.gsm || ctx.gsm <= 0) {
-      throw new ConversionError(
-        '重量与长度/面积换算需要克重参数（gsm, g/m²）',
-        'GSM_REQUIRED',
-      )
+      throw new ConversionError('重量与长度/面积换算需要克重参数（gsm, g/m²）', 'GSM_REQUIRED')
     }
     // 克重是「每平方米克数」，与幅宽无关：
     //   每 m² 重量 = gsm / 1000 (kg)

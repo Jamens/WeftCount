@@ -25,7 +25,9 @@ export class LinkPartnerToDocs1730500000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('ALTER TABLE `inventory_documents` ADD COLUMN `counterparty` varchar(128) DEFAULT NULL')
+    await queryRunner.query(
+      'ALTER TABLE `inventory_documents` ADD COLUMN `counterparty` varchar(128) DEFAULT NULL',
+    )
     await queryRunner.query(
       'ALTER TABLE `inventory_documents` DROP KEY `idx_docs_partner`, DROP COLUMN `partner_id`, DROP COLUMN `partner_name`',
     )

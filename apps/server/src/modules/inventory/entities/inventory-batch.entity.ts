@@ -89,7 +89,8 @@ export class InventoryBatchEntity {
     type: 'enum',
     enum: ['purchase_inbound', 'production_in', 'stock_transfer', 'stock_adjust', 'count_gain'],
   })
-  sourceType!: 'purchase_inbound' | 'production_in' | 'stock_transfer' | 'stock_adjust' | 'count_gain'
+  sourceType!:
+    'purchase_inbound' | 'production_in' | 'stock_transfer' | 'stock_adjust' | 'count_gain'
 
   /** 来源单据 id */
   @Column({ type: 'char', length: 36 })

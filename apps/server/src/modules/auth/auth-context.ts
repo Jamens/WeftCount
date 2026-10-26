@@ -49,7 +49,11 @@ export function extractContext(req: Request): Omit<RequestContext, 'permissions'
     throw new Error(`${ErrorCode.COMPANY_NOT_FOUND}:缺少公司标识`)
   }
   return {
-    userId: (req as Request & { user?: { sub: string; username: string; realName: string; roleCodes: string[] } }).user!.sub,
+    userId: (
+      req as Request & {
+        user?: { sub: string; username: string; realName: string; roleCodes: string[] }
+      }
+    ).user!.sub,
     tenantId,
     companyId,
     username: (req as Request & { user?: { username: string } }).user!.username,

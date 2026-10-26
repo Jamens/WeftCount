@@ -92,11 +92,20 @@ interface OverviewWire {
   paidAmount: number
 }
 
-const SLIP_STATUS_LABEL: Record<string, string> = { draft: '草稿', confirmed: '已确认', paid: '已发放' }
-const SLIP_STATUS_COLOR: Record<string, string> = { draft: 'blue', confirmed: 'gold', paid: 'green' }
+const SLIP_STATUS_LABEL: Record<string, string> = {
+  draft: '草稿',
+  confirmed: '已确认',
+  paid: '已发放',
+}
+const SLIP_STATUS_COLOR: Record<string, string> = {
+  draft: 'blue',
+  confirmed: 'gold',
+  paid: 'green',
+}
 
 const money = (n: number | null | undefined) => `¥${(n ?? 0).toFixed(2)}`
-const meters = (n: number | null | undefined) => `${(n ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 1 })} m`
+const meters = (n: number | null | undefined) =>
+  `${(n ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 1 })} m`
 
 /** 计件工资 */
 export default function PayrollPage() {
@@ -128,7 +137,9 @@ export default function PayrollPage() {
     }
   }, [message])
 
-  useEffect(() => { void reload() }, [reload])
+  useEffect(() => {
+    void reload()
+  }, [reload])
 
   const profiledUserIds = new Set(profiles.map((p) => p.userId))
   const userOptions = users
@@ -142,21 +153,75 @@ export default function PayrollPage() {
       </Title>
 
       <Space size={16} wrap style={{ marginBottom: 16 }}>
-        <Card size="small" title="工资档案"><Text strong style={{ fontSize: 20 }}>{overview?.profileCount ?? 0}</Text></Card>
-        <Card size="small" title="草稿单"><Text strong style={{ fontSize: 20 }}>{overview?.draftCount ?? 0}</Text></Card>
-        <Card size="small" title="待确认" style={{ borderColor: (overview?.confirmedCount ?? 0) > 0 ? '#faad14' : undefined }}>
-          <Text strong style={{ fontSize: 20, color: (overview?.confirmedCount ?? 0) > 0 ? '#faad14' : undefined }}>{overview?.confirmedCount ?? 0}</Text>
+        <Card size="small" title="工资档案">
+          <Text strong style={{ fontSize: 20 }}>
+            {overview?.profileCount ?? 0}
+          </Text>
         </Card>
-        <Card size="small" title="待发金额" style={{ borderColor: (overview?.pendingAmount ?? 0) > 0 ? '#faad14' : undefined }}>
-          <Text strong style={{ fontSize: 20, color: (overview?.pendingAmount ?? 0) > 0 ? '#faad14' : undefined }}>{money(overview?.pendingAmount)}</Text>
+        <Card size="small" title="草稿单">
+          <Text strong style={{ fontSize: 20 }}>
+            {overview?.draftCount ?? 0}
+          </Text>
         </Card>
-        <Card size="small" title="已发金额"><Text strong style={{ fontSize: 20 }}>{money(overview?.paidAmount)}</Text></Card>
+        <Card
+          size="small"
+          title="待确认"
+          style={{ borderColor: (overview?.confirmedCount ?? 0) > 0 ? '#faad14' : undefined }}
+        >
+          <Text
+            strong
+            style={{
+              fontSize: 20,
+              color: (overview?.confirmedCount ?? 0) > 0 ? '#faad14' : undefined,
+            }}
+          >
+            {overview?.confirmedCount ?? 0}
+          </Text>
+        </Card>
+        <Card
+          size="small"
+          title="待发金额"
+          style={{ borderColor: (overview?.pendingAmount ?? 0) > 0 ? '#faad14' : undefined }}
+        >
+          <Text
+            strong
+            style={{
+              fontSize: 20,
+              color: (overview?.pendingAmount ?? 0) > 0 ? '#faad14' : undefined,
+            }}
+          >
+            {money(overview?.pendingAmount)}
+          </Text>
+        </Card>
+        <Card size="small" title="已发金额">
+          <Text strong style={{ fontSize: 20 }}>
+            {money(overview?.paidAmount)}
+          </Text>
+        </Card>
       </Space>
 
       <Tabs
         items={[
-          { key: 'profiles', label: '工资档案', children: <ProfilesTab rows={profiles} userOptions={userOptions} canWrite={canWrite} loading={loading} onDone={reload} /> },
-          { key: 'slips', label: '工资单', children: <SlipsTab rows={slips} canWrite={canWrite} loading={loading} onDone={reload} /> },
+          {
+            key: 'profiles',
+            label: '工资档案',
+            children: (
+              <ProfilesTab
+                rows={profiles}
+                userOptions={userOptions}
+                canWrite={canWrite}
+                loading={loading}
+                onDone={reload}
+              />
+            ),
+          },
+          {
+            key: 'slips',
+            label: '工资单',
+            children: (
+              <SlipsTab rows={slips} canWrite={canWrite} loading={loading} onDone={reload} />
+            ),
+          },
         ]}
       />
     </div>
@@ -165,7 +230,13 @@ export default function PayrollPage() {
 
 // ---------- 工资档案 ----------
 
-function ProfilesTab({ rows, userOptions, canWrite, loading, onDone }: {
+function ProfilesTab({
+  rows,
+  userOptions,
+  canWrite,
+  loading,
+  onDone,
+}: {
   rows: ProfileWire[]
   userOptions: { value: string; label: string }[]
   canWrite: boolean
@@ -186,7 +257,12 @@ function ProfilesTab({ rows, userOptions, canWrite, loading, onDone }: {
   }
   const openEdit = (p: ProfileWire) => {
     setEditing(p)
-    form.setFieldsValue({ jobType: p.jobType, baseWage: p.baseWage, unitPrice: p.unitPrice, remark: p.remark })
+    form.setFieldsValue({
+      jobType: p.jobType,
+      baseWage: p.baseWage,
+      unitPrice: p.unitPrice,
+      remark: p.remark,
+    })
     setOpen(true)
   }
 
@@ -213,7 +289,11 @@ function ProfilesTab({ rows, userOptions, canWrite, loading, onDone }: {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        {canWrite && <Button type="primary" onClick={openCreate}>新建档案</Button>}
+        {canWrite && (
+          <Button type="primary" onClick={openCreate}>
+            新建档案
+          </Button>
+        )}
         <Text type="secondary">按登录账号建档，报工即计件依据；调价只影响之后生成的工资单</Text>
       </Space>
       <Table<ProfileWire>
@@ -224,15 +304,29 @@ function ProfilesTab({ rows, userOptions, canWrite, loading, onDone }: {
           { title: '姓名', dataIndex: 'realName', render: (v: string) => <Text strong>{v}</Text> },
           { title: '账号', dataIndex: 'username' },
           { title: '工种', dataIndex: 'jobType' },
-          { title: '底薪/周期', dataIndex: 'baseWage', align: 'right', render: (v: number) => money(v) },
-          { title: '计件单价/米', dataIndex: 'unitPrice', align: 'right', render: (v: number) => money(v) },
+          {
+            title: '底薪/周期',
+            dataIndex: 'baseWage',
+            align: 'right',
+            render: (v: number) => money(v),
+          },
+          {
+            title: '计件单价/米',
+            dataIndex: 'unitPrice',
+            align: 'right',
+            render: (v: number) => money(v),
+          },
           { title: '备注', dataIndex: 'remark', render: (v: string | null) => v ?? '-' },
           {
             title: '操作',
             key: 'actions',
             width: 90,
             render: (_: unknown, r: ProfileWire) =>
-              canWrite ? <Button size="small" onClick={() => openEdit(r)}>编辑</Button> : null,
+              canWrite ? (
+                <Button size="small" onClick={() => openEdit(r)}>
+                  编辑
+                </Button>
+              ) : null,
           },
         ]}
       />
@@ -246,17 +340,35 @@ function ProfilesTab({ rows, userOptions, canWrite, loading, onDone }: {
       >
         <Form form={form} layout="vertical" preserve autoComplete="off">
           {!editing && (
-            <Form.Item name="userId" label="选择账号" rules={[{ required: true, message: '请选择账号' }]}>
-              <Select showSearch optionFilterProp="label" options={userOptions} placeholder="只列未有档案的账号" />
+            <Form.Item
+              name="userId"
+              label="选择账号"
+              rules={[{ required: true, message: '请选择账号' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={userOptions}
+                placeholder="只列未有档案的账号"
+              />
             </Form.Item>
           )}
           <Form.Item name="jobType" label="工种">
             <Input maxLength={32} placeholder="挡车工" />
           </Form.Item>
-          <Form.Item name="baseWage" label="底薪 / 固定补贴（元/周期）" tooltip="无底薪填 0；工资单生成时按此快照">
+          <Form.Item
+            name="baseWage"
+            label="底薪 / 固定补贴（元/周期）"
+            tooltip="无底薪填 0；工资单生成时按此快照"
+          >
             <InputNumber min={0} precision={2} style={{ width: '100%' }} addonAfter="元" />
           </Form.Item>
-          <Form.Item name="unitPrice" label="计件单价（元/米）" rules={[{ required: true, message: '单价必填' }]} tooltip="必须大于 0；金额=产出米数×单价，服务端计算">
+          <Form.Item
+            name="unitPrice"
+            label="计件单价（元/米）"
+            rules={[{ required: true, message: '单价必填' }]}
+            tooltip="必须大于 0；金额=产出米数×单价，服务端计算"
+          >
             <InputNumber min={0} precision={4} style={{ width: '100%' }} addonAfter="元/米" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
@@ -270,7 +382,12 @@ function ProfilesTab({ rows, userOptions, canWrite, loading, onDone }: {
 
 // ---------- 工资单 ----------
 
-function SlipsTab({ rows, canWrite, loading, onDone }: {
+function SlipsTab({
+  rows,
+  canWrite,
+  loading,
+  onDone,
+}: {
   rows: SlipWire[]
   canWrite: boolean
   loading: boolean
@@ -304,7 +421,11 @@ function SlipsTab({ rows, canWrite, loading, onDone }: {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        {canWrite && <Button type="primary" onClick={() => setGenOpen(true)}>生成工资单</Button>}
+        {canWrite && (
+          <Button type="primary" onClick={() => setGenOpen(true)}>
+            生成工资单
+          </Button>
+        )}
         <Text type="secondary">按结算周期批量生成；无档案的人跳过，重复周期幂等保护</Text>
       </Space>
       <Table<SlipWire>
@@ -319,9 +440,24 @@ function SlipsTab({ rows, canWrite, loading, onDone }: {
             key: 'period',
             render: (_: unknown, r: SlipWire) => `${r.periodStart} ~ ${r.periodEnd}`,
           },
-          { title: '产出', dataIndex: 'totalOutputM', align: 'right', render: (v: number) => meters(v) },
-          { title: '计件额', dataIndex: 'pieceAmount', align: 'right', render: (v: number) => money(v) },
-          { title: '实发', key: 'net', align: 'right', render: (_: unknown, r: SlipWire) => <Text strong>{money(r.netAmount)}</Text> },
+          {
+            title: '产出',
+            dataIndex: 'totalOutputM',
+            align: 'right',
+            render: (v: number) => meters(v),
+          },
+          {
+            title: '计件额',
+            dataIndex: 'pieceAmount',
+            align: 'right',
+            render: (v: number) => money(v),
+          },
+          {
+            title: '实发',
+            key: 'net',
+            align: 'right',
+            render: (_: unknown, r: SlipWire) => <Text strong>{money(r.netAmount)}</Text>,
+          },
           {
             title: '状态',
             dataIndex: 'status',
@@ -333,21 +469,47 @@ function SlipsTab({ rows, canWrite, loading, onDone }: {
             width: 220,
             render: (_: unknown, r: SlipWire) => (
               <Space size={4} wrap>
-                <Button size="small" onClick={() => setDetail(r)}>明细</Button>
+                <Button size="small" onClick={() => setDetail(r)}>
+                  明细
+                </Button>
                 {canWrite && r.status === 'draft' && (
                   <>
-                    <Button size="small" onClick={() => openAdjust(r)}>奖扣</Button>
-                    <Popconfirm title="确认后金额锁定，不可再改" onConfirm={() => void act(() => api.post(`/wages/slips/${r.id}/confirm`), '已确认')} okText="确认">
-                      <Button size="small" loading={submitting}>确认</Button>
+                    <Button size="small" onClick={() => openAdjust(r)}>
+                      奖扣
+                    </Button>
+                    <Popconfirm
+                      title="确认后金额锁定，不可再改"
+                      onConfirm={() =>
+                        void act(() => api.post(`/wages/slips/${r.id}/confirm`), '已确认')
+                      }
+                      okText="确认"
+                    >
+                      <Button size="small" loading={submitting}>
+                        确认
+                      </Button>
                     </Popconfirm>
-                    <Popconfirm title="删除后需重新生成，确定删除草稿单？" onConfirm={() => void act(() => api.delete(`/wages/slips/${r.id}`), '已删除')} okText="删除">
-                      <Button size="small" danger loading={submitting}>删除</Button>
+                    <Popconfirm
+                      title="删除后需重新生成，确定删除草稿单？"
+                      onConfirm={() => void act(() => api.delete(`/wages/slips/${r.id}`), '已删除')}
+                      okText="删除"
+                    >
+                      <Button size="small" danger loading={submitting}>
+                        删除
+                      </Button>
                     </Popconfirm>
                   </>
                 )}
                 {canWrite && r.status === 'confirmed' && (
-                  <Popconfirm title="发放后不可回退，确认已发放？" onConfirm={() => void act(() => api.post(`/wages/slips/${r.id}/pay`), '已标记发放')} okText="发放">
-                    <Button size="small" type="primary" loading={submitting}>发放</Button>
+                  <Popconfirm
+                    title="发放后不可回退，确认已发放？"
+                    onConfirm={() =>
+                      void act(() => api.post(`/wages/slips/${r.id}/pay`), '已标记发放')
+                    }
+                    okText="发放"
+                  >
+                    <Button size="small" type="primary" loading={submitting}>
+                      发放
+                    </Button>
                   </Popconfirm>
                 )}
               </Space>
@@ -375,7 +537,11 @@ function SlipsTab({ rows, canWrite, loading, onDone }: {
           <Form.Item name="bonus" label="奖金（元）" tooltip="实发 = 底薪 + 计件 + 奖金 − 扣款">
             <InputNumber min={0} precision={2} style={{ width: '100%' }} addonAfter="元" />
           </Form.Item>
-          <Form.Item name="deduction" label="扣款（元）" tooltip="停机扣款等规则各厂不同，一律显式给，不按停机分钟自动扣">
+          <Form.Item
+            name="deduction"
+            label="扣款（元）"
+            tooltip="停机扣款等规则各厂不同，一律显式给，不按停机分钟自动扣"
+          >
             <InputNumber min={0} precision={2} style={{ width: '100%' }} addonAfter="元" />
           </Form.Item>
         </Form>
@@ -384,7 +550,15 @@ function SlipsTab({ rows, canWrite, loading, onDone }: {
   )
 }
 
-function GenerateModal({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+function GenerateModal({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean
+  onClose: () => void
+  onDone: () => void
+}) {
   const { message } = AntdApp.useApp()
   const [period, setPeriod] = useState<[Dayjs, Dayjs] | null>(null)
   const [rows, setRows] = useState<PeriodRowWire[] | null>(null)
@@ -399,7 +573,10 @@ function GenerateModal({ open, onClose, onDone }: { open: boolean; onClose: () =
     setPreviewing(true)
     try {
       const res = await api.get<PeriodRowWire[]>('/wages/payroll/preview', {
-        params: { periodStart: period[0].format('YYYY-MM-DD'), periodEnd: period[1].format('YYYY-MM-DD') },
+        params: {
+          periodStart: period[0].format('YYYY-MM-DD'),
+          periodEnd: period[1].format('YYYY-MM-DD'),
+        },
       })
       setRows(res.data.data)
     } catch (e) {
@@ -416,12 +593,17 @@ function GenerateModal({ open, onClose, onDone }: { open: boolean; onClose: () =
     }
     setSubmitting(true)
     try {
-      const res = await api.post<{ created: SlipWire[]; skipped: { userId: string; realName: string; reason: string }[] }>(
-        '/wages/slips',
-        { periodStart: period[0].format('YYYY-MM-DD'), periodEnd: period[1].format('YYYY-MM-DD') },
-      )
+      const res = await api.post<{
+        created: SlipWire[]
+        skipped: { userId: string; realName: string; reason: string }[]
+      }>('/wages/slips', {
+        periodStart: period[0].format('YYYY-MM-DD'),
+        periodEnd: period[1].format('YYYY-MM-DD'),
+      })
       const { created, skipped } = res.data.data
-      message.success(`已生成 ${created.length} 张工资单${skipped.length ? `，跳过 ${skipped.length} 人` : ''}`)
+      message.success(
+        `已生成 ${created.length} 张工资单${skipped.length ? `，跳过 ${skipped.length} 人` : ''}`,
+      )
       setPeriod(null)
       setRows(null)
       onDone()
@@ -449,10 +631,15 @@ function GenerateModal({ open, onClose, onDone }: { open: boolean; onClose: () =
         <Space wrap>
           <RangePicker
             value={period}
-            onChange={(v) => { setPeriod(v as [Dayjs, Dayjs] | null); setRows(null) }}
+            onChange={(v) => {
+              setPeriod(v as [Dayjs, Dayjs] | null)
+              setRows(null)
+            }}
             allowClear
           />
-          <Button onClick={() => void doPreview()} loading={previewing}>预览本期计件</Button>
+          <Button onClick={() => void doPreview()} loading={previewing}>
+            预览本期计件
+          </Button>
           <Text type="secondary">跨度不能超过 62 天</Text>
         </Space>
         {rows && rows.length === 0 && <Text type="secondary">该周期内没有报工记录</Text>}
@@ -463,24 +650,42 @@ function GenerateModal({ open, onClose, onDone }: { open: boolean; onClose: () =
             pagination={false}
             dataSource={rows}
             columns={[
-              { title: '姓名', dataIndex: 'realName', render: (v: string) => <Text strong>{v}</Text> },
+              {
+                title: '姓名',
+                dataIndex: 'realName',
+                render: (v: string) => <Text strong>{v}</Text>,
+              },
               { title: '账号', dataIndex: 'username' },
               { title: '报工次数', dataIndex: 'reportCount', align: 'right' },
-              { title: '产出', dataIndex: 'totalOutputM', align: 'right', render: (v: number) => meters(v) },
+              {
+                title: '产出',
+                dataIndex: 'totalOutputM',
+                align: 'right',
+                render: (v: number) => meters(v),
+              },
               { title: '停机(分)', dataIndex: 'stoppageMin', align: 'right' },
               {
                 title: '预估金额',
                 key: 'est',
                 align: 'right',
-                render: (_: unknown, r: PeriodRowWire) => r.hasProfile ? <Text strong>{money(r.estimatedAmount)}</Text> : <Text type="secondary">-</Text>,
+                render: (_: unknown, r: PeriodRowWire) =>
+                  r.hasProfile ? (
+                    <Text strong>{money(r.estimatedAmount)}</Text>
+                  ) : (
+                    <Text type="secondary">-</Text>
+                  ),
               },
               {
                 title: '状态',
                 key: 'st',
                 render: (_: unknown, r: PeriodRowWire) =>
-                  r.slipNo ? <Tag color="blue">已有 {r.slipNo}</Tag>
-                    : r.hasProfile ? <Tag color="green">可生成</Tag>
-                      : <Tag color="orange">缺工资档案</Tag>,
+                  r.slipNo ? (
+                    <Tag color="blue">已有 {r.slipNo}</Tag>
+                  ) : r.hasProfile ? (
+                    <Tag color="green">可生成</Tag>
+                  ) : (
+                    <Tag color="orange">缺工资档案</Tag>
+                  ),
               },
             ]}
           />
@@ -492,22 +697,39 @@ function GenerateModal({ open, onClose, onDone }: { open: boolean; onClose: () =
 
 function SlipDetail({ slip, onClose }: { slip: SlipWire | null; onClose: () => void }) {
   return (
-    <Drawer open={Boolean(slip)} onClose={onClose} width={640} title={slip ? `工资单 · ${slip.slipNo}` : ''}>
+    <Drawer
+      open={Boolean(slip)}
+      onClose={onClose}
+      width={640}
+      title={slip ? `工资单 · ${slip.slipNo}` : ''}
+    >
       {slip && (
         <>
           <Descriptions column={2} size="small" bordered style={{ marginBottom: 16 }}>
             <Descriptions.Item label="姓名">{slip.realName}</Descriptions.Item>
-            <Descriptions.Item label="周期">{slip.periodStart} ~ {slip.periodEnd}</Descriptions.Item>
+            <Descriptions.Item label="周期">
+              {slip.periodStart} ~ {slip.periodEnd}
+            </Descriptions.Item>
             <Descriptions.Item label="产出合计">{meters(slip.totalOutputM)}</Descriptions.Item>
             <Descriptions.Item label="报工次数">{slip.reportCount} 次</Descriptions.Item>
-            <Descriptions.Item label="停机合计">{slip.stoppageMin} 分钟（不自动扣款）</Descriptions.Item>
+            <Descriptions.Item label="停机合计">
+              {slip.stoppageMin} 分钟（不自动扣款）
+            </Descriptions.Item>
             <Descriptions.Item label="状态">{SLIP_STATUS_LABEL[slip.status]}</Descriptions.Item>
             <Descriptions.Item label="底薪">{money(slip.baseAmount)}</Descriptions.Item>
             <Descriptions.Item label="计件额">{money(slip.pieceAmount)}</Descriptions.Item>
             <Descriptions.Item label="奖金">{money(slip.bonus)}</Descriptions.Item>
             <Descriptions.Item label="扣款">{money(slip.deduction)}</Descriptions.Item>
-            <Descriptions.Item label="实发" span={2}><Text strong style={{ fontSize: 16 }}>{money(slip.netAmount)}</Text></Descriptions.Item>
-            {slip.paidAt && <Descriptions.Item label="发放时间" span={2}>{slip.paidAt}</Descriptions.Item>}
+            <Descriptions.Item label="实发" span={2}>
+              <Text strong style={{ fontSize: 16 }}>
+                {money(slip.netAmount)}
+              </Text>
+            </Descriptions.Item>
+            {slip.paidAt && (
+              <Descriptions.Item label="发放时间" span={2}>
+                {slip.paidAt}
+              </Descriptions.Item>
+            )}
           </Descriptions>
           <Text strong>计件明细（按工单聚合）</Text>
           <Table<SlipItemWire>
@@ -519,10 +741,18 @@ function SlipDetail({ slip, onClose }: { slip: SlipWire | null; onClose: () => v
             summary={(pageData) => (
               <Table.Summary fixed>
                 <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} colSpan={2}>合计</Table.Summary.Cell>
-                  <Table.Summary.Cell index={2} align="right">{pageData.reduce((s, i) => s + (i.reportCount ?? 0), 0)} 次</Table.Summary.Cell>
-                  <Table.Summary.Cell index={3} align="right">{meters(pageData.reduce((s, i) => s + (i.outputM ?? 0), 0))}</Table.Summary.Cell>
-                  <Table.Summary.Cell index={4} align="right">{money(pageData.reduce((s, i) => s + (i.amount ?? 0), 0))}</Table.Summary.Cell>
+                  <Table.Summary.Cell index={0} colSpan={2}>
+                    合计
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={2} align="right">
+                    {pageData.reduce((s, i) => s + (i.reportCount ?? 0), 0)} 次
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={3} align="right">
+                    {meters(pageData.reduce((s, i) => s + (i.outputM ?? 0), 0))}
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={4} align="right">
+                    {money(pageData.reduce((s, i) => s + (i.amount ?? 0), 0))}
+                  </Table.Summary.Cell>
                 </Table.Summary.Row>
               </Table.Summary>
             )}
@@ -530,8 +760,18 @@ function SlipDetail({ slip, onClose }: { slip: SlipWire | null; onClose: () => v
               { title: '工单', dataIndex: 'orderNo' },
               { title: '机台', dataIndex: 'machineName' },
               { title: '次数', dataIndex: 'reportCount', align: 'right' },
-              { title: '产出', dataIndex: 'outputM', align: 'right', render: (v: number) => meters(v) },
-              { title: '金额', dataIndex: 'amount', align: 'right', render: (v: number) => money(v) },
+              {
+                title: '产出',
+                dataIndex: 'outputM',
+                align: 'right',
+                render: (v: number) => meters(v),
+              },
+              {
+                title: '金额',
+                dataIndex: 'amount',
+                align: 'right',
+                render: (v: number) => money(v),
+              },
             ]}
           />
         </>

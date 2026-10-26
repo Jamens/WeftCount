@@ -41,6 +41,6 @@ export class CreateAuditLogs1730100000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('DROP TABLE IF EXISTS \`audit_logs\`')
+    await queryRunner.query('DROP TABLE IF EXISTS `audit_logs`')
   }
 }

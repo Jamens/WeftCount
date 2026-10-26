@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Like, Repository } from 'typeorm'
 import {
@@ -12,7 +17,11 @@ import dayjs from 'dayjs'
 import { withUniqueNo } from '../../common/util/unique-no'
 import { GreigeSpecEntity } from '../material/entities/greige-spec.entity'
 import { AlertEntity } from '../alert/entities/alert.entity'
-import { TradeOrderEntity, type TradeOrderStatus, type TradeOrderType } from './entities/trade-order.entity'
+import {
+  TradeOrderEntity,
+  type TradeOrderStatus,
+  type TradeOrderType,
+} from './entities/trade-order.entity'
 import { TradeOrderItemEntity } from './entities/trade-order-item.entity'
 import type { CreateOrderDto, OrderFilterDto, OrderItemInput, UpdateOrderDto } from './order.dto'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
@@ -71,7 +80,12 @@ export class OrderService {
     specId: string,
     orderedUnit: string,
     orderedValue: number,
-  ): Promise<{ snapshot: ReturnType<MaterialService['getSnapshot']>; quantityM: number; weightKg: number; areaM2: number }> {
+  ): Promise<{
+    snapshot: ReturnType<MaterialService['getSnapshot']>
+    quantityM: number
+    weightKg: number
+    areaM2: number
+  }> {
     const spec = await this.materials.findSpec(tenantId, companyId, specId)
     const snapshot = this.materials.getSnapshot(spec)
     const ctx: ContextParams = contextFromSnapshot(snapshot, Number(spec.finishedWidth))
@@ -81,12 +95,18 @@ export class OrderService {
     } catch (e) {
       if (e instanceof Error && e.name === 'ConversionError') {
         const ce = e as ConversionError
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `折算失败：${ce.message}` })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: `折算失败：${ce.message}`,
+        })
       }
       throw e
     }
     if (meters <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '折算后长度必须为正' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '折算后长度必须为正',
+      })
     }
     return {
       snapshot,
@@ -97,10 +117,18 @@ export class OrderService {
   }
 
   /** 校验往来单位：采购=供应商，销售=客户（both 通用），且启用 */
-  private async resolvePartner(tenantId: string, companyId: string, partnerId: string, orderType: TradeOrderType) {
+  private async resolvePartner(
+    tenantId: string,
+    companyId: string,
+    partnerId: string,
+    orderType: TradeOrderType,
+  ) {
     const p = await this.partners.findOne(tenantId, companyId, partnerId)
     if (p.status !== 'active') {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `往来单位「${p.name}」已停用` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `往来单位「${p.name}」已停用`,
+      })
     }
     const wantSupplier = orderType === 'purchase'
     const ok = wantSupplier
@@ -109,7 +137,9 @@ export class OrderService {
     if (!ok) {
       throw new BadRequestException({
         code: ErrorCode.VALIDATION_FAILED,
-        message: wantSupplier ? `「${p.name}」不是供应商，不能下采购订单` : `「${p.name}」不是客户，不能下销售订单`,
+        message: wantSupplier
+          ? `「${p.name}」不是供应商，不能下采购订单`
+          : `「${p.name}」不是客户，不能下销售订单`,
       })
     }
     return p
@@ -167,7 +197,13 @@ export class OrderService {
       // 且三视图换算(kg→m)会用错规格的克重，金额全错。原实现完全不校验，
       // 前端规格下拉也没按物料过滤 → 很容易被建出来。
       await this.assertMaterialSpecCompatible(tenantId, companyId, it.materialId, it.specId)
-      const views = await this.computeViews(tenantId, companyId, it.specId, it.orderedUnit, it.orderedValue)
+      const views = await this.computeViews(
+        tenantId,
+        companyId,
+        it.specId,
+        it.orderedUnit,
+        it.orderedValue,
+      )
       const price = it.unitPrice != null ? num(it.unitPrice, 4) : null
       const lineAmount = price != null ? num(Number(price) * views.quantityM, 2) : null
       rows.push({
@@ -215,16 +251,26 @@ export class OrderService {
   // CRUD
   // -------------------------------------------------------------------------
 
-  async create(tenantId: string, companyId: string, dto: CreateOrderDto): Promise<TradeOrderEntity> {
+  async create(
+    tenantId: string,
+    companyId: string,
+    dto: CreateOrderDto,
+  ): Promise<TradeOrderEntity> {
     const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, dto.orderType)
-    const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
+    const { rows, totalQuantityM, totalAmount } = await this.buildItems(
+      tenantId,
+      companyId,
+      dto.items,
+    )
     // 撞号重试：生成号 + 落库整体重试
     return withUniqueNo(async () => {
       const orderNo = await this.nextOrderNo(companyId, dto.orderType)
       return this.dataSource.transaction(async (manager) => {
         const o = await manager.save(
           manager.create(TradeOrderEntity, {
-            tenantId, companyId, orderNo,
+            tenantId,
+            companyId,
+            orderNo,
             orderType: dto.orderType,
             partnerId: partner.id,
             partnerName: partner.name,
@@ -236,7 +282,11 @@ export class OrderService {
             remark: dto.remark ?? null,
           }),
         )
-        await manager.save(rows.map((r) => manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r })))
+        await manager.save(
+          rows.map((r) =>
+            manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r }),
+          ),
+        )
         return o
       })
     })
@@ -263,7 +313,12 @@ export class OrderService {
     companyId: string,
     userId: string,
     alertId: string,
-    opts: { specId?: string | null; partnerId?: string | null; expectedDate?: string | null; unitPrice?: number | null } = {},
+    opts: {
+      specId?: string | null
+      partnerId?: string | null
+      expectedDate?: string | null
+      unitPrice?: number | null
+    } = {},
   ): Promise<TradeOrderEntity> {
     const alert = await this.alerts.findOne({ where: { id: alertId, tenantId, companyId } })
     if (!alert) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '预警不存在' })
@@ -290,7 +345,9 @@ export class OrderService {
     // 而不是让用户在一堆规格里猜哪个用这批纱（猜错会被 assertMaterialSpecCompatible 拦下）。
     const batchSpecId =
       opts.specId ??
-      (material.category === 'yarn' ? await this.findSpecUsingYarn(tenantId, materialId, companyId) : null) ??
+      (material.category === 'yarn'
+        ? await this.findSpecUsingYarn(tenantId, materialId, companyId)
+        : null) ??
       (await this.findSpecFromStock(materialId, companyId))
     const inboundSpecId = batchSpecId ?? (await this.findSpecFromLastInbound(materialId, companyId))
     if (!inboundSpecId) {
@@ -312,21 +369,34 @@ export class OrderService {
     // 交期：今天 + 采购提前期（物料未填按 7 天）
     const lead = material.leadTimeDays == null ? 7 : Number(material.leadTimeDays)
     const expectedDate =
-      opts.expectedDate ?? dayjs().add(Math.max(0, Math.ceil(lead)), 'day').format('YYYY-MM-DD')
+      opts.expectedDate ??
+      dayjs()
+        .add(Math.max(0, Math.ceil(lead)), 'day')
+        .format('YYYY-MM-DD')
 
     // 单价：物料标准价优先，其次供应商最近成交价
-    const unitPrice = opts.unitPrice ?? material.standardPrice ?? (await this.findLastInboundPrice(materialId, companyId))
+    const unitPrice =
+      opts.unitPrice ??
+      material.standardPrice ??
+      (await this.findLastInboundPrice(materialId, companyId))
 
     const suggestQty = Number(alert.data.suggestQty)
     if (!Number.isFinite(suggestQty) || suggestQty <= 0) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '建议补货量无效，无法生成采购单' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '建议补货量无效，无法生成采购单',
+      })
     }
 
     const dto: CreateOrderDto = {
       orderType: 'purchase',
       partnerId,
       expectedDate,
-      remark: `由补货预警生成：${alert.title}（建议补 ${alert.data.suggestQty} ${alert.data.unit ?? ''}）`.slice(0, 255),
+      remark:
+        `由补货预警生成：${alert.title}（建议补 ${alert.data.suggestQty} ${alert.data.unit ?? ''}）`.slice(
+          0,
+          255,
+        ),
       items: [
         {
           materialId,
@@ -348,13 +418,19 @@ export class OrderService {
     sourceAlertId: string,
   ): Promise<TradeOrderEntity> {
     const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, dto.orderType)
-    const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
+    const { rows, totalQuantityM, totalAmount } = await this.buildItems(
+      tenantId,
+      companyId,
+      dto.items,
+    )
     return withUniqueNo(async () => {
       const orderNo = await this.nextOrderNo(companyId, dto.orderType)
       return this.dataSource.transaction(async (manager) => {
         const o = await manager.save(
           manager.create(TradeOrderEntity, {
-            tenantId, companyId, orderNo,
+            tenantId,
+            companyId,
+            orderNo,
             orderType: dto.orderType,
             partnerId: partner.id,
             partnerName: partner.name,
@@ -367,7 +443,11 @@ export class OrderService {
             sourceAlertId,
           } as Partial<TradeOrderEntity>),
         )
-        await manager.save(rows.map((r) => manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r })))
+        await manager.save(
+          rows.map((r) =>
+            manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: o.id, ...r }),
+          ),
+        )
         return o
       })
     })
@@ -377,7 +457,11 @@ export class OrderService {
    * 找出**用到该纱线**的规格（warp/weft 命中）。
    * 恰好一个时直接采用（纱线专供某个规格是常态）；多个则不猜，交给调用方指定。
    */
-  private async findSpecUsingYarn(tenantId: string, materialId: string, companyId: string): Promise<string | null> {
+  private async findSpecUsingYarn(
+    tenantId: string,
+    materialId: string,
+    companyId: string,
+  ): Promise<string | null> {
     const specs: GreigeSpecEntity[] = await this.materials.findSpecs(tenantId, companyId)
     const hits = specs.filter(
       (sp) =>
@@ -402,12 +486,18 @@ export class OrderService {
   }
 
   /** 最近一次采购入库单所用的规格 */
-  private async findSpecFromLastInbound(materialId: string, companyId: string): Promise<string | null> {
+  private async findSpecFromLastInbound(
+    materialId: string,
+    companyId: string,
+  ): Promise<string | null> {
     return this.findSpecFromStock(materialId, companyId)
   }
 
   /** 最近采购入库的供应商 */
-  private async findLastInboundSupplier(materialId: string, companyId: string): Promise<string | null> {
+  private async findLastInboundSupplier(
+    materialId: string,
+    companyId: string,
+  ): Promise<string | null> {
     const row = await this.docs
       .createQueryBuilder('d')
       .select('d.partner_id', 'partnerId')
@@ -421,7 +511,10 @@ export class OrderService {
   }
 
   /** 最近一次采购入库单价（无标准价时的兜底） */
-  private async findLastInboundPrice(materialId: string, companyId: string): Promise<number | null> {
+  private async findLastInboundPrice(
+    materialId: string,
+    companyId: string,
+  ): Promise<number | null> {
     const row = await this.docs
       .createQueryBuilder('d')
       .select('d.unit_price', 'unitPrice')
@@ -435,7 +528,11 @@ export class OrderService {
     return Number.isFinite(n) && n > 0 ? n : null
   }
 
-  async findAll(tenantId: string, companyId: string, filter?: OrderFilterDto): Promise<TradeOrderEntity[]> {
+  async findAll(
+    tenantId: string,
+    companyId: string,
+    filter?: OrderFilterDto,
+  ): Promise<TradeOrderEntity[]> {
     const qb = this.orders
       .createQueryBuilder('o')
       .where('o.tenant_id = :tenantId', { tenantId })
@@ -444,7 +541,8 @@ export class OrderService {
     if (filter?.orderType) qb.andWhere('o.order_type = :orderType', { orderType: filter.orderType })
     if (filter?.status) qb.andWhere('o.status = :status', { status: filter.status })
     if (filter?.partnerId) qb.andWhere('o.partner_id = :partnerId', { partnerId: filter.partnerId })
-    if (filter?.keyword) qb.andWhere('(o.order_no LIKE :kw OR o.partner_name LIKE :kw)', { kw: `%${filter.keyword}%` })
+    if (filter?.keyword)
+      qb.andWhere('(o.order_no LIKE :kw OR o.partner_name LIKE :kw)', { kw: `%${filter.keyword}%` })
     return qb.getMany()
   }
 
@@ -454,15 +552,27 @@ export class OrderService {
     return o
   }
 
-  async listItems(tenantId: string, companyId: string, orderId: string): Promise<TradeOrderItemEntity[]> {
+  async listItems(
+    tenantId: string,
+    companyId: string,
+    orderId: string,
+  ): Promise<TradeOrderItemEntity[]> {
     return this.items.find({ where: { orderId, tenantId, companyId }, order: { createdAt: 'ASC' } })
   }
 
   /** 更新草稿订单：整体替换明细行并重算汇总 */
-  async update(tenantId: string, companyId: string, id: string, dto: UpdateOrderDto): Promise<TradeOrderEntity> {
+  async update(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    dto: UpdateOrderDto,
+  ): Promise<TradeOrderEntity> {
     const o = await this.findOne(tenantId, companyId, id)
     if (o.status !== 'draft') {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `订单当前为「${o.status}」，仅草稿可编辑` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `订单当前为「${o.status}」，仅草稿可编辑`,
+      })
     }
     if (dto.partnerId !== undefined) {
       const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, o.orderType)
@@ -472,10 +582,18 @@ export class OrderService {
     if (dto.remark !== undefined) o.remark = dto.remark ?? null
     if (dto.expectedDate !== undefined) o.expectedDate = dto.expectedDate
     if (dto.items) {
-      const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
+      const { rows, totalQuantityM, totalAmount } = await this.buildItems(
+        tenantId,
+        companyId,
+        dto.items,
+      )
       await this.dataSource.transaction(async (manager) => {
         await manager.delete(TradeOrderItemEntity, { orderId: id, tenantId, companyId })
-        await manager.save(rows.map((r) => manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: id, ...r })))
+        await manager.save(
+          rows.map((r) =>
+            manager.create(TradeOrderItemEntity, { tenantId, companyId, orderId: id, ...r }),
+          ),
+        )
       })
       o.totalQuantityM = totalQuantityM
       o.totalAmount = totalAmount
@@ -484,11 +602,19 @@ export class OrderService {
   }
 
   /** 状态流转：draft→confirmed→completed，任一可 cancel */
-  async transition(tenantId: string, companyId: string, id: string, to: TradeOrderStatus): Promise<TradeOrderEntity> {
+  async transition(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    to: TradeOrderStatus,
+  ): Promise<TradeOrderEntity> {
     const o = await this.findOne(tenantId, companyId, id)
     const allowed = TRANSITIONS[o.status]
     if (!allowed.includes(to)) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `订单当前为「${o.status}」，不能变更为「${to}」` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `订单当前为「${o.status}」，不能变更为「${to}」`,
+      })
     }
     o.status = to
     return this.orders.save(o)
@@ -556,13 +682,19 @@ export class OrderService {
     }
     // 未指定行：自动归到「同规格且尚未履约满」的首行；都满了则归到首个同规格行(进度封顶100%)
     const fulfilledByItem = await this.fulfilledByItem(tenantId, companyId, orderId)
-    const notFull = candidates.find((i) => Number(i.quantityM) - (fulfilledByItem.get(i.id) ?? 0) > 0.01)
+    const notFull = candidates.find(
+      (i) => Number(i.quantityM) - (fulfilledByItem.get(i.id) ?? 0) > 0.01,
+    )
     const target = notFull ?? candidates[0]
     return { order: o, orderItemId: target.id }
   }
 
   /** 按明细行归集已履约米数（只统计挂了 orderItemId 的单据） */
-  private async fulfilledByItem(tenantId: string, companyId: string, orderId: string): Promise<Map<string, number>> {
+  private async fulfilledByItem(
+    tenantId: string,
+    companyId: string,
+    orderId: string,
+  ): Promise<Map<string, number>> {
     const documents = await this.docs.find({ where: { tenantId, companyId, orderId } })
     const map = new Map<string, number>()
     for (const d of documents) {
@@ -604,7 +736,12 @@ export class OrderService {
     const perItem = items.map((i) => {
       const f = byItem.get(i.id) ?? 0
       const om = Number(i.quantityM)
-      return { itemId: i.id, fulfilledM: f, orderedM: om, progressPct: om > 0 ? Math.min((f / om) * 100, 100) : 0 }
+      return {
+        itemId: i.id,
+        fulfilledM: f,
+        orderedM: om,
+        progressPct: om > 0 ? Math.min((f / om) * 100, 100) : 0,
+      }
     })
     if (o.status === 'confirmed' && fulfilledM >= orderedM - 0.01) {
       o.status = 'completed'

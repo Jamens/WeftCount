@@ -13,16 +13,18 @@ export type XlsxCell = string | number | null | undefined
 
 function crc32(buf: Buffer): number {
   let c: number
-  const table = (crc32 as unknown as { table: number[] }).table ?? (() => {
-    const t: number[] = []
-    for (let n = 0; n < 256; n++) {
-      c = n
-      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-      t[n] = c >>> 0
-    }
-    ;(crc32 as unknown as { table: number[] }).table = t
-    return t
-  })()
+  const table =
+    (crc32 as unknown as { table: number[] }).table ??
+    (() => {
+      const t: number[] = []
+      for (let n = 0; n < 256; n++) {
+        c = n
+        for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+        t[n] = c >>> 0
+      }
+      ;(crc32 as unknown as { table: number[] }).table = t
+      return t
+    })()
   let crc = 0xffffffff
   for (let i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xff]
   return (crc ^ 0xffffffff) >>> 0
@@ -82,7 +84,11 @@ function zip(files: { name: string; data: Buffer }[]): Buffer {
 }
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function colName(i: number): string {
@@ -105,7 +111,9 @@ export function buildXlsx(header: string[], rows: XlsxCell[][]): Buffer {
   }
   const lines: string[] = []
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
-  lines.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>')
+  lines.push(
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>',
+  )
   lines.push(`<row r="1">${header.map((h, i) => cellXml(h, 1, i)).join('')}</row>`)
   rows.forEach((r, ri) => {
     const rn = ri + 2

@@ -19,7 +19,16 @@ import { QualityModule } from '../quality/quality.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([InventoryBatchEntity, RollEntity, RollOutboundEntity, InventoryTransactionEntity, InventoryDocumentEntity, ProductionReportEntity, ProductionOrderEntity, MachineEntity]),
+    TypeOrmModule.forFeature([
+      InventoryBatchEntity,
+      RollEntity,
+      RollOutboundEntity,
+      InventoryTransactionEntity,
+      InventoryDocumentEntity,
+      ProductionReportEntity,
+      ProductionOrderEntity,
+      MachineEntity,
+    ]),
     MaterialModule,
     PartnerModule,
     OrderModule,

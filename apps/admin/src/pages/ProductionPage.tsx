@@ -116,7 +116,8 @@ export default function ProductionPage() {
     void loadMachines()
   }, [loadMachines])
 
-  const machineName = (id: string | null) => (id ? (machines.find((m) => m.id === id)?.name ?? id) : '-')
+  const machineName = (id: string | null) =>
+    id ? (machines.find((m) => m.id === id)?.name ?? id) : '-'
   const machineOptions = machines
     .filter((m) => m.status !== 'retired')
     .map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))
@@ -227,7 +228,12 @@ export default function ProductionPage() {
 
   const openMachineEdit = (m: MachineWire) => {
     setMachineEdit(m)
-    machineForm.setFieldsValue({ name: m.name, model: m.model ?? undefined, status: m.status, remark: m.remark ?? undefined })
+    machineForm.setFieldsValue({
+      name: m.name,
+      model: m.model ?? undefined,
+      status: m.status,
+      remark: m.remark ?? undefined,
+    })
     setMachineOpen(true)
   }
 
@@ -269,35 +275,62 @@ export default function ProductionPage() {
   const print = usePrint()
   const printOrder = (o: ProductionOrderWire) => {
     const matName = materials.find((m) => m.id === o.materialId)?.name ?? '-'
-    print(<WorkOrderSheet order={o} machineName={machineName(o.machineId)} specName={specName(o.specId)} materialName={matName} />)
+    print(
+      <WorkOrderSheet
+        order={o}
+        machineName={machineName(o.machineId)}
+        specName={specName(o.specId)}
+        materialName={matName}
+      />,
+    )
   }
 
   const orderActions = (o: ProductionOrderWire) => (
     <Space size={2} onClick={(e) => e.stopPropagation()}>
-      <Button type="link" size="small" icon={<PrinterOutlined />} onClick={() => printOrder(o)}>工单</Button>
+      <Button type="link" size="small" icon={<PrinterOutlined />} onClick={() => printOrder(o)}>
+        工单
+      </Button>
       {o.status === 'draft' && (
         <>
-          <Button type="link" size="small" onClick={() => openEdit(o)}>编辑</Button>
-          <Button type="link" size="small" onClick={() => void doTransition(o, 'schedule', '排产')}>排产</Button>
+          <Button type="link" size="small" onClick={() => openEdit(o)}>
+            编辑
+          </Button>
+          <Button type="link" size="small" onClick={() => void doTransition(o, 'schedule', '排产')}>
+            排产
+          </Button>
         </>
       )}
       {o.status === 'scheduled' && (
         <>
-          <Button type="link" size="small" onClick={() => openEdit(o)}>编辑</Button>
-          <Button type="link" size="small" onClick={() => void doTransition(o, 'start', '开工')}>开工</Button>
+          <Button type="link" size="small" onClick={() => openEdit(o)}>
+            编辑
+          </Button>
+          <Button type="link" size="small" onClick={() => void doTransition(o, 'start', '开工')}>
+            开工
+          </Button>
         </>
       )}
       {canReport && (o.status === 'scheduled' || o.status === 'in_progress') && (
-        <Button type="link" size="small" onClick={() => openReport(o)}>报工</Button>
+        <Button type="link" size="small" onClick={() => openReport(o)}>
+          报工
+        </Button>
       )}
       {o.status === 'in_progress' && canEdit && (
-        <Button type="link" size="small" onClick={() => void doTransition(o, 'complete', '完成')}>完成</Button>
+        <Button type="link" size="small" onClick={() => void doTransition(o, 'complete', '完成')}>
+          完成
+        </Button>
       )}
-      {(o.status === 'draft' || o.status === 'scheduled' || o.status === 'in_progress') && canEdit && (
-        <Popconfirm title="确认取消该工单？" onConfirm={() => void doTransition(o, 'cancel', '取消')}>
-          <Button type="link" size="small" danger>取消</Button>
-        </Popconfirm>
-      )}
+      {(o.status === 'draft' || o.status === 'scheduled' || o.status === 'in_progress') &&
+        canEdit && (
+          <Popconfirm
+            title="确认取消该工单？"
+            onConfirm={() => void doTransition(o, 'cancel', '取消')}
+          >
+            <Button type="link" size="small" danger>
+              取消
+            </Button>
+          </Popconfirm>
+        )}
       {(o.status === 'completed' || o.status === 'cancelled') && <Text type="secondary">-</Text>}
     </Space>
   )
@@ -306,32 +339,78 @@ export default function ProductionPage() {
     <div>
       <Space style={{ marginBottom: 12 }} wrap>
         <Select
-          allowClear placeholder="状态" style={{ width: 130 }} value={statusFilter} onChange={setStatusFilter}
-          options={(Object.keys(PRODUCTION_STATUS_LABEL) as ProductionOrderStatusValue[]).map((k) => ({ value: k, label: PRODUCTION_STATUS_LABEL[k].text }))}
+          allowClear
+          placeholder="状态"
+          style={{ width: 130 }}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={(Object.keys(PRODUCTION_STATUS_LABEL) as ProductionOrderStatusValue[]).map(
+            (k) => ({ value: k, label: PRODUCTION_STATUS_LABEL[k].text }),
+          )}
         />
         {canEdit && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建工单</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新建工单
+          </Button>
         )}
-        <Button icon={<ReloadOutlined />} onClick={() => void loadOrders()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => void loadOrders()}>
+          刷新
+        </Button>
       </Space>
       <Card size="small">
         <Table<ProductionOrderWire>
-          rowKey="id" size="small" loading={loading} dataSource={orders}
+          rowKey="id"
+          size="small"
+          loading={loading}
+          dataSource={orders}
           onRow={(r) => ({ onClick: () => void openDetail(r.id) })}
           scroll={{ y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '工单号', dataIndex: 'orderNo', width: 150 },
             { title: '规格', dataIndex: 'specId', width: 130, render: (v: string) => specName(v) },
-            { title: '机台', dataIndex: 'machineId', width: 120, render: (v: string | null) => machineName(v) },
-            { title: '计划(米)', dataIndex: 'plannedQuantityM', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
-            { title: '已产(米)', dataIndex: 'producedQuantityM', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
             {
-              title: '进度', dataIndex: 'producedQuantityM', width: 130,
+              title: '机台',
+              dataIndex: 'machineId',
+              width: 120,
+              render: (v: string | null) => machineName(v),
+            },
+            {
+              title: '计划(米)',
+              dataIndex: 'plannedQuantityM',
+              width: 90,
+              align: 'right',
+              render: (v: string) => fmt(v, 0),
+            },
+            {
+              title: '已产(米)',
+              dataIndex: 'producedQuantityM',
+              width: 90,
+              align: 'right',
+              render: (v: string) => fmt(v, 0),
+            },
+            {
+              title: '进度',
+              dataIndex: 'producedQuantityM',
+              width: 130,
               render: (_, o) => <Progress percent={Math.round(orderProgress(o))} size="small" />,
             },
-            { title: '交期', dataIndex: 'dueDate', width: 100, render: (v: string | null) => v ?? '-' },
-            { title: '状态', dataIndex: 'status', width: 90, render: (v: ProductionOrderStatusValue) => statusTag(v) },
+            {
+              title: '交期',
+              dataIndex: 'dueDate',
+              width: 100,
+              render: (v: string | null) => v ?? '-',
+            },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 90,
+              render: (v: ProductionOrderStatusValue) => statusTag(v),
+            },
             { title: '操作', width: 220, fixed: 'right', render: (_, o) => orderActions(o) },
           ]}
         />
@@ -342,22 +421,49 @@ export default function ProductionPage() {
   const machinesTab = (
     <Card size="small">
       <Space style={{ marginBottom: 12 }}>
-        {canEdit && <Button type="primary" icon={<PlusOutlined />} onClick={openMachineCreate}>新建机台</Button>}
-        <Button icon={<ReloadOutlined />} onClick={() => void loadMachines()}>刷新</Button>
+        {canEdit && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openMachineCreate}>
+            新建机台
+          </Button>
+        )}
+        <Button icon={<ReloadOutlined />} onClick={() => void loadMachines()}>
+          刷新
+        </Button>
       </Space>
       <Table<MachineWire>
-        rowKey="id" size="small" dataSource={machines}
-          scroll={{ y: LIST_TABLE_SCROLL_Y }}
+        rowKey="id"
+        size="small"
+        dataSource={machines}
+        scroll={{ y: LIST_TABLE_SCROLL_Y }}
         pagination={{ showTotal: (t) => `共 ${t} 台`, showSizeChanger: false }}
         columns={[
           { title: '编码', dataIndex: 'code', width: 100 },
           { title: '名称', dataIndex: 'name', width: 140 },
           { title: '型号', dataIndex: 'model', width: 140, render: (v: string | null) => v ?? '-' },
-          { title: '状态', dataIndex: 'status', width: 90, render: (v: MachineStatusValue) => machineStatusTag(v) },
-          { title: '备注', dataIndex: 'remark', ellipsis: true, render: (v: string | null) => v ?? '-' },
           {
-            title: '操作', width: 80, fixed: 'right',
-            render: (_, m) => (canEdit ? <Button type="link" size="small" onClick={() => openMachineEdit(m)}>编辑</Button> : <Text type="secondary">-</Text>),
+            title: '状态',
+            dataIndex: 'status',
+            width: 90,
+            render: (v: MachineStatusValue) => machineStatusTag(v),
+          },
+          {
+            title: '备注',
+            dataIndex: 'remark',
+            ellipsis: true,
+            render: (v: string | null) => v ?? '-',
+          },
+          {
+            title: '操作',
+            width: 80,
+            fixed: 'right',
+            render: (_, m) =>
+              canEdit ? (
+                <Button type="link" size="small" onClick={() => openMachineEdit(m)}>
+                  编辑
+                </Button>
+              ) : (
+                <Text type="secondary">-</Text>
+              ),
           },
         ]}
       />
@@ -366,16 +472,26 @@ export default function ProductionPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
-          <Title level={4} style={{ margin: 0 }}>生产管理</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            生产管理
+          </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
             生产工单（织造任务）指派机台，挡车工报工累计产出，满额自动完成
           </Text>
         </div>
       </Space>
 
-      <Tabs items={[{ key: 'orders', label: '生产工单', children: ordersTab }, { key: 'machines', label: '机台', children: machinesTab }]} />
+      <Tabs
+        items={[
+          { key: 'orders', label: '生产工单', children: ordersTab },
+          { key: 'machines', label: '机台', children: machinesTab },
+        ]}
+      />
 
       {/* 工单详情 */}
       <Drawer title="工单详情" width={560} open={detail !== null} onClose={() => setDetail(null)}>
@@ -384,29 +500,65 @@ export default function ProductionPage() {
             <Descriptions column={1} size="small" bordered>
               <Descriptions.Item label="工单号">{detail.order.orderNo}</Descriptions.Item>
               <Descriptions.Item label="规格">{specName(detail.order.specId)}</Descriptions.Item>
-              <Descriptions.Item label="机台">{machineName(detail.order.machineId)}</Descriptions.Item>
-              <Descriptions.Item label="计划产量">{fmt(detail.order.plannedQuantityM, 1)} m</Descriptions.Item>
-              <Descriptions.Item label="累计产出">{fmt(detail.order.producedQuantityM, 1)} m</Descriptions.Item>
-              <Descriptions.Item label="计划开始">{detail.order.plannedStartDate ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="机台">
+                {machineName(detail.order.machineId)}
+              </Descriptions.Item>
+              <Descriptions.Item label="计划产量">
+                {fmt(detail.order.plannedQuantityM, 1)} m
+              </Descriptions.Item>
+              <Descriptions.Item label="累计产出">
+                {fmt(detail.order.producedQuantityM, 1)} m
+              </Descriptions.Item>
+              <Descriptions.Item label="计划开始">
+                {detail.order.plannedStartDate ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="交期">{detail.order.dueDate ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="状态">{statusTag(detail.order.status)}</Descriptions.Item>
               <Descriptions.Item label="备注">{detail.order.remark ?? '-'}</Descriptions.Item>
             </Descriptions>
             <Card size="small" title="生产进度">
-              <Progress percent={Math.round(detail.progressPct)} status={detail.progressPct >= 100 ? 'success' : 'active'} />
+              <Progress
+                percent={Math.round(detail.progressPct)}
+                status={detail.progressPct >= 100 ? 'success' : 'active'}
+              />
             </Card>
             <Card size="small" title={`报工记录（${detail.reports.length}）`}>
               {detail.reports.length === 0 ? (
                 <Text type="secondary">暂无报工</Text>
               ) : (
                 <Table
-                  rowKey="id" size="small" pagination={false} dataSource={detail.reports}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  dataSource={detail.reports}
                   columns={[
                     { title: '日期', dataIndex: 'reportDate', width: 100 },
-                    { title: '机台', dataIndex: 'machineId', width: 100, render: (v: string) => machineName(v) },
-                    { title: '产出(米)', dataIndex: 'outputM', width: 90, align: 'right', render: (v: string) => fmt(v, 1) },
-                    { title: '停机(分)', dataIndex: 'stoppageMinutes', width: 80, align: 'right', render: (v: number | null) => v ?? '-' },
-                    { title: '停机原因', dataIndex: 'stopReason', ellipsis: true, render: (v: string | null) => v ?? '-' },
+                    {
+                      title: '机台',
+                      dataIndex: 'machineId',
+                      width: 100,
+                      render: (v: string) => machineName(v),
+                    },
+                    {
+                      title: '产出(米)',
+                      dataIndex: 'outputM',
+                      width: 90,
+                      align: 'right',
+                      render: (v: string) => fmt(v, 1),
+                    },
+                    {
+                      title: '停机(分)',
+                      dataIndex: 'stoppageMinutes',
+                      width: 80,
+                      align: 'right',
+                      render: (v: number | null) => v ?? '-',
+                    },
+                    {
+                      title: '停机原因',
+                      dataIndex: 'stopReason',
+                      ellipsis: true,
+                      render: (v: string | null) => v ?? '-',
+                    },
                   ]}
                 />
               )}
@@ -418,25 +570,59 @@ export default function ProductionPage() {
       {/* 新建/编辑工单 */}
       <Drawer
         title={editing ? '编辑工单' : '新建生产工单'}
-        width={480} open={open} onClose={() => setOpen(false)}
-        extra={<Space><Button onClick={() => setOpen(false)}>取消</Button><Button type="primary" loading={submitting} onClick={() => void onSubmit()}>保存</Button></Space>}
+        width={480}
+        open={open}
+        onClose={() => setOpen(false)}
+        extra={
+          <Space>
+            <Button onClick={() => setOpen(false)}>取消</Button>
+            <Button type="primary" loading={submitting} onClick={() => void onSubmit()}>
+              保存
+            </Button>
+          </Space>
+        }
       >
         <Form<OrderForm> form={form} layout="vertical">
-          <Form.Item name="materialId" label="产出物料（坯布）" rules={[{ required: true, message: '请选择物料' }]}>
+          <Form.Item
+            name="materialId"
+            label="产出物料（坯布）"
+            rules={[{ required: true, message: '请选择物料' }]}
+          >
             <Select
-              showSearch optionFilterProp="label"
-              options={materials.filter((m) => m.category === 'greige').map((m) => ({ value: m.id, label: `${m.code} ${m.name}` }))}
+              showSearch
+              optionFilterProp="label"
+              options={materials
+                .filter((m) => m.category === 'greige')
+                .map((m) => ({ value: m.id, label: `${m.code} ${m.name}` }))}
               placeholder="选择坯布物料"
             />
           </Form.Item>
-          <Form.Item name="specId" label="坯布规格" rules={[{ required: true, message: '请选择规格' }]}>
-            <Select showSearch optionFilterProp="label" options={specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` }))} />
+          <Form.Item
+            name="specId"
+            label="坯布规格"
+            rules={[{ required: true, message: '请选择规格' }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              options={specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` }))}
+            />
           </Form.Item>
-          <Form.Item name="plannedQuantityM" label="计划产量（米）" rules={[{ required: true, message: '请输入计划产量' }]}>
+          <Form.Item
+            name="plannedQuantityM"
+            label="计划产量（米）"
+            rules={[{ required: true, message: '请输入计划产量' }]}
+          >
             <InputNumber style={{ width: '100%' }} min={0.001} placeholder="米" />
           </Form.Item>
           <Form.Item name="machineId" label="指派机台" extra="排产/开工前需指派机台">
-            <Select showSearch allowClear optionFilterProp="label" options={machineOptions} placeholder="选择机台" />
+            <Select
+              showSearch
+              allowClear
+              optionFilterProp="label"
+              options={machineOptions}
+              placeholder="选择机台"
+            />
           </Form.Item>
           <Form.Item name="plannedStartDate" label="计划开始">
             <DatePicker style={{ width: '100%' }} />
@@ -461,7 +647,11 @@ export default function ProductionPage() {
         destroyOnClose
       >
         <Form<ReportForm> form={reportForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="outputM" label="本次产出（米）" rules={[{ required: true, message: '请输入产出' }]}>
+          <Form.Item
+            name="outputM"
+            label="本次产出（米）"
+            rules={[{ required: true, message: '请输入产出' }]}
+          >
             <InputNumber style={{ width: '100%' }} min={0.001} placeholder="米" />
           </Form.Item>
           <Form.Item name="reportDate" label="报工日期">
@@ -479,18 +669,36 @@ export default function ProductionPage() {
       {/* 机台新建/编辑 */}
       <Drawer
         title={machineEdit ? '编辑机台' : '新建机台'}
-        width={420} open={machineOpen} onClose={() => setMachineOpen(false)}
-        extra={<Space><Button onClick={() => setMachineOpen(false)}>取消</Button><Button type="primary" loading={submitting} onClick={() => void onMachineSubmit()}>保存</Button></Space>}
+        width={420}
+        open={machineOpen}
+        onClose={() => setMachineOpen(false)}
+        extra={
+          <Space>
+            <Button onClick={() => setMachineOpen(false)}>取消</Button>
+            <Button type="primary" loading={submitting} onClick={() => void onMachineSubmit()}>
+              保存
+            </Button>
+          </Space>
+        }
       >
         <Form<MachineForm> form={machineForm} layout="vertical">
-          <Form.Item name="name" label="机台名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="name"
+            label="机台名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input placeholder="如 3 号织机" maxLength={64} />
           </Form.Item>
           <Form.Item name="model" label="型号">
             <Input placeholder="如 1515 多剑杆" maxLength={64} />
           </Form.Item>
           <Form.Item name="status" label="状态">
-            <Select options={(Object.keys(MACHINE_STATUS_LABEL) as MachineStatusValue[]).map((k) => ({ value: k, label: MACHINE_STATUS_LABEL[k].text }))} />
+            <Select
+              options={(Object.keys(MACHINE_STATUS_LABEL) as MachineStatusValue[]).map((k) => ({
+                value: k,
+                label: MACHINE_STATUS_LABEL[k].text,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} maxLength={255} />

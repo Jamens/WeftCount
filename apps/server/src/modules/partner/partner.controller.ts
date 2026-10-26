@@ -41,10 +41,7 @@ export class PartnerController {
   @Get(':id')
   @RequirePermission(Permission.PARTNER_VIEW)
   @ApiOperation({ summary: '查询往来单位详情' })
-  findOne(
-    @CurrentUser() ctx: RequestContext,
-    @Param('id') id: string,
-  ): Promise<PartnerEntity> {
+  findOne(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<PartnerEntity> {
     return this.svc.findOne(ctx.tenantId, ctx.companyId, id)
   }
 
@@ -64,10 +61,7 @@ export class PartnerController {
   @RequirePermission(Permission.PARTNER_EDIT)
   @Audit({ action: 'update', module: 'partner', targetIdParam: 'id' })
   @ApiOperation({ summary: '停用往来单位' })
-  disable(
-    @CurrentUser() ctx: RequestContext,
-    @Param('id') id: string,
-  ): Promise<PartnerEntity> {
+  disable(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<PartnerEntity> {
     return this.svc.disable(ctx.tenantId, ctx.companyId, id)
   }
 }
@@ -77,19 +71,25 @@ export class PartnerController {
 // ---------------------------------------------------------------------------
 
 class CreateCodeMappingDto {
-  @IsString() @IsNotEmpty({ message: '请选择供应商' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择供应商' })
   supplierId!: string
 
-  @IsString() @IsNotEmpty({ message: '请输入供应商条码' })
+  @IsString()
+  @IsNotEmpty({ message: '请输入供应商条码' })
   supplierCode!: string
 
-  @IsString() @IsNotEmpty({ message: '请选择物料' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择物料' })
   materialId!: string
 
-  @IsString() @IsNotEmpty({ message: '请选择规格' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择规格' })
   specId!: string
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
@@ -127,7 +127,11 @@ export class SupplierCodeController {
   @Get('lookup')
   @RequirePermission(Permission.PARTNER_VIEW)
   @ApiOperation({ summary: '扫码解析：按条码（可选供应商）查映射，识别物料/规格/供应商' })
-  lookup(@CurrentUser() ctx: RequestContext, @Query('code') code: string, @Query('supplierId') supplierId?: string) {
+  lookup(
+    @CurrentUser() ctx: RequestContext,
+    @Query('code') code: string,
+    @Query('supplierId') supplierId?: string,
+  ) {
     return this.svc.lookupCode(ctx.companyId, code, supplierId)
   }
 }

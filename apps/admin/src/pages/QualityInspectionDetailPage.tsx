@@ -64,7 +64,10 @@ export default function QualityInspectionDetailPage() {
 
   useEffect(() => {
     void load()
-    api.get<DefectTypeWire[]>('/quality/defect-types').then((r) => setDefectTypes(r.data.data)).catch(() => undefined)
+    api
+      .get<DefectTypeWire[]>('/quality/defect-types')
+      .then((r) => setDefectTypes(r.data.data))
+      .catch(() => undefined)
     api
       .get<RollOption[]>('/inventory/rolls?status=in_stock')
       .then((r) => setRollOptions(r.data.data.map((x) => ({ id: x.id, rollNo: x.rollNo }))))
@@ -150,7 +153,15 @@ export default function QualityInspectionDetailPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
         <Space size="middle">
           <Button onClick={() => navigate('/quality/inspections')}>返回</Button>
           <Title level={4} style={{ margin: 0 }}>
@@ -181,7 +192,10 @@ export default function QualityInspectionDetailPage() {
             </Popconfirm>
           )}
           {inspection.status === 'done' && canReview && (
-            <Popconfirm title="作废后件卡等级回退到上一版或置为未检验。确认？" onConfirm={() => void voidIt()}>
+            <Popconfirm
+              title="作废后件卡等级回退到上一版或置为未检验。确认？"
+              onConfirm={() => void voidIt()}
+            >
               <Button danger loading={busy}>
                 作废
               </Button>
@@ -212,14 +226,21 @@ export default function QualityInspectionDetailPage() {
         </Col>
         <Col flex="1 1 150px">
           <Card size="small">
-            <Statistic title="合格率" value={inspection.passRate == null ? '—' : fmtPct(inspection.passRate)} />
+            <Statistic
+              title="合格率"
+              value={inspection.passRate == null ? '—' : fmtPct(inspection.passRate)}
+            />
           </Card>
         </Col>
       </Row>
 
       <Row gutter={12}>
         <Col xs={24} lg={10}>
-          <Card size="small" title="待检件卡" extra={<Text type="secondary">点击一行录入疵点</Text>}>
+          <Card
+            size="small"
+            title="待检件卡"
+            extra={<Text type="secondary">点击一行录入疵点</Text>}
+          >
             <Table<InspectionRollView>
               rowKey="rollId"
               size="small"
@@ -257,7 +278,11 @@ export default function QualityInspectionDetailPage() {
                   width: 90,
                   render: (v: GreigeGrade | null, r) => (
                     <Space size={4}>
-                      {v ? <Tag color={GRADE_COLOR[v]}>{GRADE_LABELS[v]}</Tag> : <Text type="secondary">未定</Text>}
+                      {v ? (
+                        <Tag color={GRADE_COLOR[v]}>{GRADE_LABELS[v]}</Tag>
+                      ) : (
+                        <Text type="secondary">未定</Text>
+                      )}
                       {r.overReceivingLimit && <Tag color="red">超红线</Tag>}
                     </Space>
                   ),

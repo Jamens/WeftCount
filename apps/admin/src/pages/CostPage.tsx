@@ -43,18 +43,26 @@ export default function CostPage() {
     if (v == null) return <Text type="secondary">-</Text>
     const pct = v * 100
     const color = pct < 0 ? 'red' : pct < 10 ? 'orange' : 'green'
-    return <Text strong style={{ color }}>{pct.toFixed(2)}%</Text>
+    return (
+      <Text strong style={{ color }}>
+        {pct.toFixed(2)}%
+      </Text>
+    )
   }
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             成本报表
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            制造成本 = 纱线成本 + 加工费。纱线用量来自工艺内核快照（确定性），这里只做「用量 × 单价」的确定性核算
+            制造成本 = 纱线成本 + 加工费。纱线用量来自工艺内核快照（确定性），这里只做「用量 ×
+            单价」的确定性核算
           </Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void load()}>
@@ -82,7 +90,9 @@ export default function CostPage() {
                 render: (v: string, r) => (
                   <Space direction="vertical" size={0}>
                     <Text strong>{v}</Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{r.specCode}</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {r.specCode}
+                    </Text>
                   </Space>
                 ),
               },
@@ -94,7 +104,9 @@ export default function CostPage() {
                   <Space direction="vertical" size={0}>
                     <Text>{v ?? '未指定'}</Text>
                     <Space size={2}>
-                      <Text type="secondary" style={{ fontSize: 11 }}>{yuan(r.warpYarnPrice, 2)}/kg</Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {yuan(r.warpYarnPrice, 2)}/kg
+                      </Text>
                       {priceTag(r.warpPriceSource)}
                     </Space>
                   </Space>
@@ -108,7 +120,9 @@ export default function CostPage() {
                   <Space direction="vertical" size={0}>
                     <Text>{v ?? '未指定'}</Text>
                     <Space size={2}>
-                      <Text type="secondary" style={{ fontSize: 11 }}>{yuan(r.weftYarnPrice, 2)}/kg</Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {yuan(r.weftYarnPrice, 2)}/kg
+                      </Text>
                       {priceTag(r.weftPriceSource)}
                     </Space>
                   </Space>
@@ -128,8 +142,20 @@ export default function CostPage() {
                 align: 'right',
                 render: (v: number) => `${v.toFixed(2)} kg/百m`,
               },
-              { title: '经纱成本/米', dataIndex: 'warpCostPerM', width: 100, align: 'right', render: (v: number) => yuan(v) },
-              { title: '纬纱成本/米', dataIndex: 'weftCostPerM', width: 100, align: 'right', render: (v: number) => yuan(v) },
+              {
+                title: '经纱成本/米',
+                dataIndex: 'warpCostPerM',
+                width: 100,
+                align: 'right',
+                render: (v: number) => yuan(v),
+              },
+              {
+                title: '纬纱成本/米',
+                dataIndex: 'weftCostPerM',
+                width: 100,
+                align: 'right',
+                render: (v: number) => yuan(v),
+              },
               {
                 title: '物成本/米',
                 dataIndex: 'materialCostPerM',
@@ -137,7 +163,13 @@ export default function CostPage() {
                 align: 'right',
                 render: (v: number) => <Text>{yuan(v)}</Text>,
               },
-              { title: '加工费/米', dataIndex: 'overheadPerM', width: 90, align: 'right', render: (v: number) => yuan(v) },
+              {
+                title: '加工费/米',
+                dataIndex: 'overheadPerM',
+                width: 90,
+                align: 'right',
+                render: (v: number) => yuan(v),
+              },
               {
                 title: '制造成本/米',
                 dataIndex: 'totalCostPerM',
@@ -145,23 +177,49 @@ export default function CostPage() {
                 align: 'right',
                 render: (v: number) => <Text strong>{yuan(v)}</Text>,
               },
-              { title: '成本/kg', dataIndex: 'totalCostPerKg', width: 95, align: 'right', render: (v: number) => yuan(v, 2) },
-              { title: '成本/m²', dataIndex: 'totalCostPerM2', width: 95, align: 'right', render: (v: number) => yuan(v, 2) },
+              {
+                title: '成本/kg',
+                dataIndex: 'totalCostPerKg',
+                width: 95,
+                align: 'right',
+                render: (v: number) => yuan(v, 2),
+              },
+              {
+                title: '成本/m²',
+                dataIndex: 'totalCostPerM2',
+                width: 95,
+                align: 'right',
+                render: (v: number) => yuan(v, 2),
+              },
               {
                 title: '售价/米',
                 dataIndex: 'salesPricePerM',
                 width: 95,
                 align: 'right',
-                render: (v: number | null) => (v == null ? <Tooltip title="尚无销售出库单价"><Text type="secondary">-</Text></Tooltip> : yuan(v, 2)),
+                render: (v: number | null) =>
+                  v == null ? (
+                    <Tooltip title="尚无销售出库单价">
+                      <Text type="secondary">-</Text>
+                    </Tooltip>
+                  ) : (
+                    yuan(v, 2)
+                  ),
               },
               {
                 title: '毛利/米',
                 dataIndex: 'grossProfitPerM',
                 width: 95,
                 align: 'right',
-                render: (v: number | null) => (v == null ? <Text type="secondary">-</Text> : yuan(v, 2)),
+                render: (v: number | null) =>
+                  v == null ? <Text type="secondary">-</Text> : yuan(v, 2),
               },
-              { title: '毛利率', dataIndex: 'grossMarginRate', width: 85, align: 'right', render: (v: number | null) => marginCell(v) },
+              {
+                title: '毛利率',
+                dataIndex: 'grossMarginRate',
+                width: 85,
+                align: 'right',
+                render: (v: number | null) => marginCell(v),
+              },
             ]}
           />
         </Card>

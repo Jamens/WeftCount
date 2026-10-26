@@ -1,10 +1,18 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, In, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { withUniqueNo } from '../../common/util/unique-no'
 import { MachineEntity, type MachineStatus } from './entities/machine.entity'
-import { ProductionOrderEntity, type ProductionOrderStatus } from './entities/production-order.entity'
+import {
+  ProductionOrderEntity,
+  type ProductionOrderStatus,
+} from './entities/production-order.entity'
 import { ProductionReportEntity } from './entities/production-report.entity'
 import type {
   CreateMachineDto,
@@ -62,15 +70,26 @@ export class ProductionService {
     })
     const nextNum = last ? Number(last.code.slice(1)) + 1 : 1
     if (!Number.isFinite(nextNum) || nextNum > 9999) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '机台编码 M9999 已用尽' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '机台编码 M9999 已用尽',
+      })
     }
     return `${MACHINE_PREFIX}${String(nextNum).padStart(4, '0')}`
   }
 
-  async createMachine(tenantId: string, companyId: string, dto: CreateMachineDto): Promise<MachineEntity> {
+  async createMachine(
+    tenantId: string,
+    companyId: string,
+    dto: CreateMachineDto,
+  ): Promise<MachineEntity> {
     const code = dto.code ?? (await this.nextMachineCode(companyId))
     const dup = await this.machines.findOne({ where: { companyId, code } })
-    if (dup) throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `机台编码 ${code} 已存在` })
+    if (dup)
+      throw new ConflictException({
+        code: ErrorCode.DUPLICATE_CODE,
+        message: `机台编码 ${code} 已存在`,
+      })
     return this.machines.save(
       this.machines.create({
         tenantId,
@@ -84,7 +103,11 @@ export class ProductionService {
     )
   }
 
-  async findMachines(tenantId: string, companyId: string, status?: MachineStatus): Promise<MachineEntity[]> {
+  async findMachines(
+    tenantId: string,
+    companyId: string,
+    status?: MachineStatus,
+  ): Promise<MachineEntity[]> {
     const qb = this.machines
       .createQueryBuilder('m')
       .where('m.tenant_id = :tenantId', { tenantId })
@@ -100,7 +123,12 @@ export class ProductionService {
     return m
   }
 
-  async updateMachine(tenantId: string, companyId: string, id: string, dto: UpdateMachineDto): Promise<MachineEntity> {
+  async updateMachine(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    dto: UpdateMachineDto,
+  ): Promise<MachineEntity> {
     const m = await this.findMachine(tenantId, companyId, id)
     if (dto.name !== undefined) m.name = dto.name
     if (dto.model !== undefined) m.model = dto.model ?? null
@@ -128,16 +156,27 @@ export class ProductionService {
   }
 
   /** 指派机台：机台须存在且未报废 */
-  private async validateMachine(tenantId: string, companyId: string, machineId: string | null | undefined): Promise<string | null> {
+  private async validateMachine(
+    tenantId: string,
+    companyId: string,
+    machineId: string | null | undefined,
+  ): Promise<string | null> {
     if (!machineId) return null
     const m = await this.findMachine(tenantId, companyId, machineId)
     if (m.status === 'retired') {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `机台「${m.name}」已报废，不能指派` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `机台「${m.name}」已报废，不能指派`,
+      })
     }
     return m.id
   }
 
-  async createOrder(tenantId: string, companyId: string, dto: CreateProductionOrderDto): Promise<ProductionOrderEntity> {
+  async createOrder(
+    tenantId: string,
+    companyId: string,
+    dto: CreateProductionOrderDto,
+  ): Promise<ProductionOrderEntity> {
     const spec = await this.materials.findSpec(tenantId, companyId, dto.specId)
     const snapshot = this.materials.getSnapshot(spec)
     const machineId = await this.validateMachine(tenantId, companyId, dto.machineId)
@@ -164,7 +203,11 @@ export class ProductionService {
     })
   }
 
-  async findOrders(tenantId: string, companyId: string, filter?: ProductionOrderFilterDto): Promise<ProductionOrderEntity[]> {
+  async findOrders(
+    tenantId: string,
+    companyId: string,
+    filter?: ProductionOrderFilterDto,
+  ): Promise<ProductionOrderEntity[]> {
     const qb = this.orders
       .createQueryBuilder('o')
       .where('o.tenant_id = :tenantId', { tenantId })
@@ -193,11 +236,17 @@ export class ProductionService {
     const orders = await this.findOrders(tenantId, companyId)
     const reportable = orders.filter((o) => o.status === 'scheduled' || o.status === 'in_progress')
     if (reportable.length === 0) return []
-    const machineIds = [...new Set(reportable.map((o) => o.machineId).filter((v): v is string => !!v))]
+    const machineIds = [
+      ...new Set(reportable.map((o) => o.machineId).filter((v): v is string => !!v)),
+    ]
     const specIds = [...new Set(reportable.map((o) => o.specId))]
     const [machines, specs] = await Promise.all([
-      machineIds.length ? this.machines.find({ where: { id: In(machineIds) } }) : Promise.resolve([]),
-      this.materials.findSpecs(tenantId, companyId).then((all) => all.filter((s) => specIds.includes(s.id))),
+      machineIds.length
+        ? this.machines.find({ where: { id: In(machineIds) } })
+        : Promise.resolve([]),
+      this.materials
+        .findSpecs(tenantId, companyId)
+        .then((all) => all.filter((s) => specIds.includes(s.id))),
     ])
     const machineName = new Map(machines.map((m) => [m.id, m.name]))
     const specName = new Map(specs.map((s) => [s.id, s.name]))
@@ -244,14 +293,18 @@ export class ProductionService {
     }
     if (dto.specId !== undefined && dto.specId !== o.specId) {
       if (Number(o.producedQuantityM) > 0) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '已有产出，不能改规格' })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '已有产出，不能改规格',
+        })
       }
       const spec = await this.materials.findSpec(tenantId, companyId, dto.specId)
       o.specId = dto.specId
       o.specSnapshot = this.materials.getSnapshot(spec)
     }
     if (dto.plannedQuantityM !== undefined) o.plannedQuantityM = num(dto.plannedQuantityM, 3)
-    if (dto.machineId !== undefined) o.machineId = await this.validateMachine(tenantId, companyId, dto.machineId)
+    if (dto.machineId !== undefined)
+      o.machineId = await this.validateMachine(tenantId, companyId, dto.machineId)
     if (dto.plannedStartDate !== undefined) o.plannedStartDate = dto.plannedStartDate
     if (dto.dueDate !== undefined) o.dueDate = dto.dueDate
     if (dto.remark !== undefined) o.remark = dto.remark ?? null
@@ -259,7 +312,12 @@ export class ProductionService {
   }
 
   /** 状态流转（开工/完成/取消/排产） */
-  async transition(tenantId: string, companyId: string, id: string, to: ProductionOrderStatus): Promise<ProductionOrderEntity> {
+  async transition(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    to: ProductionOrderStatus,
+  ): Promise<ProductionOrderEntity> {
     const o = await this.findOrder(tenantId, companyId, id)
     if (!TRANSITIONS[o.status].includes(to)) {
       throw new BadRequestException({
@@ -269,7 +327,10 @@ export class ProductionService {
     }
     // 排产/开工必须已指派机台
     if ((to === 'scheduled' || to === 'in_progress') && !o.machineId) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '请先指派机台再排产/开工' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '请先指派机台再排产/开工',
+      })
     }
     o.status = to
     return this.orders.save(o)
@@ -316,7 +377,10 @@ export class ProductionService {
       })
     }
     if (!o.machineId) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '工单未指派机台，无法报工' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '工单未指派机台，无法报工',
+      })
     }
     const reportDate = dto.reportDate ?? new Date().toISOString().slice(0, 10)
     const ctx = { tenantId, companyId, userId }

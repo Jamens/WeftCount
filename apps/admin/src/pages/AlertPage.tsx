@@ -1,6 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Badge, Button, Card, InputNumber, Modal, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { BellOutlined, CheckOutlined, ReloadOutlined, SettingOutlined, ShoppingCartOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import {
+  App as AntdApp,
+  Badge,
+  Button,
+  Card,
+  InputNumber,
+  Modal,
+  Segmented,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd'
+import {
+  BellOutlined,
+  CheckOutlined,
+  ReloadOutlined,
+  SettingOutlined,
+  ShoppingCartOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
 import { api } from '../lib/api'
 import { PERM, fmt, type AlertWire, type AlertSeverity, type PartnerWire } from '../lib/erp'
 import { useLookups } from '../lib/lookups'
@@ -29,7 +50,9 @@ export default function AlertPage() {
   useEffect(() => {
     void api
       .get<PartnerWire[]>('/partners')
-      .then((r) => setSuppliers(r.data.data.filter((x) => x.type === 'supplier' || x.type === 'both')))
+      .then((r) =>
+        setSuppliers(r.data.data.filter((x) => x.type === 'supplier' || x.type === 'both')),
+      )
       .catch(() => undefined)
   }, [])
   /** 正在生成采购单的预警 id（防连点） */
@@ -67,7 +90,9 @@ export default function AlertPage() {
     }
   }, [scope, message])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void load()
+  }, [load])
 
   // 读设置（确认静默天数）
   useEffect(() => {
@@ -82,7 +107,9 @@ export default function AlertPage() {
 
   const saveSilence = async () => {
     try {
-      const r = await api.put<{ ackSilenceDays: number }>('/alerts/settings', { ackSilenceDays: silenceInput })
+      const r = await api.put<{ ackSilenceDays: number }>('/alerts/settings', {
+        ackSilenceDays: silenceInput,
+      })
       setSilenceDays(r.data.data.ackSilenceDays)
       setSetOpen(false)
       message.success(`确认静默期已设为 ${r.data.data.ackSilenceDays} 天`)
@@ -97,7 +124,9 @@ export default function AlertPage() {
     try {
       const r = await api.post<{ created: number; stats: Record<string, number> }>('/alerts/scan')
       const { created, stats } = r.data.data
-      message.success(`扫描完成，新增 ${created} 条（逾期 ${stats.orderOverdue} / 低库存 ${stats.lowStock} / 呆滞 ${stats.staleBatch}）`)
+      message.success(
+        `扫描完成，新增 ${created} 条（逾期 ${stats.orderOverdue} / 低库存 ${stats.lowStock} / 呆滞 ${stats.staleBatch}）`,
+      )
       await load()
     } catch (e) {
       message.error(e instanceof Error ? e.message : '扫描失败')
@@ -109,15 +138,12 @@ export default function AlertPage() {
   /** 预警一键生成采购订单：数量/交期/单价都来自补货建议，生成后是草稿需人工确认 */
 
   const createOrder = async (a: AlertWire, opts?: { specId?: string; partnerId?: string }) => {
-
     setCreating(a.id)
 
     try {
-
       const res = await api.post<{ id: string; orderNo: string }>(
-
-        `/orders/from-alert/${a.id}`, opts ?? {},
-
+        `/orders/from-alert/${a.id}`,
+        opts ?? {},
       )
 
       const data = res.data.data
@@ -131,9 +157,7 @@ export default function AlertPage() {
       message.success(`已生成采购订单 ${data.orderNo}（草稿），请到订单页确认`)
 
       void load()
-
     } catch (e) {
-
       const msg = e instanceof Error ? e.message : '生成采购单失败'
 
       // 服务端明确说「推断不出规格」→ 弹窗让用户补选，而不是甩一个死错误
@@ -141,25 +165,18 @@ export default function AlertPage() {
       // 服务端可能缺「规格」或「供应商」（首次采购的新物料两者都无历史）——
       // 任一缺失都让用户补，不要只处理规格然后又卡在供应商上
       if (msg.includes('无法确定采购规格') || msg.includes('的供应商')) {
-
         setNeedSpec(a)
 
         setPickedSpec(undefined)
 
         return
-
       }
 
       message.error(msg)
-
     } finally {
-
       setCreating(null)
-
     }
-
   }
-
 
   const ack = async (id: string) => {
     try {
@@ -173,22 +190,46 @@ export default function AlertPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
-            <Badge count={open} size="small" offset={[10, 0]}><BellOutlined /></Badge>{' '}
+            <Badge count={open} size="small" offset={[10, 0]}>
+              <BellOutlined />
+            </Badge>{' '}
             预警中心
           </Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>交期逾期 / 库存低于安全库存 / 呆滞批次——规则扫描，确定性不猜测</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            交期逾期 / 库存低于安全库存 / 呆滞批次——规则扫描，确定性不猜测
+          </Text>
         </div>
         <Space>
-          {canManage && <Button type="primary" icon={<ThunderboltOutlined />} loading={scanning} onClick={() => void scan()}>扫描预警</Button>}
+          {canManage && (
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined />}
+              loading={scanning}
+              onClick={() => void scan()}
+            >
+              扫描预警
+            </Button>
+          )}
           <Tooltip title="确认预警后，同一问题在静默期内不再重复提醒（按本公司设置）">
-            <Button icon={<SettingOutlined />} onClick={() => { setSilenceInput(silenceDays ?? 7); setSetOpen(true) }}>
+            <Button
+              icon={<SettingOutlined />}
+              onClick={() => {
+                setSilenceInput(silenceDays ?? 7)
+                setSetOpen(true)
+              }}
+            >
               静默期{silenceDays != null ? ` ${silenceDays}天` : ''}
             </Button>
           </Tooltip>
-          <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
+            刷新
+          </Button>
         </Space>
       </Space>
 
@@ -203,14 +244,24 @@ export default function AlertPage() {
           style={{ marginBottom: 12 }}
         />
         <Table<AlertWire>
-          rowKey="id" size="small" loading={loading} dataSource={rows}
+          rowKey="id"
+          size="small"
+          loading={loading}
+          dataSource={rows}
           pagination={{ pageSize: 20, showSizeChanger: false }}
           columns={[
             {
-              title: '级别', dataIndex: 'severity', width: 80,
+              title: '级别',
+              dataIndex: 'severity',
+              width: 80,
               render: (v: AlertSeverity) => <Tag color={SEV[v].color}>{SEV[v].label}</Tag>,
             },
-            { title: '类型', dataIndex: 'type', width: 100, render: (v: string) => TYPE_LABEL[v] ?? v },
+            {
+              title: '类型',
+              dataIndex: 'type',
+              width: 100,
+              render: (v: string) => TYPE_LABEL[v] ?? v,
+            },
             { title: '标题', dataIndex: 'title', width: 220, ellipsis: true },
             {
               title: '详情',
@@ -223,9 +274,12 @@ export default function AlertPage() {
                 return (
                   <Space direction="vertical" size={2} style={{ width: '100%' }}>
                     <Space size={6} wrap>
-                      <Tag color="volcano">建议补货 {fmt(d.suggestQty)} {d.unit}</Tag>
+                      <Tag color="volcano">
+                        建议补货 {fmt(d.suggestQty)} {d.unit}
+                      </Tag>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        补货点 {fmt(d.reorderPoint)} · 日均 {fmt(d.dailyUsage)}/天 · 覆盖 {fmt(d.coverDays)} 天
+                        补货点 {fmt(d.reorderPoint)} · 日均 {fmt(d.dailyUsage)}/天 · 覆盖{' '}
+                        {fmt(d.coverDays)} 天
                       </Text>
                     </Space>
                     <Tooltip title={d.basis ?? ''}>
@@ -237,39 +291,57 @@ export default function AlertPage() {
                 )
               },
             },
-            { title: '状态', dataIndex: 'acknowledged', width: 80, render: (v: boolean) => (v ? <Tag>已确认</Tag> : <Tag color="gold">待处理</Tag>) },
+            {
+              title: '状态',
+              dataIndex: 'acknowledged',
+              width: 80,
+              render: (v: boolean) => (v ? <Tag>已确认</Tag> : <Tag color="gold">待处理</Tag>),
+            },
             ...(canManage
-              ? [{
-                  title: '操作', width: 190,
-                  render: (_: unknown, r: AlertWire) => {
-                    // 「生成采购单」只对**带补货建议的低库存预警**开放——
-                    // 其余预警类型（逾期/呆滞）没有可执行建议，给按钮是误导
-                    const canOrder = r.type === 'low_stock' && r.data?.suggestQty != null && Number(r.data.suggestQty) > 0
-                    return (
-                      <Space size={0}>
-                        {canOrder &&
-                          (generated[r.id] ? (
-                            <Tag color="success" style={{ margin: 0 }}>{generated[r.id]}</Tag>
-                          ) : (
+              ? [
+                  {
+                    title: '操作',
+                    width: 190,
+                    render: (_: unknown, r: AlertWire) => {
+                      // 「生成采购单」只对**带补货建议的低库存预警**开放——
+                      // 其余预警类型（逾期/呆滞）没有可执行建议，给按钮是误导
+                      const canOrder =
+                        r.type === 'low_stock' &&
+                        r.data?.suggestQty != null &&
+                        Number(r.data.suggestQty) > 0
+                      return (
+                        <Space size={0}>
+                          {canOrder &&
+                            (generated[r.id] ? (
+                              <Tag color="success" style={{ margin: 0 }}>
+                                {generated[r.id]}
+                              </Tag>
+                            ) : (
+                              <Button
+                                size="small"
+                                type="link"
+                                icon={<ShoppingCartOutlined />}
+                                loading={creating === r.id}
+                                onClick={() => void createOrder(r)}
+                              >
+                                生成采购单
+                              </Button>
+                            ))}
+                          {r.acknowledged ? null : (
                             <Button
                               size="small"
                               type="link"
-                              icon={<ShoppingCartOutlined />}
-                              loading={creating === r.id}
-                              onClick={() => void createOrder(r)}
+                              icon={<CheckOutlined />}
+                              onClick={() => void ack(r.id)}
                             >
-                              生成采购单
+                              确认
                             </Button>
-                          ))}
-                        {r.acknowledged ? null : (
-                          <Button size="small" type="link" icon={<CheckOutlined />} onClick={() => void ack(r.id)}>
-                            确认
-                          </Button>
-                        )}
-                      </Space>
-                    )
+                          )}
+                        </Space>
+                      )
+                    },
                   },
-                }]
+                ]
               : []),
           ]}
         />
@@ -285,14 +357,16 @@ export default function AlertPage() {
         onCancel={() => setSetOpen(false)}
       >
         <Text type="secondary" style={{ fontSize: 12 }}>
-          确认（忽略）一条预警后，同一问题在静默期内< b>不再重复提醒</b>。
-          不同厂子处理节奏不同：每天报工的厂 7 天合适，一周盘一次货的小厂可能要 15 天。
-          设为 <b>0</b> 表示不静默——只要条件还在就继续提醒。
+          确认（忽略）一条预警后，同一问题在静默期内<b>不再重复提醒</b>。
+          不同厂子处理节奏不同：每天报工的厂 7 天合适，一周盘一次货的小厂可能要 15 天。 设为{' '}
+          <b>0</b> 表示不静默——只要条件还在就继续提醒。
         </Text>
         <div style={{ marginTop: 14 }}>
           <InputNumber
             style={{ width: '100%' }}
-            min={0} max={365} precision={0}
+            min={0}
+            max={365}
+            precision={0}
             value={silenceInput}
             onChange={(v) => setSilenceInput(Math.max(0, Math.floor(v ?? 0)))}
             addonAfter="天"
@@ -322,11 +396,12 @@ export default function AlertPage() {
         }}
       >
         <Text type="secondary" style={{ fontSize: 12 }}>
-          该物料没有历史入库记录，规格与供应商都无法推断。
-          请补全——<b>系统不替你猜</b>。
+          该物料没有历史入库记录，规格与供应商都无法推断。 请补全——<b>系统不替你猜</b>。
         </Text>
         <div style={{ marginTop: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>采购规格</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            采购规格
+          </Text>
           <Select
             style={{ width: '100%', marginTop: 4 }}
             placeholder="请选择规格"
@@ -338,7 +413,9 @@ export default function AlertPage() {
           />
         </div>
         <div style={{ marginTop: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>供应商</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            供应商
+          </Text>
           <Select
             style={{ width: '100%', marginTop: 4 }}
             placeholder="请选择供应商"

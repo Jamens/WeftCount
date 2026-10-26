@@ -58,7 +58,11 @@ function WeaveMark({ size = 52 }: { size?: number }) {
 }
 
 const FEATURES = [
-  { icon: <DeploymentUnitOutlined />, title: '三算闭环', desc: '采购入库 · 生产领用 · 销售出库，恒等式对账' },
+  {
+    icon: <DeploymentUnitOutlined />,
+    title: '三算闭环',
+    desc: '采购入库 · 生产领用 · 销售出库，恒等式对账',
+  },
   { icon: <BarcodeOutlined />, title: '按匹追溯', desc: '每匹布可倒查到工单、机台与供应商' },
   { icon: <LineChartOutlined />, title: '损耗算清', desc: '损耗精确到匹，核价与排产辅助决策' },
 ]
@@ -73,10 +77,11 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     const v = await form.validateFields()
     setLoading(true)
     try {
-      const data = await api.post<{ accessToken: string; tenant: { id: string }; currentCompanyId: string }>(
-        '/auth/login',
-        v,
-      )
+      const data = await api.post<{
+        accessToken: string
+        tenant: { id: string }
+        currentCompanyId: string
+      }>('/auth/login', v)
       authStore.setSession(data.accessToken, data.tenant.id, data.currentCompanyId)
       message.success('登录成功')
       onSuccess()
@@ -133,7 +138,10 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 26 }}>
             <WeaveMark />
             <div>
-              <Title level={2} style={{ color: '#fff', margin: 0, lineHeight: 1.15, letterSpacing: 1 }}>
+              <Title
+                level={2}
+                style={{ color: '#fff', margin: 0, lineHeight: 1.15, letterSpacing: 1 }}
+              >
                 纬数 WeftCount
               </Title>
               <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 13, letterSpacing: 2 }}>
@@ -207,7 +215,12 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             挡车工 / 仓管 / 工艺 日常操作台
           </Text>
 
-          <Form<LoginForm> form={form} layout="vertical" style={{ marginTop: 26 }} onFinish={() => void onLogin()}>
+          <Form<LoginForm>
+            form={form}
+            layout="vertical"
+            style={{ marginTop: 26 }}
+            onFinish={() => void onLogin()}
+          >
             <Form.Item name="username" rules={[{ required: true, message: '请输入账号' }]}>
               <Input prefix={<UserOutlined />} placeholder="账号" size="large" autoFocus />
             </Form.Item>
@@ -219,7 +232,14 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
                 onPressEnter={() => void onLogin()}
               />
             </Form.Item>
-            <Button type="primary" size="large" block icon={<LoginOutlined />} loading={loading} onClick={() => void onLogin()}>
+            <Button
+              type="primary"
+              size="large"
+              block
+              icon={<LoginOutlined />}
+              loading={loading}
+              onClick={() => void onLogin()}
+            >
               登录
             </Button>
           </Form>
@@ -243,7 +263,9 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
                   }}
                 >
                   <b>{d.label}</b>
-                  <span style={{ color: token.colorTextSecondary, marginLeft: 6, fontSize: 11 }}>{d.role}</span>
+                  <span style={{ color: token.colorTextSecondary, marginLeft: 6, fontSize: 11 }}>
+                    {d.role}
+                  </span>
                 </Tag>
               ))}
             </div>

@@ -19,9 +19,19 @@ import { CostService } from '../cost/cost.service'
 import { AnalyticsService } from '../analytics/analytics.service'
 import { ErrorCode } from '@weftcount/shared'
 import {
-  AUDIT_ACTION_CN, BATCH_SOURCE_CN, BATCH_STATUS_CN, cn, DOC_TYPE_CN,
-  ORDER_STATUS_CN, ORDER_TYPE_CN, PROD_ORDER_STATUS_CN, ROLL_STATUS_CN, STOP_REASON_CN,
-  STOCKTAKE_STATUS_CN, TXN_DIRECTION_CN, TXN_TYPE_CN,
+  AUDIT_ACTION_CN,
+  BATCH_SOURCE_CN,
+  BATCH_STATUS_CN,
+  cn,
+  DOC_TYPE_CN,
+  ORDER_STATUS_CN,
+  ORDER_TYPE_CN,
+  PROD_ORDER_STATUS_CN,
+  ROLL_STATUS_CN,
+  STOP_REASON_CN,
+  STOCKTAKE_STATUS_CN,
+  TXN_DIRECTION_CN,
+  TXN_TYPE_CN,
 } from './report-labels'
 
 /** 导出参数：租户/公司隔离 + 可选筛选 */
@@ -61,20 +71,85 @@ export interface ReportMeta {
 }
 
 export const REPORTS: ReportMeta[] = [
-  { key: 'inventory-batches', label: '库存批次', description: '当前在库各批次（物料/规格/仓库/数量/剩余/单位成本）', supportsDays: false },
-  { key: 'inventory-transactions', label: '库存流水', description: '出入库明细（批次/类型/方向/变化量/结存）', supportsDays: true },
-  { key: 'inventory-documents', label: '出入库单据', description: '采购入库/生产领料/销售出库单据（往来单位/金额）', supportsDays: true },
-  { key: 'rolls', label: '件卡明细', description: '逐匹件卡（匹号/米数/剩余/状态）', supportsDays: false },
-  { key: 'materials', label: '物料主数据', description: '物料档案（编码/大类/主单位/安全库存/标准单价）', supportsDays: false },
-  { key: 'specs', label: '坯布规格', description: '规格工艺档案（幅宽/经纬密/支数/克重）', supportsDays: false },
+  {
+    key: 'inventory-batches',
+    label: '库存批次',
+    description: '当前在库各批次（物料/规格/仓库/数量/剩余/单位成本）',
+    supportsDays: false,
+  },
+  {
+    key: 'inventory-transactions',
+    label: '库存流水',
+    description: '出入库明细（批次/类型/方向/变化量/结存）',
+    supportsDays: true,
+  },
+  {
+    key: 'inventory-documents',
+    label: '出入库单据',
+    description: '采购入库/生产领料/销售出库单据（往来单位/金额）',
+    supportsDays: true,
+  },
+  {
+    key: 'rolls',
+    label: '件卡明细',
+    description: '逐匹件卡（匹号/米数/剩余/状态）',
+    supportsDays: false,
+  },
+  {
+    key: 'materials',
+    label: '物料主数据',
+    description: '物料档案（编码/大类/主单位/安全库存/标准单价）',
+    supportsDays: false,
+  },
+  {
+    key: 'specs',
+    label: '坯布规格',
+    description: '规格工艺档案（幅宽/经纬密/支数/克重）',
+    supportsDays: false,
+  },
   { key: 'warehouses', label: '仓库', description: '仓库档案与类型', supportsDays: false },
-  { key: 'orders', label: '采购销售订单', description: '订单（类型/往来单位/金额/状态/交期）', supportsDays: true },
-  { key: 'production-orders', label: '生产工单', description: '织造工单（规格/计划量/机台/状态/交期）', supportsDays: true },
-  { key: 'production-reports', label: '报工记录', description: '报工明细（机台/产出米数/停机时长与原因）', supportsDays: true },
-  { key: 'cost', label: '成本报表', description: '分规格成本与毛利（与成本报表页口径一致）', supportsDays: false },
-  { key: 'trends', label: '趋势数据', description: '日产量/采购销售金额/规格占比（图表的底层数据）', supportsDays: true },
-  { key: 'stocktakes', label: '盘点单', description: '盘点单头（仓库/日期/状态/差异汇总）', supportsDays: true },
-  { key: 'audit-logs', label: '审计日志', description: '操作审计（操作人/动作/对象/耗时）', supportsDays: true },
+  {
+    key: 'orders',
+    label: '采购销售订单',
+    description: '订单（类型/往来单位/金额/状态/交期）',
+    supportsDays: true,
+  },
+  {
+    key: 'production-orders',
+    label: '生产工单',
+    description: '织造工单（规格/计划量/机台/状态/交期）',
+    supportsDays: true,
+  },
+  {
+    key: 'production-reports',
+    label: '报工记录',
+    description: '报工明细（机台/产出米数/停机时长与原因）',
+    supportsDays: true,
+  },
+  {
+    key: 'cost',
+    label: '成本报表',
+    description: '分规格成本与毛利（与成本报表页口径一致）',
+    supportsDays: false,
+  },
+  {
+    key: 'trends',
+    label: '趋势数据',
+    description: '日产量/采购销售金额/规格占比（图表的底层数据）',
+    supportsDays: true,
+  },
+  {
+    key: 'stocktakes',
+    label: '盘点单',
+    description: '盘点单头（仓库/日期/状态/差异汇总）',
+    supportsDays: true,
+  },
+  {
+    key: 'audit-logs',
+    label: '审计日志',
+    description: '操作审计（操作人/动作/对象/耗时）',
+    supportsDays: true,
+  },
 ]
 
 @Injectable()
@@ -82,16 +157,21 @@ export class ReportExportService {
   private readonly log = new Logger(ReportExportService.name)
 
   constructor(
-    @InjectRepository(InventoryBatchEntity) private readonly batches: Repository<InventoryBatchEntity>,
-    @InjectRepository(InventoryTransactionEntity) private readonly txns: Repository<InventoryTransactionEntity>,
-    @InjectRepository(InventoryDocumentEntity) private readonly docs: Repository<InventoryDocumentEntity>,
+    @InjectRepository(InventoryBatchEntity)
+    private readonly batches: Repository<InventoryBatchEntity>,
+    @InjectRepository(InventoryTransactionEntity)
+    private readonly txns: Repository<InventoryTransactionEntity>,
+    @InjectRepository(InventoryDocumentEntity)
+    private readonly docs: Repository<InventoryDocumentEntity>,
     @InjectRepository(RollEntity) private readonly rolls: Repository<RollEntity>,
     @InjectRepository(MaterialEntity) private readonly materials: Repository<MaterialEntity>,
     @InjectRepository(GreigeSpecEntity) private readonly specs: Repository<GreigeSpecEntity>,
     @InjectRepository(WarehouseEntity) private readonly warehouses: Repository<WarehouseEntity>,
     @InjectRepository(TradeOrderEntity) private readonly orders: Repository<TradeOrderEntity>,
-    @InjectRepository(ProductionOrderEntity) private readonly prodOrders: Repository<ProductionOrderEntity>,
-    @InjectRepository(ProductionReportEntity) private readonly reports: Repository<ProductionReportEntity>,
+    @InjectRepository(ProductionOrderEntity)
+    private readonly prodOrders: Repository<ProductionOrderEntity>,
+    @InjectRepository(ProductionReportEntity)
+    private readonly reports: Repository<ProductionReportEntity>,
     @InjectRepository(MachineEntity) private readonly machines: Repository<MachineEntity>,
     @InjectRepository(StocktakeEntity) private readonly stocktakes: Repository<StocktakeEntity>,
     @InjectRepository(AuditLogEntity) private readonly audits: Repository<AuditLogEntity>,
@@ -138,20 +218,34 @@ export class ReportExportService {
 
   private async build(key: string, q: ReportQuery): Promise<{ header: string[]; rows: Row[] }> {
     switch (key) {
-      case 'inventory-batches': return this.inventoryBatches(q)
-      case 'inventory-transactions': return this.inventoryTransactions(q)
-      case 'inventory-documents': return this.inventoryDocuments(q)
-      case 'rolls': return this.rollsReport(q)
-      case 'materials': return this.materialsReport(q)
-      case 'specs': return this.specsReport(q)
-      case 'warehouses': return this.warehousesReport(q)
-      case 'orders': return this.ordersReport(q)
-      case 'production-orders': return this.productionOrders(q)
-      case 'production-reports': return this.productionReports(q)
-      case 'cost': return this.costReport(q)
-      case 'trends': return this.trendsReport(q)
-      case 'stocktakes': return this.stocktakesReport(q)
-      case 'audit-logs': return this.auditLogs(q)
+      case 'inventory-batches':
+        return this.inventoryBatches(q)
+      case 'inventory-transactions':
+        return this.inventoryTransactions(q)
+      case 'inventory-documents':
+        return this.inventoryDocuments(q)
+      case 'rolls':
+        return this.rollsReport(q)
+      case 'materials':
+        return this.materialsReport(q)
+      case 'specs':
+        return this.specsReport(q)
+      case 'warehouses':
+        return this.warehousesReport(q)
+      case 'orders':
+        return this.ordersReport(q)
+      case 'production-orders':
+        return this.productionOrders(q)
+      case 'production-reports':
+        return this.productionReports(q)
+      case 'cost':
+        return this.costReport(q)
+      case 'trends':
+        return this.trendsReport(q)
+      case 'stocktakes':
+        return this.stocktakesReport(q)
+      case 'audit-logs':
+        return this.auditLogs(q)
       default:
         throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `未知报表：${key}` })
     }
@@ -163,8 +257,25 @@ export class ReportExportService {
 
   private async inventoryBatches(q: ReportQuery) {
     const { matName, specName, whName } = await this.maps()
-    const list = await this.batches.find({ where: { companyId: q.companyId }, order: { inboundAt: 'DESC' } })
-    const header = ['批次号', '物料', '规格', '仓库', '幅宽cm', '初始数量(米)', '初始重量(kg)', '剩余数量(米)', '剩余重量(kg)', '单位成本', '来源', '状态', '入库时间']
+    const list = await this.batches.find({
+      where: { companyId: q.companyId },
+      order: { inboundAt: 'DESC' },
+    })
+    const header = [
+      '批次号',
+      '物料',
+      '规格',
+      '仓库',
+      '幅宽cm',
+      '初始数量(米)',
+      '初始重量(kg)',
+      '剩余数量(米)',
+      '剩余重量(kg)',
+      '单位成本',
+      '来源',
+      '状态',
+      '入库时间',
+    ]
     const rows: Row[] = list.map((b) => [
       b.batchNo,
       matName.get(b.materialId) ?? '',
@@ -193,7 +304,20 @@ export class ReportExportService {
     const since = this.since(q.days)
     if (since) qb.andWhere('DATE(t.created_at) >= :since', { since })
     const list = await qb.getMany()
-    const header = ['时间', '批次号', '物料', '规格', '类型', '方向', '变化量(米)', '变化重量(kg)', '结存数量(米)', '结存重量(kg)', '单价', '备注']
+    const header = [
+      '时间',
+      '批次号',
+      '物料',
+      '规格',
+      '类型',
+      '方向',
+      '变化量(米)',
+      '变化重量(kg)',
+      '结存数量(米)',
+      '结存重量(kg)',
+      '单价',
+      '备注',
+    ]
     const rows: Row[] = list.map((t) => [
       this.dt(t.createdAt),
       batchNos.get(t.batchId) ?? '',
@@ -212,7 +336,10 @@ export class ReportExportService {
   }
 
   private async batchNoMap(companyId: string): Promise<Map<string, string>> {
-    const bs = await this.batches.find({ where: { companyId }, select: { id: true, batchNo: true } })
+    const bs = await this.batches.find({
+      where: { companyId },
+      select: { id: true, batchNo: true },
+    })
     return new Map(bs.map((b) => [b.id, b.batchNo]))
   }
 
@@ -225,7 +352,21 @@ export class ReportExportService {
     const since = this.since(q.days)
     if (since) qb.andWhere('DATE(d.created_at) >= :since', { since })
     const list = await qb.getMany()
-    const header = ['单据号', '类型', '物料', '规格', '幅宽cm', '数量(米)', '重量(kg)', '单价', '总金额', '往来单位', '订单号', '时间', '备注']
+    const header = [
+      '单据号',
+      '类型',
+      '物料',
+      '规格',
+      '幅宽cm',
+      '数量(米)',
+      '重量(kg)',
+      '单价',
+      '总金额',
+      '往来单位',
+      '订单号',
+      '时间',
+      '备注',
+    ]
     const rows: Row[] = list.map((d) => [
       d.docNo,
       cn(DOC_TYPE_CN, d.docType),
@@ -246,8 +387,20 @@ export class ReportExportService {
 
   private async rollsReport(q: ReportQuery) {
     const batchNos = await this.batchNoMap(q.companyId)
-    const list = await this.rolls.find({ where: { companyId: q.companyId }, order: { createdAt: 'DESC' } })
-    const header = ['件卡号', '所属批次', '米数', '重量(kg)', '剩余米数', '剩余重量(kg)', '状态', '创建时间']
+    const list = await this.rolls.find({
+      where: { companyId: q.companyId },
+      order: { createdAt: 'DESC' },
+    })
+    const header = [
+      '件卡号',
+      '所属批次',
+      '米数',
+      '重量(kg)',
+      '剩余米数',
+      '剩余重量(kg)',
+      '状态',
+      '创建时间',
+    ]
     const rows: Row[] = list.map((r) => [
       r.rollNo,
       batchNos.get(r.batchId) ?? '',
@@ -266,25 +419,67 @@ export class ReportExportService {
   // -------------------------------------------------------------------------
 
   private async materialsReport(q: ReportQuery) {
-    const list = await this.materials.find({ where: { companyId: q.companyId }, order: { code: 'ASC' } })
-    const header = ['编码', '名称', '大类', '规格描述', '计量方式', '主单位', '安全库存', '标准单价', '状态', '备注']
+    const list = await this.materials.find({
+      where: { companyId: q.companyId },
+      order: { code: 'ASC' },
+    })
+    const header = [
+      '编码',
+      '名称',
+      '大类',
+      '规格描述',
+      '计量方式',
+      '主单位',
+      '安全库存',
+      '标准单价',
+      '状态',
+      '备注',
+    ]
     const rows: Row[] = list.map((m) => [
-      m.code, m.name, m.category, m.specification, m.measureMode, m.primaryUnit,
-      this.num(m.safetyStock), this.num(m.standardPrice), m.status, m.remark ?? '',
+      m.code,
+      m.name,
+      m.category,
+      m.specification,
+      m.measureMode,
+      m.primaryUnit,
+      this.num(m.safetyStock),
+      this.num(m.standardPrice),
+      m.status,
+      m.remark ?? '',
     ])
     return { header, rows }
   }
 
   private async specsReport(q: ReportQuery) {
-    const list = await this.specs.find({ where: { companyId: q.companyId }, order: { code: 'ASC' } })
-    const header = ['编码', '名称', '成品幅宽(cm)', '经密(根/英寸)', '纬密(根/英寸)', '组织', '经纱支数', '纬纱支数', '计算克重(g/m²)', '状态', '备注']
+    const list = await this.specs.find({
+      where: { companyId: q.companyId },
+      order: { code: 'ASC' },
+    })
+    const header = [
+      '编码',
+      '名称',
+      '成品幅宽(cm)',
+      '经密(根/英寸)',
+      '纬密(根/英寸)',
+      '组织',
+      '经纱支数',
+      '纬纱支数',
+      '计算克重(g/m²)',
+      '状态',
+      '备注',
+    ]
     const rows: Row[] = list.map((s) => [
-      s.code, s.name, this.num(s.finishedWidth),
-      this.num(s.warpDensity), this.num(s.weftDensity),
+      s.code,
+      s.name,
+      this.num(s.finishedWidth),
+      this.num(s.warpDensity),
+      this.num(s.weftDensity),
       s.weaveType,
       `${s.warpCountValue}${this.countSystemCn(s.warpCountSystem)}`,
       `${s.weftCountValue}${this.countSystemCn(s.weftCountSystem)}`,
-      this.num(s.calculatedGsm), s.status, s.remark ?? '',
+      this.num(s.calculatedGsm),
+      s.status,
+      s.remark ?? '',
     ])
     return { header, rows }
   }
@@ -292,16 +487,24 @@ export class ReportExportService {
   /** 支数体系中文（导出给业务方看，NeS/Nm 等缩写不如中文直观） */
   private countSystemCn(v: string | null | undefined): string {
     switch (v) {
-      case 'NeS': return '英支'
-      case 'Nm': return '公支'
-      case 'Tex': return '特克斯'
-      case 'D': return '旦'
-      default: return v ?? ''
+      case 'NeS':
+        return '英支'
+      case 'Nm':
+        return '公支'
+      case 'Tex':
+        return '特克斯'
+      case 'D':
+        return '旦'
+      default:
+        return v ?? ''
     }
   }
 
   private async warehousesReport(q: ReportQuery) {
-    const list = await this.warehouses.find({ where: { companyId: q.companyId }, order: { code: 'ASC' } })
+    const list = await this.warehouses.find({
+      where: { companyId: q.companyId },
+      order: { code: 'ASC' },
+    })
     const header = ['编码', '名称', '类型', '状态', '备注']
     const rows: Row[] = list.map((w) => [w.code, w.name, w.type, w.status, w.remark ?? ''])
     return { header, rows }
@@ -319,7 +522,17 @@ export class ReportExportService {
     const since = this.since(q.days)
     if (since) qb.andWhere('DATE(o.created_at) >= :since', { since })
     const list = await qb.getMany()
-    const header = ['订单号', '类型', '往来单位', '总数量(米)', '总金额', '状态', '期望交期', '备注', '创建时间']
+    const header = [
+      '订单号',
+      '类型',
+      '往来单位',
+      '总数量(米)',
+      '总金额',
+      '状态',
+      '期望交期',
+      '备注',
+      '创建时间',
+    ]
     const rows: Row[] = list.map((o) => [
       o.orderNo,
       cn(ORDER_TYPE_CN, o.orderType),
@@ -344,7 +557,19 @@ export class ReportExportService {
     const since = this.since(q.days)
     if (since) qb.andWhere('DATE(p.created_at) >= :since', { since })
     const list = await qb.getMany()
-    const header = ['工单号', '规格', '计划产量(米)', '已产出(米)', '完成率', '机台', '状态', '计划开工', '交期', '备注', '创建时间']
+    const header = [
+      '工单号',
+      '规格',
+      '计划产量(米)',
+      '已产出(米)',
+      '完成率',
+      '机台',
+      '状态',
+      '计划开工',
+      '交期',
+      '备注',
+      '创建时间',
+    ]
     const rows: Row[] = list.map((p) => {
       const planned = this.num(p.plannedQuantityM)
       const produced = this.num(p.producedQuantityM)
@@ -367,8 +592,12 @@ export class ReportExportService {
 
   private async productionReports(q: ReportQuery) {
     const orderNos = new Map(
-      (await this.prodOrders.find({ where: { companyId: q.companyId }, select: { id: true, orderNo: true } }))
-        .map((o) => [o.id, o.orderNo]),
+      (
+        await this.prodOrders.find({
+          where: { companyId: q.companyId },
+          select: { id: true, orderNo: true },
+        })
+      ).map((o) => [o.id, o.orderNo]),
     )
     const machineNames = new Map((await this.machines.find()).map((m) => [m.id, m.name]))
     const qb = this.reports
@@ -399,18 +628,41 @@ export class ReportExportService {
   private async costReport(q: ReportQuery) {
     const list = await this.cost.analysis(q.tenantId, q.companyId)
     const header = [
-      '规格编码', '规格名称', '经纱', '纬纱',
-      '经纱单价', '经纱单价来源', '纬纱单价', '纬纱单价来源',
-      '经纱单耗(kg/100m)', '纬纱单耗(kg/100m)', '加工费(元/米)',
-      '材料成本(元/米)', '总成本(元/米)', '总成本(元/kg)', '总成本(元/m²)',
-      '销售价(元/米)', '毛利(元/米)', '毛利率',
+      '规格编码',
+      '规格名称',
+      '经纱',
+      '纬纱',
+      '经纱单价',
+      '经纱单价来源',
+      '纬纱单价',
+      '纬纱单价来源',
+      '经纱单耗(kg/100m)',
+      '纬纱单耗(kg/100m)',
+      '加工费(元/米)',
+      '材料成本(元/米)',
+      '总成本(元/米)',
+      '总成本(元/kg)',
+      '总成本(元/m²)',
+      '销售价(元/米)',
+      '毛利(元/米)',
+      '毛利率',
     ]
     const rows: Row[] = list.map((r) => [
-      r.specCode, r.specName, r.warpMaterialName ?? '', r.weftMaterialName ?? '',
-      r.warpYarnPrice, this.priceSourceCn(r.warpPriceSource),
-      r.weftYarnPrice, this.priceSourceCn(r.weftPriceSource),
-      r.warpKgPer100m, r.weftKgPer100m, r.overheadPerM,
-      r.materialCostPerM, r.totalCostPerM, r.totalCostPerKg, r.totalCostPerM2,
+      r.specCode,
+      r.specName,
+      r.warpMaterialName ?? '',
+      r.weftMaterialName ?? '',
+      r.warpYarnPrice,
+      this.priceSourceCn(r.warpPriceSource),
+      r.weftYarnPrice,
+      this.priceSourceCn(r.weftPriceSource),
+      r.warpKgPer100m,
+      r.weftKgPer100m,
+      r.overheadPerM,
+      r.materialCostPerM,
+      r.totalCostPerM,
+      r.totalCostPerKg,
+      r.totalCostPerM2,
       r.salesPricePerM ?? '',
       r.grossProfitPerM ?? '',
       r.grossMarginRate == null ? '' : `${(r.grossMarginRate * 100).toFixed(2)}%`,
@@ -420,16 +672,31 @@ export class ReportExportService {
 
   private priceSourceCn(v: string): string {
     switch (v) {
-      case 'latest_purchase': return '最近采购价'
-      case 'standard_price': return '标准单价'
-      case 'none': return '无价格'
-      default: return v
+      case 'latest_purchase':
+        return '最近采购价'
+      case 'standard_price':
+        return '标准单价'
+      case 'none':
+        return '无价格'
+      default:
+        return v
     }
   }
 
   private async trendsReport(q: ReportQuery) {
     const d = await this.analytics.trends(q.companyId, q.days ?? 30)
-    const header = ['日期', '产量(米)', '产量(kg)', '采购金额', '销售金额', '领用折算(米)', '产出(米)', '超额损耗(米)', '产出匹数', '发货匹数']
+    const header = [
+      '日期',
+      '产量(米)',
+      '产量(kg)',
+      '采购金额',
+      '销售金额',
+      '领用折算(米)',
+      '产出(米)',
+      '超额损耗(米)',
+      '产出匹数',
+      '发货匹数',
+    ]
     // specShare 是整个窗口的规格占比（不含日期），另起一块输出会破坏单表结构，
     // 故此处只导出日维度；规格占比见specs 报表与趋势页。
     const rows: Row[] = d.daily.map((p) => {
@@ -437,9 +704,15 @@ export class ReportExportService {
       const roll = d.rolls.daily.find((r) => r.date === p.date)
       return [
         p.date,
-        p.meters, p.weightKg, p.purchaseAmount, p.salesAmount,
-        loss?.inputM ?? '', loss?.outputM ?? '', loss?.excessM ?? '',
-        roll?.produced ?? '', roll?.shipped ?? '',
+        p.meters,
+        p.weightKg,
+        p.purchaseAmount,
+        p.salesAmount,
+        loss?.inputM ?? '',
+        loss?.outputM ?? '',
+        loss?.excessM ?? '',
+        roll?.produced ?? '',
+        roll?.shipped ?? '',
       ]
     })
     return { header, rows }
@@ -475,7 +748,20 @@ export class ReportExportService {
     const since = this.since(q.days)
     if (since) qb.andWhere('DATE(a.created_at) >= :since', { since })
     const list = await qb.getMany()
-    const header = ['时间', '操作人', '姓名', '动作', '模块', '摘要', '对象类型', '对象ID', '方法', '路径', 'IP', '耗时(ms)']
+    const header = [
+      '时间',
+      '操作人',
+      '姓名',
+      '动作',
+      '模块',
+      '摘要',
+      '对象类型',
+      '对象ID',
+      '方法',
+      '路径',
+      'IP',
+      '耗时(ms)',
+    ]
     const rows: Row[] = list.map((a) => [
       this.dt(a.createdAt),
       a.username ?? '',

@@ -124,7 +124,9 @@ export default function AuditLogPage() {
       <Collapse
         size="small"
         style={{ marginBottom: 12 }}
-        items={[{ key: 'tl', label: '对象操作时间线（按对象查完整变更史）', children: <AuditTimeline /> }]}
+        items={[
+          { key: 'tl', label: '对象操作时间线（按对象查完整变更史）', children: <AuditTimeline /> },
+        ]}
       />
 
       <Card size="small" style={{ marginBottom: 12 }}>
@@ -216,7 +218,9 @@ export default function AuditLogPage() {
               dataIndex: 'action',
               width: 90,
               render: (v: AuditActionType) => (
-                <Tag color={ACTION_LABELS[v]?.color ?? 'default'}>{ACTION_LABELS[v]?.text ?? v}</Tag>
+                <Tag color={ACTION_LABELS[v]?.color ?? 'default'}>
+                  {ACTION_LABELS[v]?.text ?? v}
+                </Tag>
               ),
             },
             { title: '模块', dataIndex: 'module', width: 120 },
@@ -237,12 +241,7 @@ export default function AuditLogPage() {
         />
       </Card>
 
-      <Drawer
-        title="审计详情"
-        width={720}
-        open={detail !== null}
-        onClose={() => setDetail(null)}
-      >
+      <Drawer title="审计详情" width={720} open={detail !== null} onClose={() => setDetail(null)}>
         {detail && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions column={2} size="small" bordered>
@@ -301,9 +300,7 @@ export default function AuditLogPage() {
                     {
                       title: '变更后',
                       dataIndex: 'after',
-                      render: (v: string) => (
-                        <Text style={{ fontSize: 12 }}>{v}</Text>
-                      ),
+                      render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
                     },
                   ]}
                 />

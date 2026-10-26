@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
-import { WarehouseService, type CreateWarehouseInput, type UpdateWarehouseInput } from './warehouse.service'
+import {
+  WarehouseService,
+  type CreateWarehouseInput,
+  type UpdateWarehouseInput,
+} from './warehouse.service'
 import { WarehouseEntity, type WarehouseType } from './entities/warehouse.entity'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
@@ -10,42 +14,64 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { Audit } from '../audit/audit.interceptor'
 
 class CreateWarehouseDto implements CreateWarehouseInput {
-  @IsOptional() @IsString() @MaxLength(32)
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
   code?: string
 
-  @IsString() @IsNotEmpty({ message: '仓库名称不能为空' }) @MaxLength(64)
+  @IsString()
+  @IsNotEmpty({ message: '仓库名称不能为空' })
+  @MaxLength(64)
   name!: string
 
-  @IsOptional() @IsEnum(['raw', 'greige', 'finished', 'auxiliary', 'scrap', 'other'])
+  @IsOptional()
+  @IsEnum(['raw', 'greige', 'finished', 'auxiliary', 'scrap', 'other'])
   type?: WarehouseType
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   address?: string | null
 
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   keeper?: string | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
 class UpdateWarehouseDto implements UpdateWarehouseInput {
-  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
   name?: string
 
-  @IsOptional() @IsEnum(['raw', 'greige', 'finished', 'auxiliary', 'scrap', 'other'])
+  @IsOptional()
+  @IsEnum(['raw', 'greige', 'finished', 'auxiliary', 'scrap', 'other'])
   type?: WarehouseType
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   address?: string | null
 
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   keeper?: string | null
 
-  @IsOptional() @IsEnum(['active', 'disabled'])
+  @IsOptional()
+  @IsEnum(['active', 'disabled'])
   status?: 'active' | 'disabled'
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
@@ -60,7 +86,10 @@ export class WarehouseController {
   @RequirePermission(Permission.WAREHOUSE_MANAGE)
   @Audit({ action: 'create', module: 'warehouse', targetType: 'warehouse' })
   @ApiOperation({ summary: '新建仓库' })
-  create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateWarehouseDto): Promise<WarehouseEntity> {
+  create(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateWarehouseDto,
+  ): Promise<WarehouseEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)
   }
 

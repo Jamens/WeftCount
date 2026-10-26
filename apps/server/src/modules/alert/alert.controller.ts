@@ -10,7 +10,9 @@ import { Audit } from '../audit/audit.interceptor'
 
 class AlertSettingsDto {
   /** 确认后静默天数；0 = 不静默（条件还在就继续提醒） */
-  @IsInt() @Min(0) @Max(365)
+  @IsInt()
+  @Min(0)
+  @Max(365)
   ackSilenceDays!: number
 }
 

@@ -86,7 +86,9 @@ export class CoefficientService {
       .getRawMany<{ specId: string; outputM: string; cnt: string }>()
 
     const inMap = new Map(issues.map((r) => [r.specId, Number(r.inputM)]))
-    const outMap = new Map(outputs.map((r) => [r.specId, { m: Number(r.outputM), cnt: Number(r.cnt) }]))
+    const outMap = new Map(
+      outputs.map((r) => [r.specId, { m: Number(r.outputM), cnt: Number(r.cnt) }]),
+    )
     const specIds = [...new Set([...inMap.keys(), ...outMap.keys()])]
 
     const rows: SpecCoefficientRow[] = []
@@ -104,11 +106,16 @@ export class CoefficientService {
         ? Math.min(0.5 + out.cnt * 0.05, 0.95)
         : Math.min(0.3 + out.cnt * 0.02, 0.5)
       rows.push({
-        specId, specName: spec.name,
-        inputM, outputM: out.m, sampleSize: out.cnt,
-        observedFactor, suggestedFactor,
+        specId,
+        specName: spec.name,
+        inputM,
+        outputM: out.m,
+        sampleSize: out.cnt,
+        observedFactor,
+        suggestedFactor,
         currentFactor: spec.learnedLossFactor == null ? null : Number(spec.learnedLossFactor),
-        sufficient, confidence,
+        sufficient,
+        confidence,
       })
     }
     // 多耗最严重的排前面
@@ -144,7 +151,10 @@ export class CoefficientService {
     const system = `你是纺织厂工艺工程师。只依据给定数据解释各规格实测多耗的原因并给建议，中文作答，输出 JSON：{"reasoning":"归因说明","confidence":0~1}`
     const user = actionable
       .slice(0, 8)
-      .map((r) => `- ${r.specName}：领用${r.inputM.toFixed(0)}m/产出${r.outputM.toFixed(0)}m=多耗${((r.observedFactor - 1) * 100).toFixed(1)}%，样本${r.sampleSize}笔`)
+      .map(
+        (r) =>
+          `- ${r.specName}：领用${r.inputM.toFixed(0)}m/产出${r.outputM.toFixed(0)}m=多耗${((r.observedFactor - 1) * 100).toFixed(1)}%，样本${r.sampleSize}笔`,
+      )
       .join('\n')
     const res = await this.llm.chat([
       { role: 'system', content: system },
@@ -152,7 +162,10 @@ export class CoefficientService {
     ])
     if (!res.ok) return fallback
     try {
-      const parsed = JSON.parse(extractJson(res.content)) as { reasoning?: string; confidence?: number }
+      const parsed = JSON.parse(extractJson(res.content)) as {
+        reasoning?: string
+        confidence?: number
+      }
       return {
         source: 'llm',
         confidence: Math.min(Math.max(Number(parsed.confidence ?? 0.7), 0), 1),
@@ -174,7 +187,10 @@ export class CoefficientService {
   ): Promise<GreigeSpecEntity> {
     const f = Number(input.factor)
     if (!Number.isFinite(f) || f < 1 || f > MAX_FACTOR) {
-      throw new BadRequestException({ code: 'VALIDATION_FAILED', message: `校准系数须在 [1, ${MAX_FACTOR}] 之间` })
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        message: `校准系数须在 [1, ${MAX_FACTOR}] 之间`,
+      })
     }
     const spec = await this.specRepo.findOne({ where: { id: input.specId, tenantId, companyId } })
     if (!spec) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: '规格不存在' })

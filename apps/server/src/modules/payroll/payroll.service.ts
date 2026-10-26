@@ -30,7 +30,9 @@ function toNum(s: string | null | undefined): number {
  */
 function dateToISO(v: string | null): string {
   if (!v) return ''
-  return (v as unknown) instanceof Date ? (v as unknown as Date).toISOString().slice(0, 10) : String(v)
+  return (v as unknown) instanceof Date
+    ? (v as unknown as Date).toISOString().slice(0, 10)
+    : String(v)
 }
 /** 当日 0 点的日期差（天）：a - b */
 function dayDiff(a: Date, b: Date): number {
@@ -120,38 +122,65 @@ export class PayrollService {
     @InjectRepository(WageProfileEntity) private readonly profiles: Repository<WageProfileEntity>,
     @InjectRepository(WageSlipEntity) private readonly slips: Repository<WageSlipEntity>,
     @InjectRepository(WageSlipItemEntity) private readonly items: Repository<WageSlipItemEntity>,
-    @InjectRepository(ProductionReportEntity) private readonly reports: Repository<ProductionReportEntity>,
-    @InjectRepository(ProductionOrderEntity) private readonly orders: Repository<ProductionOrderEntity>,
+    @InjectRepository(ProductionReportEntity)
+    private readonly reports: Repository<ProductionReportEntity>,
+    @InjectRepository(ProductionOrderEntity)
+    private readonly orders: Repository<ProductionOrderEntity>,
     @InjectRepository(MachineEntity) private readonly machines: Repository<MachineEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
   ) {}
 
   // ---------- 工资档案 ----------
 
-  async createProfile(ctx: RequestContext, dto: { userId: string; jobType?: string; baseWage?: number; unitPrice: number; remark?: string | null }): Promise<WageProfileView> {
+  async createProfile(
+    ctx: RequestContext,
+    dto: {
+      userId: string
+      jobType?: string
+      baseWage?: number
+      unitPrice: number
+      remark?: string | null
+    },
+  ): Promise<WageProfileView> {
     const user = await this.users.findOne({ where: { id: dto.userId, tenantId: ctx.tenantId } })
     if (!user || !user.companyIds.includes(ctx.companyId)) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '用户不存在或不属于本公司' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '用户不存在或不属于本公司',
+      })
     }
-    const dup = await this.profiles.findOne({ where: { userId: dto.userId, companyId: ctx.companyId } })
+    const dup = await this.profiles.findOne({
+      where: { userId: dto.userId, companyId: ctx.companyId },
+    })
     if (dup) {
-      throw new BadRequestException({ code: ErrorCode.DUPLICATE_CODE, message: `「${user.realName}」已有工资档案` })
+      throw new BadRequestException({
+        code: ErrorCode.DUPLICATE_CODE,
+        message: `「${user.realName}」已有工资档案`,
+      })
     }
-    const saved = await this.profiles.save(this.profiles.create({
-      tenantId: ctx.tenantId,
-      companyId: ctx.companyId,
-      userId: user.id,
-      realName: user.realName,
-      jobType: dto.jobType ?? '挡车工',
-      baseWage: num(dto.baseWage ?? 0, 2),
-      unitPrice: num(dto.unitPrice, 4),
-      remark: dto.remark ?? null,
-    }))
+    const saved = await this.profiles.save(
+      this.profiles.create({
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        userId: user.id,
+        realName: user.realName,
+        jobType: dto.jobType ?? '挡车工',
+        baseWage: num(dto.baseWage ?? 0, 2),
+        unitPrice: num(dto.unitPrice, 4),
+        remark: dto.remark ?? null,
+      }),
+    )
     return this.toProfileView(saved, user.username)
   }
 
-  async updateProfile(ctx: RequestContext, id: string, dto: { jobType?: string; baseWage?: number; unitPrice?: number; remark?: string | null }): Promise<WageProfileView> {
-    const p = await this.profiles.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+  async updateProfile(
+    ctx: RequestContext,
+    id: string,
+    dto: { jobType?: string; baseWage?: number; unitPrice?: number; remark?: string | null },
+  ): Promise<WageProfileView> {
+    const p = await this.profiles.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!p) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '工资档案不存在' })
     if (dto.jobType !== undefined) p.jobType = dto.jobType
     if (dto.baseWage !== undefined) p.baseWage = num(dto.baseWage, 2)
@@ -162,12 +191,17 @@ export class PayrollService {
     return this.toProfileView(saved, user?.username ?? '')
   }
 
-  async listProfiles(ctx: RequestContext, filter: { jobType?: string }): Promise<WageProfileView[]> {
+  async listProfiles(
+    ctx: RequestContext,
+    filter: { jobType?: string },
+  ): Promise<WageProfileView[]> {
     const where: Record<string, unknown> = { tenantId: ctx.tenantId, companyId: ctx.companyId }
     if (filter.jobType) where.jobType = filter.jobType
     const rows = await this.profiles.find({ where, order: { createdAt: 'ASC' } })
     const userIds = [...new Set(rows.map((r) => r.userId))]
-    const users = userIds.length ? await this.users.find({ where: userIds.map((id) => ({ id })) }) : []
+    const users = userIds.length
+      ? await this.users.find({ where: userIds.map((id) => ({ id })) })
+      : []
     const nameMap = new Map(users.map((u) => [u.id, u.username]))
     return rows.map((r) => this.toProfileView(r, nameMap.get(r.userId) ?? ''))
   }
@@ -180,8 +214,16 @@ export class PayrollService {
    * 与 generateSlips 用同一套聚合口径，保证预览与实生成一致——
    * 不一致的预览比没有预览更坏（按预览发下来的钱对不上）。
    */
-  async previewPeriod(ctx: RequestContext, periodStart: string, periodEnd: string): Promise<PeriodRow[]> {
-    const { spans, profileByUser, existingByUser } = await this.loadPeriodData(ctx, periodStart, periodEnd)
+  async previewPeriod(
+    ctx: RequestContext,
+    periodStart: string,
+    periodEnd: string,
+  ): Promise<PeriodRow[]> {
+    const { spans, profileByUser, existingByUser } = await this.loadPeriodData(
+      ctx,
+      periodStart,
+      periodEnd,
+    )
     const rows: PeriodRow[] = []
     for (const span of spans.values()) {
       const profile = profileByUser.get(span.userId)
@@ -195,7 +237,9 @@ export class PayrollService {
         stoppageMin: span.stoppageMin,
         hasProfile: Boolean(profile),
         unitPrice: profile ? toNum(profile.unitPrice) : 0,
-        estimatedAmount: profile ? Math.round(span.outputM * toNum(profile.unitPrice) * 100) / 100 : 0,
+        estimatedAmount: profile
+          ? Math.round(span.outputM * toNum(profile.unitPrice) * 100) / 100
+          : 0,
         slipNo: existing?.slipNo ?? null,
       })
     }
@@ -214,34 +258,65 @@ export class PayrollService {
    * 3. 金额全部服务端算：明细按「每行米数 × 单价」逐行舍入再累加，表头 piece = Σ明细，
    *    前端提交不了任何金额
    */
-  async generateSlips(ctx: RequestContext, dto: { periodStart: string; periodEnd: string; remark?: string | null }): Promise<{ created: PayrollSlipView[]; skipped: SkippedUser[] }> {
+  async generateSlips(
+    ctx: RequestContext,
+    dto: { periodStart: string; periodEnd: string; remark?: string | null },
+  ): Promise<{ created: PayrollSlipView[]; skipped: SkippedUser[] }> {
     const { periodStart, periodEnd } = dto
     if (periodStart > periodEnd) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '结算周期起不得晚于止' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '结算周期起不得晚于止',
+      })
     }
     const spanDays = dayDiff(new Date(periodEnd), new Date(periodStart))
     if (spanDays > 62) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '结算周期跨度不能超过 62 天（防误选长周期）' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '结算周期跨度不能超过 62 天（防误选长周期）',
+      })
     }
 
     return withUniqueNo(async () => {
       return this.dataSource.transaction(async (manager) => {
-        const { spans, profileByUser, existingByUser } = await this.loadPeriodData(ctx, periodStart, periodEnd, manager)
+        const { spans, profileByUser, existingByUser } = await this.loadPeriodData(
+          ctx,
+          periodStart,
+          periodEnd,
+          manager,
+        )
         const created: PayrollSlipView[] = []
         const skipped: SkippedUser[] = []
 
         for (const span of spans.values()) {
           const profile = profileByUser.get(span.userId)
           if (!profile) {
-            skipped.push({ userId: span.userId, realName: span.realName, reason: 'no_profile', outputM: round3(span.outputM) })
+            skipped.push({
+              userId: span.userId,
+              realName: span.realName,
+              reason: 'no_profile',
+              outputM: round3(span.outputM),
+            })
             continue
           }
           const existing = existingByUser.get(span.userId)
           if (existing) {
-            skipped.push({ userId: span.userId, realName: span.realName, reason: 'exists', outputM: round3(span.outputM), slipNo: existing.slipNo })
+            skipped.push({
+              userId: span.userId,
+              realName: span.realName,
+              reason: 'exists',
+              outputM: round3(span.outputM),
+              slipNo: existing.slipNo,
+            })
             continue
           }
-          const slip = await this.createOneSlip(manager, ctx, { profile, span, periodStart, periodEnd, remark: dto.remark ?? null })
+          const slip = await this.createOneSlip(manager, ctx, {
+            profile,
+            span,
+            periodStart,
+            periodEnd,
+            remark: dto.remark ?? null,
+          })
           created.push(slip)
         }
         return { created, skipped }
@@ -251,19 +326,29 @@ export class PayrollService {
 
   // ---------- 工资单读 ----------
 
-  async listSlips(ctx: RequestContext, filter: { status?: WageSlipStatus; userId?: string; periodStart?: string; periodEnd?: string }): Promise<PayrollSlipView[]> {
+  async listSlips(
+    ctx: RequestContext,
+    filter: { status?: WageSlipStatus; userId?: string; periodStart?: string; periodEnd?: string },
+  ): Promise<PayrollSlipView[]> {
     const where: Record<string, unknown> = { tenantId: ctx.tenantId, companyId: ctx.companyId }
     if (filter.status) where.status = filter.status
     if (filter.userId) where.userId = filter.userId
-    if (filter.periodStart) where.periodStart = Between(filter.periodStart, filter.periodEnd ?? '9999-12-31')
+    if (filter.periodStart)
+      where.periodStart = Between(filter.periodStart, filter.periodEnd ?? '9999-12-31')
     else if (filter.periodEnd) where.periodStart = Between('0000-01-01', filter.periodEnd)
     const rows = await this.slips.find({ where, order: { periodStart: 'DESC', createdAt: 'DESC' } })
-    const views = await Promise.all(rows.map(async (r) => this.toSlipView(r, await this.loadItems(this.slips.manager, r.id, ctx))))
+    const views = await Promise.all(
+      rows.map(async (r) =>
+        this.toSlipView(r, await this.loadItems(this.slips.manager, r.id, ctx)),
+      ),
+    )
     return views
   }
 
   async getSlip(ctx: RequestContext, id: string): Promise<PayrollSlipView> {
-    const s = await this.slips.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const s = await this.slips.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!s) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '工资单不存在' })
     return this.toSlipView(s, await this.loadItems(this.slips.manager, s.id, ctx))
   }
@@ -271,26 +356,43 @@ export class PayrollService {
   // ---------- 工资单状态推进 ----------
 
   /** 改奖金/扣款/备注（仅 draft；confirmed/paid 已锁定——改了就是对凭证造假） */
-  async updateSlip(ctx: RequestContext, id: string, dto: { bonus?: number; deduction?: number; remark?: string | null }): Promise<PayrollSlipView> {
-    const s = await this.slips.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+  async updateSlip(
+    ctx: RequestContext,
+    id: string,
+    dto: { bonus?: number; deduction?: number; remark?: string | null },
+  ): Promise<PayrollSlipView> {
+    const s = await this.slips.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!s) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '工资单不存在' })
     if (s.status !== 'draft') {
-      throw new BadRequestException({ code: ErrorCode.ORDER_STATUS_INVALID, message: '只有草稿状态的工资单可修改' })
+      throw new BadRequestException({
+        code: ErrorCode.ORDER_STATUS_INVALID,
+        message: '只有草稿状态的工资单可修改',
+      })
     }
     if (dto.bonus !== undefined) s.bonus = num(dto.bonus, 2)
     if (dto.deduction !== undefined) s.deduction = num(dto.deduction, 2)
     if (dto.remark !== undefined) s.remark = dto.remark ?? null
-    s.netAmount = num(toNum(s.baseAmount) + toNum(s.pieceAmount) + toNum(s.bonus) - toNum(s.deduction), 2)
+    s.netAmount = num(
+      toNum(s.baseAmount) + toNum(s.pieceAmount) + toNum(s.bonus) - toNum(s.deduction),
+      2,
+    )
     const saved = await this.slips.save(s)
     return this.toSlipView(saved, await this.loadItems(this.slips.manager, saved.id, ctx))
   }
 
   /** 核算确认：draft → confirmed，锁定明细与金额 */
   async confirmSlip(ctx: RequestContext, id: string): Promise<PayrollSlipView> {
-    const s = await this.slips.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const s = await this.slips.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!s) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '工资单不存在' })
     if (s.status !== 'draft') {
-      throw new BadRequestException({ code: ErrorCode.ORDER_STATUS_INVALID, message: '只有草稿状态的工资单可确认' })
+      throw new BadRequestException({
+        code: ErrorCode.ORDER_STATUS_INVALID,
+        message: '只有草稿状态的工资单可确认',
+      })
     }
     s.status = 'confirmed'
     const saved = await this.slips.save(s)
@@ -299,10 +401,15 @@ export class PayrollService {
 
   /** 发放：confirmed → paid，记发放时间（资金动作，不可回退） */
   async paySlip(ctx: RequestContext, id: string): Promise<PayrollSlipView> {
-    const s = await this.slips.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const s = await this.slips.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!s) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '工资单不存在' })
     if (s.status !== 'confirmed') {
-      throw new BadRequestException({ code: ErrorCode.ORDER_STATUS_INVALID, message: '只有已确认的工资单可发放' })
+      throw new BadRequestException({
+        code: ErrorCode.ORDER_STATUS_INVALID,
+        message: '只有已确认的工资单可发放',
+      })
     }
     s.status = 'paid'
     s.paidAt = new Date()
@@ -312,13 +419,22 @@ export class PayrollService {
 
   /** 删除草稿单（连同明细）。confirmed/paid 是资金凭据，不留「删了又生成」的洞账 */
   async deleteSlip(ctx: RequestContext, id: string): Promise<void> {
-    const s = await this.slips.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const s = await this.slips.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!s) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '工资单不存在' })
     if (s.status !== 'draft') {
-      throw new BadRequestException({ code: ErrorCode.ORDER_STATUS_INVALID, message: '只有草稿状态的工资单可删除' })
+      throw new BadRequestException({
+        code: ErrorCode.ORDER_STATUS_INVALID,
+        message: '只有草稿状态的工资单可删除',
+      })
     }
     await this.dataSource.transaction(async (manager) => {
-      await manager.delete(WageSlipItemEntity, { slipId: s.id, tenantId: ctx.tenantId, companyId: ctx.companyId })
+      await manager.delete(WageSlipItemEntity, {
+        slipId: s.id,
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+      })
       await manager.delete(WageSlipEntity, { id: s.id })
     })
   }
@@ -326,16 +442,24 @@ export class PayrollService {
   // ---------- 总览 ----------
 
   async getOverview(ctx: RequestContext): Promise<PayrollOverview> {
-    const profileCount = await this.profiles.count({ where: { tenantId: ctx.tenantId, companyId: ctx.companyId } })
-    const all = await this.slips.find({ where: { tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const profileCount = await this.profiles.count({
+      where: { tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
+    const all = await this.slips.find({
+      where: { tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     let draftCount = 0
     let confirmedCount = 0
     let pendingAmount = 0
     let paidAmount = 0
     for (const s of all) {
-      if (s.status === 'draft') { draftCount++; pendingAmount += toNum(s.netAmount) }
-      else if (s.status === 'confirmed') { confirmedCount++; pendingAmount += toNum(s.netAmount) }
-      else paidAmount += toNum(s.netAmount)
+      if (s.status === 'draft') {
+        draftCount++
+        pendingAmount += toNum(s.netAmount)
+      } else if (s.status === 'confirmed') {
+        confirmedCount++
+        pendingAmount += toNum(s.netAmount)
+      } else paidAmount += toNum(s.netAmount)
     }
     return {
       profileCount,
@@ -348,27 +472,42 @@ export class PayrollService {
 
   // ---------- 内部：周期数据加载（预览与生成共用同一口径） ----------
 
-  private async loadPeriodData(ctx: RequestContext, periodStart: string, periodEnd: string, manager?: EntityManager): Promise<{
+  private async loadPeriodData(
+    ctx: RequestContext,
+    periodStart: string,
+    periodEnd: string,
+    manager?: EntityManager,
+  ): Promise<{
     spans: Map<string, UserSpan>
     profileByUser: Map<string, WageProfileEntity>
     existingByUser: Map<string, WageSlipEntity>
   }> {
-    const profiles = await this.profiles.find({ where: { tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const profiles = await this.profiles.find({
+      where: { tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     const profileByUser = new Map(profiles.map((p) => [p.userId, p]))
 
     const reports = await this.reports.find({
-      where: { tenantId: ctx.tenantId, companyId: ctx.companyId, reportDate: Between(periodStart, periodEnd) },
+      where: {
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        reportDate: Between(periodStart, periodEnd),
+      },
     })
 
     // 工单号与机台名：从报工反查一次，明细里冗余快照，工资单不依赖生产库
     const orderIds = [...new Set(reports.map((r) => r.orderId))]
     const orders = orderIds.length
-      ? await this.orders.find({ where: orderIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })) })
+      ? await this.orders.find({
+          where: orderIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+        })
       : []
     const orderMap = new Map(orders.map((o) => [o.id, o]))
     const machineIds = [...new Set(orders.map((o) => o.machineId as string).filter(Boolean))]
     const machines = machineIds.length
-      ? await this.machines.find({ where: machineIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })) })
+      ? await this.machines.find({
+          where: machineIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+        })
       : []
     const machineMap = new Map(machines.map((m) => [m.id, m]))
 
@@ -419,8 +558,10 @@ export class PayrollService {
 
     const existing = await (manager ?? this.slips.manager).find(WageSlipEntity, {
       where: {
-        tenantId: ctx.tenantId, companyId: ctx.companyId,
-        periodStart, periodEnd,
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        periodStart,
+        periodEnd,
       },
     })
     const existingByUser = new Map(existing.map((s) => [s.userId, s]))
@@ -431,7 +572,13 @@ export class PayrollService {
   private async createOneSlip(
     manager: EntityManager,
     ctx: RequestContext,
-    input: { profile: WageProfileEntity; span: UserSpan; periodStart: string; periodEnd: string; remark: string | null },
+    input: {
+      profile: WageProfileEntity
+      span: UserSpan
+      periodStart: string
+      periodEnd: string
+      remark: string | null
+    },
   ): Promise<PayrollSlipView> {
     const { profile, span } = input
     const unitPrice = toNum(profile.unitPrice)
@@ -452,47 +599,58 @@ export class PayrollService {
     const pieceAmount = round2(itemRows.reduce((s, i) => s + i.amount, 0))
     const slipNo = await this.nextSlipNo(manager, ctx.companyId)
 
-    const saved = await manager.save(manager.create(WageSlipEntity, {
-      tenantId: ctx.tenantId,
-      companyId: ctx.companyId,
-      slipNo,
-      userId: span.userId,
-      realName: span.realName,
-      periodStart: input.periodStart,
-      periodEnd: input.periodEnd,
-      totalOutputM: num(span.outputM, 3),
-      reportCount: span.reportCount,
-      stoppageMin: span.stoppageMin,
-      baseAmount: profile.baseWage,
-      pieceAmount: num(pieceAmount, 2),
-      bonus: '0.00',
-      deduction: '0.00',
-      netAmount: num(toNum(profile.baseWage) + pieceAmount, 2),
-      status: 'draft',
-      remark: input.remark,
-    }))
-
-    for (const row of itemRows) {
-      await manager.save(manager.create(WageSlipItemEntity, {
+    const saved = await manager.save(
+      manager.create(WageSlipEntity, {
         tenantId: ctx.tenantId,
         companyId: ctx.companyId,
-        slipId: saved.id,
-        orderId: row.orderId,
-        orderNo: row.orderNo,
-        machineId: row.machineId,
-        machineName: row.machineName,
-        outputM: num(row.outputM, 3),
-        reportCount: row.reportCount,
-        amount: num(row.amount, 2),
-      }))
+        slipNo,
+        userId: span.userId,
+        realName: span.realName,
+        periodStart: input.periodStart,
+        periodEnd: input.periodEnd,
+        totalOutputM: num(span.outputM, 3),
+        reportCount: span.reportCount,
+        stoppageMin: span.stoppageMin,
+        baseAmount: profile.baseWage,
+        pieceAmount: num(pieceAmount, 2),
+        bonus: '0.00',
+        deduction: '0.00',
+        netAmount: num(toNum(profile.baseWage) + pieceAmount, 2),
+        status: 'draft',
+        remark: input.remark,
+      }),
+    )
+
+    for (const row of itemRows) {
+      await manager.save(
+        manager.create(WageSlipItemEntity, {
+          tenantId: ctx.tenantId,
+          companyId: ctx.companyId,
+          slipId: saved.id,
+          orderId: row.orderId,
+          orderNo: row.orderNo,
+          machineId: row.machineId,
+          machineName: row.machineName,
+          outputM: num(row.outputM, 3),
+          reportCount: row.reportCount,
+          amount: num(row.amount, 2),
+        }),
+      )
     }
     const items = await this.loadItems(manager, saved.id, ctx)
     return this.toSlipView(saved, items)
   }
 
-  private async loadItems(manager: EntityManager | Repository<WageSlipItemEntity>, slipId: string, ctx: RequestContext): Promise<SlipItemView[]> {
+  private async loadItems(
+    manager: EntityManager | Repository<WageSlipItemEntity>,
+    slipId: string,
+    ctx: RequestContext,
+  ): Promise<SlipItemView[]> {
     const repo = manager instanceof Repository ? manager : manager.getRepository(WageSlipItemEntity)
-    const list = await repo.find({ where: { slipId, tenantId: ctx.tenantId, companyId: ctx.companyId }, order: { createdAt: 'ASC' } })
+    const list = await repo.find({
+      where: { slipId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+      order: { createdAt: 'ASC' },
+    })
     return list.map((i) => ({
       id: i.id,
       orderId: i.orderId,
@@ -565,14 +723,17 @@ interface UserSpan {
   reportCount: number
   outputM: number
   stoppageMin: number
-  byOrder: Map<string, {
-    orderId: string
-    orderNo: string
-    machineId: string
-    machineName: string
-    outputM: number
-    reportCount: number
-  }>
+  byOrder: Map<
+    string,
+    {
+      orderId: string
+      orderNo: string
+      machineId: string
+      machineName: string
+      outputM: number
+      reportCount: number
+    }
+  >
 }
 
 function round2(n: number): number {

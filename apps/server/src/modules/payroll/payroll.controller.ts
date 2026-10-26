@@ -44,7 +44,11 @@ export class PayrollController {
   @Audit({ action: 'update', module: 'payroll', targetIdParam: 'id' })
   @RequirePermission(Permission.COST_MANAGE)
   @ApiOperation({ summary: '改工资档案（调价不影响已生成工资单）' })
-  updateProfile(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateProfileDto) {
+  updateProfile(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateProfileDto,
+  ) {
     return this.service.updateProfile(ctx, id, dto)
   }
 
@@ -60,7 +64,11 @@ export class PayrollController {
   @Get('payroll/preview')
   @RequirePermission(Permission.COST_MANAGE)
   @ApiOperation({ summary: '周期报工聚合预览（生成前核对每人米数与预估金额）' })
-  preview(@CurrentUser() ctx: RequestContext, @Query('periodStart') periodStart: string, @Query('periodEnd') periodEnd: string) {
+  preview(
+    @CurrentUser() ctx: RequestContext,
+    @Query('periodStart') periodStart: string,
+    @Query('periodEnd') periodEnd: string,
+  ) {
     return this.service.previewPeriod(ctx, periodStart, periodEnd)
   }
 
@@ -76,7 +84,11 @@ export class PayrollController {
   @Audit({ action: 'update', module: 'payroll', targetIdParam: 'id' })
   @RequirePermission(Permission.COST_MANAGE)
   @ApiOperation({ summary: '改奖金/扣款/备注（仅草稿）' })
-  updateSlip(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateSlipDto) {
+  updateSlip(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateSlipDto,
+  ) {
     return this.service.updateSlip(ctx, id, dto)
   }
 

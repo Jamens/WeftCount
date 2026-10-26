@@ -67,14 +67,13 @@ instance.interceptors.response.use(
 )
 
 export const api = {
-  get: <T,>(url: string, config?: AxiosRequestConfig) =>
-    instance.get<ApiSuccess<T>>(url, config),
-  post: <T,>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+  get: <T>(url: string, config?: AxiosRequestConfig) => instance.get<ApiSuccess<T>>(url, config),
+  post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     instance.post<ApiSuccess<T>>(url, data, config),
-  put: <T,>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     instance.put<ApiSuccess<T>>(url, data, config),
-  patch: <T,>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+  patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     instance.patch<ApiSuccess<T>>(url, data, config),
-  delete: <T,>(url: string, config?: AxiosRequestConfig) =>
+  delete: <T>(url: string, config?: AxiosRequestConfig) =>
     instance.delete<ApiSuccess<T>>(url, config),
 }

@@ -1,4 +1,13 @@
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min } from 'class-validator'
+import {
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator'
 
 /** 工资单状态 */
 export type WageSlipStatus = 'draft' | 'confirmed' | 'paid'
@@ -54,7 +63,8 @@ export class UpdateProfileDto {
 }
 
 export class ProfileFilterDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   jobType?: string
 }
 
@@ -74,16 +84,20 @@ export class GenerateSlipsDto {
 }
 
 export class SlipFilterDto {
-  @IsOptional() @IsEnum(['draft', 'confirmed', 'paid'])
+  @IsOptional()
+  @IsEnum(['draft', 'confirmed', 'paid'])
   status?: WageSlipStatus
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   userId?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   periodStart?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   periodEnd?: string
 }
 

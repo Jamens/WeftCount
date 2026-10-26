@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { App as AntdApp, Badge, Card, Col, Empty, Progress, Row, Space, Statistic, Tag, Typography, theme } from 'antd'
+import {
+  App as AntdApp,
+  Badge,
+  Card,
+  Col,
+  Empty,
+  Progress,
+  Row,
+  Space,
+  Statistic,
+  Tag,
+  Typography,
+  theme,
+} from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
-import { fmt, num, type GreigeSpecWire, type MachineWire, type ProductionOrderWire } from '../lib/types'
+import {
+  fmt,
+  num,
+  type GreigeSpecWire,
+  type MachineWire,
+  type ProductionOrderWire,
+} from '../lib/types'
 
 const { Title, Text } = Typography
 
@@ -77,8 +96,14 @@ export default function BoardPage() {
     return map
   }, [orders])
 
-  const runningCount = useMemo(() => machines.filter((m) => m.status === 'running').length, [machines])
-  const activeOrders = useMemo(() => orders.filter((o) => o.status === 'in_progress' || o.status === 'scheduled'), [orders])
+  const runningCount = useMemo(
+    () => machines.filter((m) => m.status === 'running').length,
+    [machines],
+  )
+  const activeOrders = useMemo(
+    () => orders.filter((o) => o.status === 'in_progress' || o.status === 'scheduled'),
+    [orders],
+  )
   const overdue = useMemo(() => {
     const today = dayjs().format('YYYY-MM-DD')
     return activeOrders.filter((o) => o.dueDate && o.dueDate < today)
@@ -110,13 +135,29 @@ export default function BoardPage() {
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col span={6}>
-          <Card size="small"><Statistic title="机台总数" value={machines.length} suffix="台" /></Card>
+          <Card size="small">
+            <Statistic title="机台总数" value={machines.length} suffix="台" />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card size="small"><Statistic title="运转中" value={runningCount} suffix="台" valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card size="small">
+            <Statistic
+              title="运转中"
+              value={runningCount}
+              suffix="台"
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card size="small"><Statistic title="在产工单" value={activeOrders.length} suffix="单" valueStyle={{ color: token.colorPrimary }} /></Card>
+          <Card size="small">
+            <Statistic
+              title="在产工单"
+              value={activeOrders.length}
+              suffix="单"
+              valueStyle={{ color: token.colorPrimary }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
@@ -137,7 +178,10 @@ export default function BoardPage() {
           {machines.map((m) => {
             const o = orderByMachine.get(m.id)
             const st = MACHINE_STATUS[m.status]
-            const pct = o && num(o.plannedQuantityM) > 0 ? Math.min((num(o.producedQuantityM) / num(o.plannedQuantityM)) * 100, 100) : 0
+            const pct =
+              o && num(o.plannedQuantityM) > 0
+                ? Math.min((num(o.producedQuantityM) / num(o.plannedQuantityM)) * 100, 100)
+                : 0
             return (
               <Col key={m.id} span={6}>
                 <Card
@@ -145,14 +189,22 @@ export default function BoardPage() {
                   title={
                     <Space>
                       <span>{m.name}</span>
-                      {m.model && <Text type="secondary" style={{ fontSize: 12 }}>{m.model}</Text>}
+                      {m.model && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {m.model}
+                        </Text>
+                      )}
                     </Space>
                   }
                   extra={
                     <Badge
                       status={m.status === 'running' ? 'processing' : 'default'}
                       text={
-                        <span style={{ color: st.color === 'default' ? token.colorTextSecondary : st.color }}>
+                        <span
+                          style={{
+                            color: st.color === 'default' ? token.colorTextSecondary : st.color,
+                          }}
+                        >
                           {st.text}
                         </span>
                       }
@@ -162,10 +214,18 @@ export default function BoardPage() {
                   {o ? (
                     <Space direction="vertical" size={4} style={{ width: '100%' }}>
                       <Space>
-                        <Tag color="processing" style={{ margin: 0 }}>{o.orderNo}</Tag>
-                        <Text type="secondary" style={{ fontSize: 12 }}>{specName(o.specId)}</Text>
+                        <Tag color="processing" style={{ margin: 0 }}>
+                          {o.orderNo}
+                        </Tag>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {specName(o.specId)}
+                        </Text>
                       </Space>
-                      <Progress percent={Math.round(pct)} size="small" strokeColor={token.colorPrimary} />
+                      <Progress
+                        percent={Math.round(pct)}
+                        size="small"
+                        strokeColor={token.colorPrimary}
+                      />
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {fmt(o.producedQuantityM, 0)} / {fmt(o.plannedQuantityM, 0)} m
                         {o.dueDate && <span style={{ marginLeft: 8 }}>交期 {o.dueDate}</span>}

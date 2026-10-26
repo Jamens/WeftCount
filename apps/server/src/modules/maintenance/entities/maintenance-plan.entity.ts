@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm'
 
 /** 保养类型：巡检 / 润滑 / 维修 / 大修 */
 export type MaintenancePlanType = 'inspect' | 'lubricate' | 'repair' | 'overhaul'
@@ -38,7 +45,11 @@ export class MaintenancePlanEntity {
   @Column({ type: 'varchar', length: 128 })
   planName!: string
 
-  @Column({ type: 'enum', enum: ['inspect', 'lubricate', 'repair', 'overhaul'], default: 'inspect' })
+  @Column({
+    type: 'enum',
+    enum: ['inspect', 'lubricate', 'repair', 'overhaul'],
+    default: 'inspect',
+  })
   type!: MaintenancePlanType
 
   @Column({ type: 'enum', enum: ['day', 'run_hour'], default: 'day' })

@@ -57,9 +57,7 @@ export default function LoginPage() {
           </div>
 
           <Card size="small">
-            {error && (
-              <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
-            )}
+            {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
             <Form<LoginForm>
               form={form}
               layout="vertical"
@@ -148,7 +146,10 @@ export default function LoginPage() {
             )}
           </Card>
 
-          <Paragraph type="secondary" style={{ fontSize: 12, textAlign: 'center', marginBottom: 0 }}>
+          <Paragraph
+            type="secondary"
+            style={{ fontSize: 12, textAlign: 'center', marginBottom: 0 }}
+          >
             部署到生产环境前请删除演示账号并修改默认密码
           </Paragraph>
         </Space>

@@ -17,12 +17,7 @@ import {
 import { ReloadOutlined, FundOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useLookups } from '../lib/lookups'
-import {
-  dec,
-  fmt,
-  fmtPct,
-  type ReconcileWire,
-} from '../lib/erp'
+import { dec, fmt, fmtPct, type ReconcileWire } from '../lib/erp'
 import { DEFAULT_TOLERANCE_RATE } from '@weftcount/shared'
 
 const { Title, Text } = Typography
@@ -59,13 +54,17 @@ export default function ReconcilePage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             一件事三算对账
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            同一批布的采购重量 / 生产长度 / 销售面积，折算到重量基准必须闭合：采购 + 生产产出 + 盘盈 = 生产折算 + 销售折算 + 盘亏 + 结存（盘盈/盘亏来自库存盘点，是「已解释」的差异）
+            同一批布的采购重量 / 生产长度 / 销售面积，折算到重量基准必须闭合：采购 + 生产产出 + 盘盈
+            = 生产折算 + 销售折算 + 盘亏 + 结存（盘盈/盘亏来自库存盘点，是「已解释」的差异）
           </Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void load()}>
@@ -112,12 +111,22 @@ export default function ReconcilePage() {
           </Col>
           <Col span={4}>
             <Card size="small">
-              <Statistic title="生产产出(织造)" value={dec(l.productionInKg)} suffix="kg" precision={2} />
+              <Statistic
+                title="生产产出(织造)"
+                value={dec(l.productionInKg)}
+                suffix="kg"
+                precision={2}
+              />
             </Card>
           </Col>
           <Col span={4}>
             <Card size="small">
-              <Statistic title="生产领用折算" value={dec(l.productionOutKg)} suffix="kg" precision={2} />
+              <Statistic
+                title="生产领用折算"
+                value={dec(l.productionOutKg)}
+                suffix="kg"
+                precision={2}
+              />
             </Card>
           </Col>
           <Col span={4}>
@@ -180,9 +189,24 @@ export default function ReconcilePage() {
           pagination={false}
           columns={[
             { title: '规格', dataIndex: 'specId', render: (v: string) => specName(v) },
-            { title: '采购(kg)', dataIndex: 'purchaseKg', align: 'right', render: (v: string) => fmt(v, 2) },
-            { title: '生产产出(kg)', dataIndex: 'productionInKg', align: 'right', render: (v: string) => fmt(v, 2) },
-            { title: '盘盈(kg)', dataIndex: 'countGainKg', align: 'right', render: (v: string) => fmt(v, 2) },
+            {
+              title: '采购(kg)',
+              dataIndex: 'purchaseKg',
+              align: 'right',
+              render: (v: string) => fmt(v, 2),
+            },
+            {
+              title: '生产产出(kg)',
+              dataIndex: 'productionInKg',
+              align: 'right',
+              render: (v: string) => fmt(v, 2),
+            },
+            {
+              title: '盘盈(kg)',
+              dataIndex: 'countGainKg',
+              align: 'right',
+              render: (v: string) => fmt(v, 2),
+            },
             {
               title: '生产折算(kg)',
               dataIndex: 'productionOutKg',
@@ -195,8 +219,18 @@ export default function ReconcilePage() {
               align: 'right',
               render: (v: string) => fmt(v, 2),
             },
-            { title: '盘亏(kg)', dataIndex: 'countLossKg', align: 'right', render: (v: string) => fmt(v, 2) },
-            { title: '结存(kg)', dataIndex: 'remainingKg', align: 'right', render: (v: string) => fmt(v, 2) },
+            {
+              title: '盘亏(kg)',
+              dataIndex: 'countLossKg',
+              align: 'right',
+              render: (v: string) => fmt(v, 2),
+            },
+            {
+              title: '结存(kg)',
+              dataIndex: 'remainingKg',
+              align: 'right',
+              render: (v: string) => fmt(v, 2),
+            },
             {
               title: '差异(kg)',
               dataIndex: 'unexplainedKg',

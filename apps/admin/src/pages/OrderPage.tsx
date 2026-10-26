@@ -62,7 +62,9 @@ interface OrderForm {
 
 export default function OrderPage() {
   const { message } = AntdApp.useApp()
-  const canManage = useAuthStore((s) => s.hasPermission(PERM.PURCHASE_MANAGE) || s.hasPermission(PERM.SALES_MANAGE))
+  const canManage = useAuthStore(
+    (s) => s.hasPermission(PERM.PURCHASE_MANAGE) || s.hasPermission(PERM.SALES_MANAGE),
+  )
   const { materials, specs, specName, materialName } = useLookups()
 
   const [data, setData] = useState<OrderWire[]>([])
@@ -71,7 +73,14 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<OrderWire | null>(null)
-  const [detail, setDetail] = useState<{ order: OrderWire; items: OrderItemWire[]; fulfilledM: number; orderedM: number; progressPct: number; perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[] } | null>(null)
+  const [detail, setDetail] = useState<{
+    order: OrderWire
+    items: OrderItemWire[]
+    fulfilledM: number
+    orderedM: number
+    progressPct: number
+    perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[]
+  } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm<OrderForm>()
 
@@ -103,24 +112,40 @@ export default function OrderPage() {
   const partnerOptions = useMemo(() => {
     const wantSupplier = orderType === 'purchase'
     return partners
-      .filter((p) => (wantSupplier ? p.type === 'supplier' || p.type === 'both' : p.type === 'customer' || p.type === 'both'))
+      .filter((p) =>
+        wantSupplier
+          ? p.type === 'supplier' || p.type === 'both'
+          : p.type === 'customer' || p.type === 'both',
+      )
       .map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))
   }, [partners, orderType])
 
   const materialOptions = useMemo(
-    () => materials.filter((m) => m.category === 'greige' || m.category === 'yarn').map((m) => ({ value: m.id, label: `${m.code} ${m.name}` })),
+    () =>
+      materials
+        .filter((m) => m.category === 'greige' || m.category === 'yarn')
+        .map((m) => ({ value: m.id, label: `${m.code} ${m.name}` })),
     [materials],
   )
-  const specOptions = useMemo(() => specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` })), [specs])
+  const specOptions = useMemo(
+    () => specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` })),
+    [specs],
+  )
 
   // 前端实时算明细合计（服务端再算一次为准）
   const totalM = useMemo(() => items.reduce((s, i) => s + (i.orderedValue ?? 0), 0), [items])
-  const totalAmt = useMemo(() => items.reduce((s, i) => s + (i.unitPrice ?? 0) * (i.orderedValue ?? 0), 0), [items])
+  const totalAmt = useMemo(
+    () => items.reduce((s, i) => s + (i.unitPrice ?? 0) * (i.orderedValue ?? 0), 0),
+    [items],
+  )
 
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ orderType: 'purchase', items: [{ orderedUnit: ORDER_SUGGESTED_UNITS.purchase[0], orderedValue: 0, unitPrice: 0 }] })
+    form.setFieldsValue({
+      orderType: 'purchase',
+      items: [{ orderedUnit: ORDER_SUGGESTED_UNITS.purchase[0], orderedValue: 0, unitPrice: 0 }],
+    })
     setOpen(true)
   }
 
@@ -132,14 +157,17 @@ export default function OrderPage() {
       const d = await api.get<{ items: ContractItemWire[] }>(`/contracts/${contractId}`)
       const ct = contracts.find((c) => c.id === contractId)
       if (ct) form.setFieldValue('partnerId', ct.partnerId)
-      form.setFieldValue('items', d.data.data.items.map((ci) => ({
-        materialId: ci.materialId,
-        specId: ci.specId,
-        orderedUnit: 'm',
-        orderedValue: Number(ci.agreedQuantityM),
-        unitPrice: Number(ci.agreedPrice),
-        contractItemId: ci.id,
-      })))
+      form.setFieldValue(
+        'items',
+        d.data.data.items.map((ci) => ({
+          materialId: ci.materialId,
+          specId: ci.specId,
+          orderedUnit: 'm',
+          orderedValue: Number(ci.agreedQuantityM),
+          unitPrice: Number(ci.agreedPrice),
+          contractItemId: ci.id,
+        })),
+      )
       message.success('已带出合同明细与协议价，可调整数量')
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载合同明细失败')
@@ -219,7 +247,14 @@ export default function OrderPage() {
 
   const openDetail = async (id: string) => {
     try {
-      const d = await api.get<{ order: OrderWire; items: OrderItemWire[]; fulfilledM: number; orderedM: number; progressPct: number; perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[] }>(`/orders/${id}`)
+      const d = await api.get<{
+        order: OrderWire
+        items: OrderItemWire[]
+        fulfilledM: number
+        orderedM: number
+        progressPct: number
+        perItem: { itemId: string; fulfilledM: number; orderedM: number; progressPct: number }[]
+      }>(`/orders/${id}`)
       setDetail(d.data.data)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载详情失败')
@@ -233,42 +268,123 @@ export default function OrderPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
-          <Title level={4} style={{ margin: 0 }}>采购 / 销售订单</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>计划层：多明细订单（可从合同带出协议价），到货/发货再落三算单据</Text>
+          <Title level={4} style={{ margin: 0 }}>
+            采购 / 销售订单
+          </Title>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            计划层：多明细订单（可从合同带出协议价），到货/发货再落三算单据
+          </Text>
         </div>
         <Space>
-          {canManage && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建订单</Button>}
-          <Button icon={<ReloadOutlined />} onClick={() => void load()}>刷新</Button>
+          {canManage && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              新建订单
+            </Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={() => void load()}>
+            刷新
+          </Button>
         </Space>
       </Space>
 
       <Card size="small">
         <Table<OrderWire>
-          rowKey="id" size="small" loading={loading} dataSource={data}
+          rowKey="id"
+          size="small"
+          loading={loading}
+          dataSource={data}
           onRow={(r) => ({ onClick: () => void openDetail(r.id) })}
           scroll={{ y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '订单号', dataIndex: 'orderNo', width: 150 },
-            { title: '类型', dataIndex: 'orderType', width: 90, render: (v: TradeOrderTypeValue) => <Tag color={v === 'purchase' ? 'green' : 'purple'}>{ORDER_TYPE_LABEL[v]}</Tag> },
-            { title: '往来单位', dataIndex: 'partnerName', width: 160, ellipsis: true },
-            { title: '汇总(米)', dataIndex: 'totalQuantityM', width: 100, align: 'right', render: (v: string) => fmt(v, 0) },
-            { title: '总金额', dataIndex: 'totalAmount', width: 120, align: 'right', render: (v: string | null) => (v == null ? '-' : fmtMoney(v)) },
-            { title: '合同', dataIndex: 'contractId', width: 80, render: (v: string | null) => (v ? <Tag color="blue">合同</Tag> : '-') },
-            { title: '交期', dataIndex: 'expectedDate', width: 100, render: (v: string | null) => v ?? '-' },
-            { title: '状态', dataIndex: 'status', width: 90, render: (v: TradeOrderStatusValue) => statusTag(v) },
             {
-              title: '操作', width: 170, fixed: 'right',
+              title: '类型',
+              dataIndex: 'orderType',
+              width: 90,
+              render: (v: TradeOrderTypeValue) => (
+                <Tag color={v === 'purchase' ? 'green' : 'purple'}>{ORDER_TYPE_LABEL[v]}</Tag>
+              ),
+            },
+            { title: '往来单位', dataIndex: 'partnerName', width: 160, ellipsis: true },
+            {
+              title: '汇总(米)',
+              dataIndex: 'totalQuantityM',
+              width: 100,
+              align: 'right',
+              render: (v: string) => fmt(v, 0),
+            },
+            {
+              title: '总金额',
+              dataIndex: 'totalAmount',
+              width: 120,
+              align: 'right',
+              render: (v: string | null) => (v == null ? '-' : fmtMoney(v)),
+            },
+            {
+              title: '合同',
+              dataIndex: 'contractId',
+              width: 80,
+              render: (v: string | null) => (v ? <Tag color="blue">合同</Tag> : '-'),
+            },
+            {
+              title: '交期',
+              dataIndex: 'expectedDate',
+              width: 100,
+              render: (v: string | null) => v ?? '-',
+            },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 90,
+              render: (v: TradeOrderStatusValue) => statusTag(v),
+            },
+            {
+              title: '操作',
+              width: 170,
+              fixed: 'right',
               render: (_, o) => (
                 <Space size={2} onClick={(e) => e.stopPropagation()}>
-                  {canManage && o.status === 'draft' && <Button type="link" size="small" onClick={() => void openEdit(o)}>编辑</Button>}
-                  {canManage && o.status === 'draft' && <Button type="link" size="small" onClick={() => void transition(o, 'confirm', '确认')}>确认</Button>}
-                  {canManage && o.status === 'confirmed' && <Button type="link" size="small" onClick={() => void transition(o, 'complete', '完成')}>完成</Button>}
+                  {canManage && o.status === 'draft' && (
+                    <Button type="link" size="small" onClick={() => void openEdit(o)}>
+                      编辑
+                    </Button>
+                  )}
+                  {canManage && o.status === 'draft' && (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => void transition(o, 'confirm', '确认')}
+                    >
+                      确认
+                    </Button>
+                  )}
+                  {canManage && o.status === 'confirmed' && (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => void transition(o, 'complete', '完成')}
+                    >
+                      完成
+                    </Button>
+                  )}
                   {canManage && (o.status === 'draft' || o.status === 'confirmed') && (
-                    <Popconfirm title="确认取消该订单？" onConfirm={() => void transition(o, 'cancel', '取消')}>
-                      <Button type="link" size="small" danger>取消</Button>
+                    <Popconfirm
+                      title="确认取消该订单？"
+                      onConfirm={() => void transition(o, 'cancel', '取消')}
+                    >
+                      <Button type="link" size="small" danger>
+                        取消
+                      </Button>
                     </Popconfirm>
                   )}
                 </Space>
@@ -279,49 +395,109 @@ export default function OrderPage() {
       </Card>
 
       {/* 订单详情：多明细 + 履约进度 */}
-      <Drawer title={detail ? `订单 ${detail.order.orderNo}` : '订单'} width={720} open={detail !== null} onClose={() => setDetail(null)}>
+      <Drawer
+        title={detail ? `订单 ${detail.order.orderNo}` : '订单'}
+        width={720}
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+      >
         {detail && (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="类型">{ORDER_TYPE_LABEL[detail.order.orderType]}</Descriptions.Item>
+              <Descriptions.Item label="类型">
+                {ORDER_TYPE_LABEL[detail.order.orderType]}
+              </Descriptions.Item>
               <Descriptions.Item label="往来单位">{detail.order.partnerName}</Descriptions.Item>
-              <Descriptions.Item label="汇总数量">{fmt(detail.order.totalQuantityM, 0)} m</Descriptions.Item>
-              <Descriptions.Item label="总金额">{detail.order.totalAmount == null ? '-' : fmtMoney(detail.order.totalAmount)}</Descriptions.Item>
+              <Descriptions.Item label="汇总数量">
+                {fmt(detail.order.totalQuantityM, 0)} m
+              </Descriptions.Item>
+              <Descriptions.Item label="总金额">
+                {detail.order.totalAmount == null ? '-' : fmtMoney(detail.order.totalAmount)}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">{statusTag(detail.order.status)}</Descriptions.Item>
               <Descriptions.Item label="交期">{detail.order.expectedDate ?? '-'}</Descriptions.Item>
             </Descriptions>
             <Card size="small" title={`明细行（${detail.items.length}）`}>
               <Table<OrderItemWire>
-                rowKey="id" size="small" pagination={false} dataSource={detail.items}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                dataSource={detail.items}
                 columns={[
-                  { title: '物料', dataIndex: 'materialId', width: 120, render: (v: string) => materialName(v) },
-                  { title: '规格', dataIndex: 'specId', width: 120, render: (v: string) => specName(v) },
                   {
-                    title: '履约进度', dataIndex: 'id', width: 150,
+                    title: '物料',
+                    dataIndex: 'materialId',
+                    width: 120,
+                    render: (v: string) => materialName(v),
+                  },
+                  {
+                    title: '规格',
+                    dataIndex: 'specId',
+                    width: 120,
+                    render: (v: string) => specName(v),
+                  },
+                  {
+                    title: '履约进度',
+                    dataIndex: 'id',
+                    width: 150,
                     render: (_: string, r: OrderItemWire) => {
                       const pi = detail.perItem.find((x) => x.itemId === r.id)
                       if (!pi) return '-'
                       return (
                         <Progress
-                          percent={Math.round(pi.progressPct)} size="small"
+                          percent={Math.round(pi.progressPct)}
+                          size="small"
                           format={() => `${fmt(pi.fulfilledM, 0)}/${fmt(pi.orderedM, 0)}m`}
                         />
                       )
                     },
                   },
-                  { title: '数量', dataIndex: 'orderedValue', width: 90, align: 'right', render: (v: string, r) => `${fmt(v, 0)} ${r.orderedUnit}` },
-                  { title: '折米', dataIndex: 'quantityM', width: 90, align: 'right', render: (v: string) => fmt(v, 0) },
-                  { title: '单价', dataIndex: 'unitPrice', width: 90, align: 'right', render: (v: string | null) => (v == null ? '-' : fmt(v, 2)) },
-                  { title: '行金额', dataIndex: 'lineAmount', width: 110, align: 'right', render: (v: string | null) => (v == null ? '-' : fmtMoney(v)) },
-                  { title: '合同行', dataIndex: 'contractItemId', width: 70, render: (v: string | null) => (v ? <Tag color="blue">是</Tag> : '-') },
+                  {
+                    title: '数量',
+                    dataIndex: 'orderedValue',
+                    width: 90,
+                    align: 'right',
+                    render: (v: string, r) => `${fmt(v, 0)} ${r.orderedUnit}`,
+                  },
+                  {
+                    title: '折米',
+                    dataIndex: 'quantityM',
+                    width: 90,
+                    align: 'right',
+                    render: (v: string) => fmt(v, 0),
+                  },
+                  {
+                    title: '单价',
+                    dataIndex: 'unitPrice',
+                    width: 90,
+                    align: 'right',
+                    render: (v: string | null) => (v == null ? '-' : fmt(v, 2)),
+                  },
+                  {
+                    title: '行金额',
+                    dataIndex: 'lineAmount',
+                    width: 110,
+                    align: 'right',
+                    render: (v: string | null) => (v == null ? '-' : fmtMoney(v)),
+                  },
+                  {
+                    title: '合同行',
+                    dataIndex: 'contractItemId',
+                    width: 70,
+                    render: (v: string | null) => (v ? <Tag color="blue">是</Tag> : '-'),
+                  },
                 ]}
               />
             </Card>
             <Card size="small" title="履约进度">
               <Space direction="vertical" size={4}>
-                <Text>已履约 {fmt(detail.fulfilledM, 0)} m / 订单 {fmt(detail.orderedM, 0)} m（{detail.progressPct.toFixed(0)}%）</Text>
+                <Text>
+                  已履约 {fmt(detail.fulfilledM, 0)} m / 订单 {fmt(detail.orderedM, 0)} m（
+                  {detail.progressPct.toFixed(0)}%）
+                </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  明细行完成 {detail.perItem.filter((x) => x.progressPct >= 99.9).length} / {detail.perItem.length} 行
+                  明细行完成 {detail.perItem.filter((x) => x.progressPct >= 99.9).length} /{' '}
+                  {detail.perItem.length} 行
                 </Text>
               </Space>
             </Card>
@@ -332,51 +508,158 @@ export default function OrderPage() {
       {/* 新建/编辑订单（多明细） */}
       <Drawer
         title={editing ? `编辑订单 ${editing.orderNo}` : '新建订单'}
-        width={820} open={open} onClose={() => setOpen(false)}
-        extra={<Space><Button onClick={() => setOpen(false)}>取消</Button>{canManage && <Button type="primary" loading={submitting} onClick={() => void onSubmit()}>保存</Button>}</Space>}
+        width={820}
+        open={open}
+        onClose={() => setOpen(false)}
+        extra={
+          <Space>
+            <Button onClick={() => setOpen(false)}>取消</Button>
+            {canManage && (
+              <Button type="primary" loading={submitting} onClick={() => void onSubmit()}>
+                保存
+              </Button>
+            )}
+          </Space>
+        }
       >
         <Form<OrderForm> form={form} layout="vertical">
           <Space size="middle" align="start" wrap>
             <Form.Item name="orderType" label="订单类型" rules={[{ required: true }]}>
               <Select style={{ width: 130 }} disabled={!!editing} options={ORDER_TYPE_OPTIONS} />
             </Form.Item>
-            <Form.Item name="partnerId" label="往来单位" rules={[{ required: true, message: '请选择往来单位' }]}>
-              <Select showSearch optionFilterProp="label" style={{ width: 220 }} options={partnerOptions} placeholder={orderType === 'purchase' ? '选择供应商' : '选择客户'} />
+            <Form.Item
+              name="partnerId"
+              label="往来单位"
+              rules={[{ required: true, message: '请选择往来单位' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                style={{ width: 220 }}
+                options={partnerOptions}
+                placeholder={orderType === 'purchase' ? '选择供应商' : '选择客户'}
+              />
             </Form.Item>
             {!editing && (
               <Form.Item name="contractId" label="从合同建单（可选，带出协议价）">
-                <Select allowClear showSearch optionFilterProp="label" style={{ width: 220 }} onChange={(v) => void onPickContract(v)} options={contracts.map((c) => ({ value: c.id, label: `${c.contractNo} ${c.partnerName}` }))} placeholder="选择生效合同" />
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ width: 220 }}
+                  onChange={(v) => void onPickContract(v)}
+                  options={contracts.map((c) => ({
+                    value: c.id,
+                    label: `${c.contractNo} ${c.partnerName}`,
+                  }))}
+                  placeholder="选择生效合同"
+                />
               </Form.Item>
             )}
-            <Form.Item name="expectedDate" label="交期"><DatePicker style={{ width: 140 }} /></Form.Item>
+            <Form.Item name="expectedDate" label="交期">
+              <DatePicker style={{ width: 140 }} />
+            </Form.Item>
           </Space>
 
           <Form.List name="items">
             {(fields, { add, remove }) => (
-              <Card size="small" title="明细行" extra={<Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => add({ orderedUnit: ORDER_SUGGESTED_UNITS[orderType][0], orderedValue: 0, unitPrice: 0 })}>添加一行</Button>}>
+              <Card
+                size="small"
+                title="明细行"
+                extra={
+                  <Button
+                    type="dashed"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={() =>
+                      add({
+                        orderedUnit: ORDER_SUGGESTED_UNITS[orderType][0],
+                        orderedValue: 0,
+                        unitPrice: 0,
+                      })
+                    }
+                  >
+                    添加一行
+                  </Button>
+                }
+              >
                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
                   {fields.map((field, index) => (
                     <Space key={field.key} align="center" wrap>
-                      <Form.Item name={[index, 'materialId']} rules={[{ required: true, message: '选物料' }]} style={{ marginBottom: 0 }}>
-                        <Select placeholder="物料" style={{ width: 160 }} options={materialOptions} optionFilterProp="label" showSearch allowClear />
+                      <Form.Item
+                        name={[index, 'materialId']}
+                        rules={[{ required: true, message: '选物料' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="物料"
+                          style={{ width: 160 }}
+                          options={materialOptions}
+                          optionFilterProp="label"
+                          showSearch
+                          allowClear
+                        />
                       </Form.Item>
-                      <Form.Item name={[index, 'specId']} rules={[{ required: true, message: '选规格' }]} style={{ marginBottom: 0 }}>
-                        <Select placeholder="规格" style={{ width: 160 }} options={specOptions} optionFilterProp="label" showSearch allowClear />
+                      <Form.Item
+                        name={[index, 'specId']}
+                        rules={[{ required: true, message: '选规格' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="规格"
+                          style={{ width: 160 }}
+                          options={specOptions}
+                          optionFilterProp="label"
+                          showSearch
+                          allowClear
+                        />
                       </Form.Item>
                       <Form.Item name={[index, 'orderedUnit']} style={{ marginBottom: 0 }}>
-                        <Select style={{ width: 80 }} options={ORDER_SUGGESTED_UNITS[orderType].map((u) => ({ value: u, label: u }))} />
+                        <Select
+                          style={{ width: 80 }}
+                          options={ORDER_SUGGESTED_UNITS[orderType].map((u) => ({
+                            value: u,
+                            label: u,
+                          }))}
+                        />
                       </Form.Item>
-                      <Form.Item name={[index, 'orderedValue']} rules={[{ required: true, message: '数量' }]} style={{ marginBottom: 0 }}>
-                        <InputNumber placeholder="数量" style={{ width: 110 }} min={0.001} precision={1} />
+                      <Form.Item
+                        name={[index, 'orderedValue']}
+                        rules={[{ required: true, message: '数量' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber
+                          placeholder="数量"
+                          style={{ width: 110 }}
+                          min={0.001}
+                          precision={1}
+                        />
                       </Form.Item>
                       <Form.Item name={[index, 'unitPrice']} style={{ marginBottom: 0 }}>
-                        <InputNumber placeholder="单价(元/米)" style={{ width: 110 }} min={0} precision={4} />
+                        <InputNumber
+                          placeholder="单价(元/米)"
+                          style={{ width: 110 }}
+                          min={0}
+                          precision={4}
+                        />
                       </Form.Item>
-                      <Text type="secondary" style={{ width: 100 }}>= {fmtMoney((items[index]?.unitPrice ?? 0) * (items[index]?.orderedValue ?? 0))}</Text>
-                      {fields.length > 1 && <Button type="text" danger onClick={() => remove(index)}>删除</Button>}
+                      <Text type="secondary" style={{ width: 100 }}>
+                        ={' '}
+                        {fmtMoney(
+                          (items[index]?.unitPrice ?? 0) * (items[index]?.orderedValue ?? 0),
+                        )}
+                      </Text>
+                      {fields.length > 1 && (
+                        <Button type="text" danger onClick={() => remove(index)}>
+                          删除
+                        </Button>
+                      )}
                     </Space>
                   ))}
-                  <Text type="secondary">合计：{fmt(totalM, 0)}（录入单位合计，服务器按规格折米汇总）/ {fmtMoney(totalAmt)}</Text>
+                  <Text type="secondary">
+                    合计：{fmt(totalM, 0)}（录入单位合计，服务器按规格折米汇总）/{' '}
+                    {fmtMoney(totalAmt)}
+                  </Text>
                 </Space>
               </Card>
             )}

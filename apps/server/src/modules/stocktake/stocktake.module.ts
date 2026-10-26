@@ -11,7 +11,12 @@ import { AuthModule } from '../auth/auth.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([StocktakeEntity, StocktakeItemEntity, InventoryBatchEntity, InventoryTransactionEntity]),
+    TypeOrmModule.forFeature([
+      StocktakeEntity,
+      StocktakeItemEntity,
+      InventoryBatchEntity,
+      InventoryTransactionEntity,
+    ]),
     WarehouseModule,
     AuthModule,
   ],

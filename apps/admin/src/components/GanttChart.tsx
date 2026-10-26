@@ -32,7 +32,10 @@ export interface GanttMachineInput {
 }
 
 /** 三态配色：实心=已确认占用，浅色带虚线边=待排建议 */
-const BAR_FILL: Record<GanttBarInput['status'], { fill: string; stroke: string; dash?: string; label: string }> = {
+const BAR_FILL: Record<
+  GanttBarInput['status'],
+  { fill: string; stroke: string; dash?: string; label: string }
+> = {
   in_progress: { fill: '#0F6E56', stroke: '#0B5642', label: '在产' },
   scheduled: { fill: '#185FA5', stroke: '#12447B', label: '已排产' },
   draft: { fill: '#E8F1FA', stroke: '#185FA5', dash: '4 3', label: '建议' },
@@ -80,7 +83,9 @@ export function GanttChart({
 
   if (machines.length === 0) {
     return (
-      <div style={{ padding: '24px 0', textAlign: 'center', color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>
+      <div
+        style={{ padding: '24px 0', textAlign: 'center', color: 'rgba(0,0,0,0.45)', fontSize: 13 }}
+      >
         暂无可用机台（idle/running），无法生成甘特图
       </div>
     )
@@ -88,13 +93,25 @@ export function GanttChart({
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${width} ${svgH}`} style={{ width: '100%', minWidth: 640, display: 'block' }} role="img" aria-label="排产甘特图">
+      <svg
+        viewBox={`0 0 ${width} ${svgH}`}
+        style={{ width: '100%', minWidth: 640, display: 'block' }}
+        role="img"
+        aria-label="排产甘特图"
+      >
         {/* 时间轴刻度 */}
         {ticks.map((d) => {
           const x = LEFT_W + d * pxPerDay
           return (
             <g key={d}>
-              <line x1={x} y1={TOP_H - 6} x2={x} y2={TOP_H + innerH} stroke="#E8E8E8" strokeWidth={1} />
+              <line
+                x1={x}
+                y1={TOP_H - 6}
+                x2={x}
+                y2={TOP_H + innerH}
+                stroke="#E8E8E8"
+                strokeWidth={1}
+              />
               <text x={x} y={TOP_H - 11} fontSize={10} fill="#8C8C8C" textAnchor="middle">
                 {d === 0 ? '今天' : `+${d}d`}
               </text>
@@ -109,7 +126,9 @@ export function GanttChart({
           return (
             <g key={m.id}>
               {/* 行底色交替 + 行标签 */}
-              {i % 2 === 1 && <rect x={LEFT_W} y={y} width={chartW} height={ROW_H} fill="#FAFAFA" />}
+              {i % 2 === 1 && (
+                <rect x={LEFT_W} y={y} width={chartW} height={ROW_H} fill="#FAFAFA" />
+              )}
               <text x={0} y={y + ROW_H / 2 + 4} fontSize={12} fill="#262626">
                 {m.name}
               </text>
@@ -117,7 +136,13 @@ export function GanttChart({
                 {m.code} · 负载{m.loadDays}d
               </text>
               {/* 行分隔线 */}
-              <line x1={LEFT_W} y1={y + ROW_H} x2={LEFT_W + chartW} y2={y + ROW_H} stroke="#F0F0F0" />
+              <line
+                x1={LEFT_W}
+                y1={y + ROW_H}
+                x2={LEFT_W + chartW}
+                y2={y + ROW_H}
+                stroke="#F0F0F0"
+              />
 
               {/* 工单占用条：同一机台上按 startDay 排序，同层堆叠避免重叠 */}
               {rowBars
@@ -168,7 +193,9 @@ export function GanttChart({
       </svg>
 
       {/* 图例 */}
-      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: 'rgba(0,0,0,0.65)' }}>
+      <div
+        style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: 'rgba(0,0,0,0.65)' }}
+      >
         {(Object.keys(BAR_FILL) as (keyof typeof BAR_FILL)[]).map((k) => (
           <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span
@@ -185,7 +212,16 @@ export function GanttChart({
           </span>
         ))}
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 14, height: 10, background: 'transparent', border: '2px solid #CF1322', borderRadius: 2, display: 'inline-block' }} />
+          <span
+            style={{
+              width: 14,
+              height: 10,
+              background: 'transparent',
+              border: '2px solid #CF1322',
+              borderRadius: 2,
+              display: 'inline-block',
+            }}
+          />
           逾期风险
         </span>
       </div>

@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { App as AntdApp, Button, Card, Form, Modal, Select, Space, Table, Tag, Typography } from 'antd'
+import {
+  App as AntdApp,
+  Button,
+  Card,
+  Form,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -98,7 +109,12 @@ export default function QualityInspectionPage() {
           return <Tag color={s.color}>{s.text}</Tag>
         },
       },
-      { title: '方式', dataIndex: 'mode', width: 80, render: (v: 'full' | 'sampling') => INSPECTION_MODE_LABEL[v] },
+      {
+        title: '方式',
+        dataIndex: 'mode',
+        width: 80,
+        render: (v: 'full' | 'sampling') => INSPECTION_MODE_LABEL[v],
+      },
       { title: '匹数', dataIndex: 'rollCount', width: 80, align: 'right' as const },
       { title: '总扣分', dataIndex: 'totalPoints', width: 90, align: 'right' as const },
       {
@@ -119,7 +135,11 @@ export default function QualityInspectionPage() {
         title: '操作',
         width: 90,
         render: (_: unknown, row: InspectionWire) => (
-          <Button type="link" size="small" onClick={() => navigate(`/quality/inspections/${row.id}`)}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => navigate(`/quality/inspections/${row.id}`)}
+          >
             查看
           </Button>
         ),
@@ -179,11 +199,7 @@ export default function QualityInspectionPage() {
         okText="建单并开始验布"
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item
-            name="batchId"
-            label="被检批次"
-            extra="不选则为散匹检验，建单后手动加入件卡"
-          >
+          <Form.Item name="batchId" label="被检批次" extra="不选则为散匹检验，建单后手动加入件卡">
             <Select
               allowClear
               showSearch

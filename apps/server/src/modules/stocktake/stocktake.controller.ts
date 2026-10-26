@@ -1,7 +1,18 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested, IsIn } from 'class-validator'
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+  IsIn,
+} from 'class-validator'
 import { StocktakeService } from './stocktake.service'
 import { StocktakeEntity, type StocktakeStatus } from './entities/stocktake.entity'
 import { AuthGuard } from '../auth/guards/auth.guard'
@@ -11,7 +22,8 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { Audit } from '../audit/audit.interceptor'
 
 class CreateStocktakeDto {
-  @IsString() @IsNotEmpty({ message: '请选择盘点仓库' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择盘点仓库' })
   warehouseId!: string
 
   /**
@@ -20,18 +32,23 @@ class CreateStocktakeDto {
    * 拆匹发货后同批次混着已发过的匹与在库残匹，只按米数核销**无法指认缺哪一匹**；
    * `roll` 模式把在库件卡逐匹快照为明细，未盘到的件卡按remaining_m 全额写损。
    */
-  @IsOptional() @IsIn(['batch', 'roll'])
+  @IsOptional()
+  @IsIn(['batch', 'roll'])
   mode?: 'batch' | 'roll'
 
-  @IsOptional() @IsDateString({}, { message: '盘点日期格式应为 YYYY-MM-DD' })
+  @IsOptional()
+  @IsDateString({}, { message: '盘点日期格式应为 YYYY-MM-DD' })
   stocktakeDate?: string | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
 class CountRecordDto {
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   itemId!: string
 
   @IsNumber({}, { message: '实盘量必须为数字' })
@@ -40,7 +57,8 @@ class CountRecordDto {
 }
 
 class RecordCountsDto {
-  @ValidateNested({ each: true }) @Type(() => CountRecordDto)
+  @ValidateNested({ each: true })
+  @Type(() => CountRecordDto)
   records!: CountRecordDto[]
 }
 
@@ -59,7 +77,12 @@ export class StocktakeController {
     @CurrentUser() ctx: RequestContext,
     @Body() dto: CreateStocktakeDto,
   ): Promise<StocktakeEntity> {
-    return this.svc.create(ctx, { warehouseId: dto.warehouseId, stocktakeDate: dto.stocktakeDate, remark: dto.remark, mode: dto.mode })
+    return this.svc.create(ctx, {
+      warehouseId: dto.warehouseId,
+      stocktakeDate: dto.stocktakeDate,
+      remark: dto.remark,
+      mode: dto.mode,
+    })
   }
 
   @Get()

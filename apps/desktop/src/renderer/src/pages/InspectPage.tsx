@@ -112,7 +112,9 @@ export default function InspectPage() {
   }, [])
 
   const loadDetail = useCallback(async (id: string) => {
-    const d = await api.get<{ inspection: InspectionWire; rolls: RollWire[] }>(`/quality/inspections/${id}`)
+    const d = await api.get<{ inspection: InspectionWire; rolls: RollWire[] }>(
+      `/quality/inspections/${id}`,
+    )
     setRolls(d.rolls)
     setActiveRollId((prev) => prev ?? d.rolls[0]?.rollId ?? null)
   }, [])
@@ -162,7 +164,9 @@ export default function InspectPage() {
       setPositionM(null)
       setLengthInch(null)
       message.success(
-        hit.grade ? `件卡 ${no} 已加入（复验，当前${GRADE_LABELS[hit.grade]}）` : `件卡 ${no} 已加入`,
+        hit.grade
+          ? `件卡 ${no} 已加入（复验，当前${GRADE_LABELS[hit.grade]}）`
+          : `件卡 ${no} 已加入`,
       )
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加入失败')
@@ -206,12 +210,14 @@ export default function InspectPage() {
     setBusy(true)
     try {
       await api.put(`/quality/inspections/${currentId}/rolls/${activeRoll.rollId}/defects`, {
-        items: activeRoll.defects.filter((_, i) => i !== index).map((d) => ({
-          defectTypeId: d.defectTypeId,
-          positionM: d.positionM,
-          lengthInch: d.lengthInch,
-          remark: null,
-        })),
+        items: activeRoll.defects
+          .filter((_, i) => i !== index)
+          .map((d) => ({
+            defectTypeId: d.defectTypeId,
+            positionM: d.positionM,
+            lengthInch: d.lengthInch,
+            remark: null,
+          })),
       })
       await loadDetail(currentId)
     } catch (e) {
@@ -304,7 +310,13 @@ export default function InspectPage() {
                 onPressEnter={() => void addRoll()}
                 disabled={!currentId}
               />
-              <Button size="large" type="primary" onClick={() => void addRoll()} loading={busy} disabled={!currentId}>
+              <Button
+                size="large"
+                type="primary"
+                onClick={() => void addRoll()}
+                loading={busy}
+                disabled={!currentId}
+              >
                 加入
               </Button>
             </Space.Compact>
@@ -325,7 +337,13 @@ export default function InspectPage() {
                         background: r.rollId === activeRollId ? 'rgba(217,138,31,0.10)' : undefined,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <Text strong>{r.rollNo}</Text>
                         <Space size={4}>
                           {r.grade ? (
@@ -337,8 +355,8 @@ export default function InspectPage() {
                         </Space>
                       </div>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {r.meters.toFixed(1)} m · {r.widthInch.toFixed(1)} 英寸 · 扣分 {r.totalPoints} · 密度{' '}
-                        {r.penaltyDensity.toFixed(1)}
+                        {r.meters.toFixed(1)} m · {r.widthInch.toFixed(1)} 英寸 · 扣分{' '}
+                        {r.totalPoints} · 密度 {r.penaltyDensity.toFixed(1)}
                       </Text>
                     </Card>
                   ))}
@@ -431,7 +449,12 @@ export default function InspectPage() {
                           </Space>
                           <Space size="middle">
                             <Tag color="volcano">{d.penalty} 分</Tag>
-                            <Button type="link" size="small" danger onClick={() => void removeDefect(i)}>
+                            <Button
+                              type="link"
+                              size="small"
+                              danger
+                              onClick={() => void removeDefect(i)}
+                            >
                               删除
                             </Button>
                           </Space>
@@ -484,7 +507,10 @@ export default function InspectPage() {
               value={
                 rolls.length === 0
                   ? '—'
-                  : ((rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) * 100).toFixed(0)
+                  : (
+                      (rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) *
+                      100
+                    ).toFixed(0)
               }
               suffix="%"
             />
@@ -515,7 +541,10 @@ export default function InspectPage() {
             <Space size={6}>
               <Text type="secondary">品等</Text>
               {activeRoll.grade ? (
-                <Tag color={GRADE_COLOR[activeRoll.grade]} style={{ fontSize: 16, padding: '4px 10px' }}>
+                <Tag
+                  color={GRADE_COLOR[activeRoll.grade]}
+                  style={{ fontSize: 16, padding: '4px 10px' }}
+                >
                   {GRADE_LABELS[activeRoll.grade]}
                 </Tag>
               ) : (

@@ -32,18 +32,12 @@ import {
   type CountSystem,
 } from './count-system'
 
-export {
-  ENDS_PER_INCH_TO_PER_METER,
-  GSM_COEF_DENIER,
-  GSM_COEF_NES,
-  TEX_PER_NES,
-  fromTex,
-  toTex,
-}
+export { ENDS_PER_INCH_TO_PER_METER, GSM_COEF_DENIER, GSM_COEF_NES, TEX_PER_NES, fromTex, toTex }
 export type { CountSystem }
 
 /** 原料类型，影响损耗系数默认值 */
-export type YarnMaterial = 'cotton' | 'viscose' | 'polyester' | 'nylon' | 'spandex' | 'acrylic' | 'linen' | 'filament'
+export type YarnMaterial =
+  'cotton' | 'viscose' | 'polyester' | 'nylon' | 'spandex' | 'acrylic' | 'linen' | 'filament'
 
 /** 基础组织，历史上影响经纬向差异 */
 export type WeaveType = 'plain' | 'twill' | 'satin' | 'jacquard' | 'leno' | 'pile'
@@ -92,7 +86,10 @@ export const DEFAULT_COEFFICIENTS: WeaveCoefficients = {
 }
 
 /** 按原料生成一套初始系数 */
-export function buildDefaultCoefficients(material: YarnMaterial, _weave: WeaveType): WeaveCoefficients {
+export function buildDefaultCoefficients(
+  material: YarnMaterial,
+  _weave: WeaveType,
+): WeaveCoefficients {
   const loss = DEFAULT_LOSS_RATE_BY_MATERIAL[material]
   return {
     ...DEFAULT_COEFFICIENTS,
@@ -130,7 +127,10 @@ function assertPositive(value: number, name: string): void {
 }
 
 /** 上机门幅：未指定时按成品门幅 + 加放量推算 */
-export function resolveLoomWidth(spec: FabricSpec, coeffs: WeaveCoefficients = DEFAULT_COEFFICIENTS): number {
+export function resolveLoomWidth(
+  spec: FabricSpec,
+  coeffs: WeaveCoefficients = DEFAULT_COEFFICIENTS,
+): number {
   return spec.loomWidth ?? spec.finishedWidth + coeffs.widthAllowance
 }
 
@@ -206,7 +206,11 @@ export function fabricGsm(spec: FabricSpec): { warp: number; weft: number; total
 }
 
 /** 由支数体系分派的行业经验式克重（供业务人员核对用） */
-export function fabricGsmByCountSystem(spec: FabricSpec): { warp: number; weft: number; total: number } {
+export function fabricGsmByCountSystem(spec: FabricSpec): {
+  warp: number
+  weft: number
+  total: number
+} {
   const warpTex = toTex(spec.warpCount.value, spec.warpCount.system)
   const weftTex = toTex(spec.weftCount.value, spec.weftCount.system)
   const warp =
@@ -464,7 +468,9 @@ export function calculateWeave(input: WeaveCalculationInput): WeaveCalculationRe
     totalPer100m: usage.total,
     warpShrinkage: coeffs.warpShrinkage,
     weftShrinkage: coeffs.weftShrinkage,
-    dailyOutput: input.picksPerMinute ? dailyOutput(input.picksPerMinute, spec.weftDensity, coeffs) : 0,
+    dailyOutput: input.picksPerMinute
+      ? dailyOutput(input.picksPerMinute, spec.weftDensity, coeffs)
+      : 0,
     loomWidth,
   }
 

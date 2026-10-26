@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, Like } from 'typeorm'
 import {
@@ -72,7 +77,11 @@ export class MaterialService {
    * 规则：前缀 + 4 位流水，如 Y0001 / G0001
    * 前缀按大类固定，便于人工识别与条码前缀统一
    */
-  private async nextCode(tenantId: string, companyId: string, category: MaterialCategoryValue): Promise<string> {
+  private async nextCode(
+    tenantId: string,
+    companyId: string,
+    category: MaterialCategoryValue,
+  ): Promise<string> {
     const prefix: Record<MaterialCategoryValue, string> = {
       yarn: 'Y',
       greige: 'G',
@@ -107,7 +116,11 @@ export class MaterialService {
     return `${p}${String(nextNum).padStart(4, '0')}`
   }
 
-  async create(tenantId: string, companyId: string, input: CreateMaterialInput): Promise<MaterialEntity> {
+  async create(
+    tenantId: string,
+    companyId: string,
+    input: CreateMaterialInput,
+  ): Promise<MaterialEntity> {
     const code = input.code ?? (await this.nextCode(tenantId, companyId, input.category))
 
     const exists = await this.materials.findOne({ where: { companyId, code } })
@@ -153,7 +166,11 @@ export class MaterialService {
   async findAll(
     tenantId: string,
     companyId: string,
-    filter?: { category?: MaterialCategoryValue; keyword?: string; status?: 'active' | 'discontinued' },
+    filter?: {
+      category?: MaterialCategoryValue
+      keyword?: string
+      status?: 'active' | 'discontinued'
+    },
   ): Promise<MaterialEntity[]> {
     const qb = this.materials
       .createQueryBuilder('m')
@@ -194,7 +211,10 @@ export class MaterialService {
     if (input.code && input.code !== m.code) {
       const dup = await this.materials.findOne({ where: { companyId, code: input.code } })
       if (dup) {
-        throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `物料编码 ${input.code} 已存在` })
+        throw new ConflictException({
+          code: ErrorCode.DUPLICATE_CODE,
+          message: `物料编码 ${input.code} 已存在`,
+        })
       }
       m.code = input.code
     }
@@ -376,7 +396,10 @@ export class MaterialService {
 
     const dup = await this.specs.findOne({ where: { companyId, code } })
     if (dup) {
-      throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `规格编码 ${code} 已存在` })
+      throw new ConflictException({
+        code: ErrorCode.DUPLICATE_CODE,
+        message: `规格编码 ${code} 已存在`,
+      })
     }
 
     const snapshot = this.calculateSpec({
@@ -448,7 +471,11 @@ export class MaterialService {
     return `B${String(nextNum).padStart(4, '0')}`
   }
 
-  async findSpecs(tenantId: string, companyId: string, keyword?: string): Promise<GreigeSpecEntity[]> {
+  async findSpecs(
+    tenantId: string,
+    companyId: string,
+    keyword?: string,
+  ): Promise<GreigeSpecEntity[]> {
     const qb = this.specs
       .createQueryBuilder('s')
       .where('s.tenant_id = :tenantId', { tenantId })
@@ -545,7 +572,8 @@ export class MaterialService {
     if (input.weftLossRate !== undefined) s.weftLossRate = String(input.weftLossRate)
     if (input.machineRunRate !== undefined) s.machineRunRate = String(input.machineRunRate)
     // 加工费是成本项，不影响工艺计算，单独赋值
-    if (input.overheadCostPerMeter !== undefined) s.overheadCostPerMeter = String(input.overheadCostPerMeter)
+    if (input.overheadCostPerMeter !== undefined)
+      s.overheadCostPerMeter = String(input.overheadCostPerMeter)
 
     const snapshot = this.calculateSpec({
       finishedWidth: Number(s.finishedWidth),
@@ -562,7 +590,10 @@ export class MaterialService {
     })
 
     s.calculatedGsm = String(snapshot.totalGsm)
-    s.lastSnapshot = { ...snapshot, specVersion: s.specVersion + 1 } as unknown as Record<string, unknown>
+    s.lastSnapshot = { ...snapshot, specVersion: s.specVersion + 1 } as unknown as Record<
+      string,
+      unknown
+    >
     // @VersionColumn 会在 save 时自增，业务层不手动改
     return this.specs.save(s)
   }

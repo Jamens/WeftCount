@@ -101,7 +101,12 @@ interface Overview {
   lowStockParts: number
 }
 
-const PLAN_TYPE_LABEL: Record<string, string> = { inspect: '巡检', lubricate: '润滑', repair: '维修', overhaul: '大修' }
+const PLAN_TYPE_LABEL: Record<string, string> = {
+  inspect: '巡检',
+  lubricate: '润滑',
+  repair: '维修',
+  overhaul: '大修',
+}
 const RECORD_TYPE_LABEL: Record<string, string> = { planned: '计划保养', breakdown: '故障停机' }
 const RESULT_LABEL: Record<string, string> = { ok: '正常', pending: '待跟进', failed: '失败' }
 
@@ -141,7 +146,9 @@ export default function MachineMaintenancePage() {
     }
   }, [message])
 
-  useEffect(() => { void reload() }, [reload])
+  useEffect(() => {
+    void reload()
+  }, [reload])
 
   const machineOptions = machines.map((m) => ({ value: m.id, label: `${m.code} ${m.name}` }))
 
@@ -152,26 +159,113 @@ export default function MachineMaintenancePage() {
       </Title>
 
       <Space size={16} wrap style={{ marginBottom: 16 }}>
-        <Card size="small" title="设备数"><Text strong style={{ fontSize: 20 }}>{overview?.totalMachines ?? 0}</Text></Card>
-        <Card size="small" title="启用计划"><Text strong style={{ fontSize: 20 }}>{overview?.activePlans ?? 0}</Text></Card>
-        <Card size="small" title="7天内到期" style={{ borderColor: (overview?.dueSoonPlans ?? 0) > 0 ? '#faad14' : undefined }}>
-          <Text strong style={{ fontSize: 20, color: (overview?.dueSoonPlans ?? 0) > 0 ? '#faad14' : undefined }}>{overview?.dueSoonPlans ?? 0}</Text>
+        <Card size="small" title="设备数">
+          <Text strong style={{ fontSize: 20 }}>
+            {overview?.totalMachines ?? 0}
+          </Text>
         </Card>
-        <Card size="small" title="已逾期" style={{ borderColor: (overview?.overduePlans ?? 0) > 0 ? '#ff4d4f' : undefined }}>
-          <Text strong style={{ fontSize: 20, color: (overview?.overduePlans ?? 0) > 0 ? '#ff4d4f' : undefined }}>{overview?.overduePlans ?? 0}</Text>
+        <Card size="small" title="启用计划">
+          <Text strong style={{ fontSize: 20 }}>
+            {overview?.activePlans ?? 0}
+          </Text>
         </Card>
-        <Card size="small" title="本月故障"><Text strong style={{ fontSize: 20 }}>{overview?.breakdownThisMonth ?? 0}</Text></Card>
-        <Card size="small" title="备件预警" style={{ borderColor: (overview?.lowStockParts ?? 0) > 0 ? '#ff4d4f' : undefined }}>
-          <Text strong style={{ fontSize: 20, color: (overview?.lowStockParts ?? 0) > 0 ? '#ff4d4f' : undefined }}>{overview?.lowStockParts ?? 0}</Text>
+        <Card
+          size="small"
+          title="7天内到期"
+          style={{ borderColor: (overview?.dueSoonPlans ?? 0) > 0 ? '#faad14' : undefined }}
+        >
+          <Text
+            strong
+            style={{
+              fontSize: 20,
+              color: (overview?.dueSoonPlans ?? 0) > 0 ? '#faad14' : undefined,
+            }}
+          >
+            {overview?.dueSoonPlans ?? 0}
+          </Text>
+        </Card>
+        <Card
+          size="small"
+          title="已逾期"
+          style={{ borderColor: (overview?.overduePlans ?? 0) > 0 ? '#ff4d4f' : undefined }}
+        >
+          <Text
+            strong
+            style={{
+              fontSize: 20,
+              color: (overview?.overduePlans ?? 0) > 0 ? '#ff4d4f' : undefined,
+            }}
+          >
+            {overview?.overduePlans ?? 0}
+          </Text>
+        </Card>
+        <Card size="small" title="本月故障">
+          <Text strong style={{ fontSize: 20 }}>
+            {overview?.breakdownThisMonth ?? 0}
+          </Text>
+        </Card>
+        <Card
+          size="small"
+          title="备件预警"
+          style={{ borderColor: (overview?.lowStockParts ?? 0) > 0 ? '#ff4d4f' : undefined }}
+        >
+          <Text
+            strong
+            style={{
+              fontSize: 20,
+              color: (overview?.lowStockParts ?? 0) > 0 ? '#ff4d4f' : undefined,
+            }}
+          >
+            {overview?.lowStockParts ?? 0}
+          </Text>
         </Card>
       </Space>
 
       <Tabs
         items={[
-          { key: 'plans', label: '保养计划', children: <PlansTab rows={plans} machineOptions={machineOptions} canWrite={canWrite} loading={loading} onDone={reload} /> },
-          { key: 'records', label: '维保记录', children: <RecordsTab rows={records} machineOptions={machineOptions} planOptions={plans.map((p) => ({ value: p.id, label: `${p.planNo} ${p.planName}` }))} partOptions={parts.map((p) => ({ value: p.id, label: `${p.partCode} ${p.name}` }))} canWrite={canWrite} loading={loading} onDone={reload} /> },
-          { key: 'parts', label: '备件库存', children: <SparePartsTab rows={parts} canWrite={canWrite} loading={loading} onDone={reload} /> },
-          { key: 'mtbf', label: '故障统计 MTBF', children: <MtbfTab rows={mtbf} loading={loading} /> },
+          {
+            key: 'plans',
+            label: '保养计划',
+            children: (
+              <PlansTab
+                rows={plans}
+                machineOptions={machineOptions}
+                canWrite={canWrite}
+                loading={loading}
+                onDone={reload}
+              />
+            ),
+          },
+          {
+            key: 'records',
+            label: '维保记录',
+            children: (
+              <RecordsTab
+                rows={records}
+                machineOptions={machineOptions}
+                planOptions={plans.map((p) => ({
+                  value: p.id,
+                  label: `${p.planNo} ${p.planName}`,
+                }))}
+                partOptions={parts.map((p) => ({ value: p.id, label: `${p.partCode} ${p.name}` }))}
+                canWrite={canWrite}
+                loading={loading}
+                onDone={reload}
+              />
+            ),
+          },
+          {
+            key: 'parts',
+            label: '备件库存',
+            children: (
+              <SparePartsTab rows={parts} canWrite={canWrite} loading={loading} onDone={reload} />
+            ),
+          },
+          {
+            key: 'mtbf',
+            label: '故障统计 MTBF',
+            children: <MtbfTab rows={mtbf} loading={loading} />,
+          },
         ]}
       />
     </div>
@@ -180,7 +274,13 @@ export default function MachineMaintenancePage() {
 
 // ---------- 保养计划 ----------
 
-function PlansTab({ rows, machineOptions, canWrite, loading, onDone }: {
+function PlansTab({
+  rows,
+  machineOptions,
+  canWrite,
+  loading,
+  onDone,
+}: {
   rows: PlanWire[]
   machineOptions: { value: string; label: string }[]
   canWrite: boolean
@@ -247,29 +347,60 @@ function PlansTab({ rows, machineOptions, canWrite, loading, onDone }: {
     { title: '计划号', dataIndex: 'planNo' },
     { title: '名称', dataIndex: 'planName' },
     { title: '类型', dataIndex: 'type', render: (t: string) => <Tag>{PLAN_TYPE_LABEL[t]}</Tag> },
-    { title: '周期', render: (_: unknown, r: PlanWire) => (r.cycleType === 'day' ? `每 ${r.cycleValue} 天` : `每 ${r.cycleValue} 运转小时`) },
+    {
+      title: '周期',
+      render: (_: unknown, r: PlanWire) =>
+        r.cycleType === 'day' ? `每 ${r.cycleValue} 天` : `每 ${r.cycleValue} 运转小时`,
+    },
     { title: '上次执行', dataIndex: 'lastDoneDate', render: (v: string | null) => v ?? '—' },
-    { title: '下次到期', dataIndex: 'nextDueDate', render: (v: string | null) => {
-      if (!v) return '—'
-      const due = dayjs(v)
-      const overdue = due.isBefore(dayjs(), 'day')
-      return <Tag color={overdue ? 'red' : due.diff(dayjs(), 'day') <= 7 ? 'orange' : 'default'}>{v}</Tag>
-    } },
+    {
+      title: '下次到期',
+      dataIndex: 'nextDueDate',
+      render: (v: string | null) => {
+        if (!v) return '—'
+        const due = dayjs(v)
+        const overdue = due.isBefore(dayjs(), 'day')
+        return (
+          <Tag color={overdue ? 'red' : due.diff(dayjs(), 'day') <= 7 ? 'orange' : 'default'}>
+            {v}
+          </Tag>
+        )
+      },
+    },
     { title: '责任人', dataIndex: 'responsible', render: (v: string | null) => v ?? '—' },
-    { title: '状态', dataIndex: 'status', render: (s: string) => <Tag color={s === 'active' ? 'green' : 'default'}>{s === 'active' ? '启用' : '暂停'}</Tag> },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      render: (s: string) => (
+        <Tag color={s === 'active' ? 'green' : 'default'}>{s === 'active' ? '启用' : '暂停'}</Tag>
+      ),
+    },
     {
       title: '操作',
-      render: (_: unknown, r: PlanWire) => canWrite ? <Button size="small" onClick={() => openEdit(r)}>编辑</Button> : null,
+      render: (_: unknown, r: PlanWire) =>
+        canWrite ? (
+          <Button size="small" onClick={() => openEdit(r)}>
+            编辑
+          </Button>
+        ) : null,
     },
   ]
 
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>新建计划</Button>
+        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+          新建计划
+        </Button>
         {!canWrite && <Text type="secondary">无维护权限（需 production.order.edit）</Text>}
       </Space>
-      <Table<PlanWire> rowKey="id" loading={loading} dataSource={rows} pagination={{ pageSize: 20 }} columns={columns} />
+      <Table<PlanWire>
+        rowKey="id"
+        loading={loading}
+        dataSource={rows}
+        pagination={{ pageSize: 20 }}
+        columns={columns}
+      />
       <Modal
         title={editing ? '编辑保养计划' : '新建保养计划'}
         open={open}
@@ -279,18 +410,40 @@ function PlansTab({ rows, machineOptions, canWrite, loading, onDone }: {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="machineId" label="机台" rules={[{ required: true, message: '请选择机台' }]}>
-            <Select options={machineOptions} placeholder="选择机台" showSearch optionFilterProp="label" />
+          <Form.Item
+            name="machineId"
+            label="机台"
+            rules={[{ required: true, message: '请选择机台' }]}
+          >
+            <Select
+              options={machineOptions}
+              placeholder="选择机台"
+              showSearch
+              optionFilterProp="label"
+            />
           </Form.Item>
-          <Form.Item name="planName" label="计划名称" rules={[{ required: true, message: '请填写计划名称' }]}>
+          <Form.Item
+            name="planName"
+            label="计划名称"
+            rules={[{ required: true, message: '请填写计划名称' }]}
+          >
             <Input placeholder="如 3 号织机周巡检" />
           </Form.Item>
           <Space>
             <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select options={Object.entries(PLAN_TYPE_LABEL).map(([k, v]) => ({ value: k, label: v }))} style={{ width: 120 }} />
+              <Select
+                options={Object.entries(PLAN_TYPE_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+                style={{ width: 120 }}
+              />
             </Form.Item>
             <Form.Item name="cycleType" label="循环依据" rules={[{ required: true }]}>
-              <Select options={[{ value: 'day', label: '按天' }, { value: 'run_hour', label: '按运转小时' }]} style={{ width: 130 }} />
+              <Select
+                options={[
+                  { value: 'day', label: '按天' },
+                  { value: 'run_hour', label: '按运转小时' },
+                ]}
+                style={{ width: 130 }}
+              />
             </Form.Item>
             <Form.Item name="cycleValue" label="循环值" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: 100 }} />
@@ -303,7 +456,13 @@ function PlansTab({ rows, machineOptions, canWrite, loading, onDone }: {
             <Input placeholder="选填" />
           </Form.Item>
           <Form.Item name="status" label="状态" rules={[{ required: true }]}>
-            <Select options={[{ value: 'active', label: '启用' }, { value: 'paused', label: '暂停' }]} style={{ width: 120 }} />
+            <Select
+              options={[
+                { value: 'active', label: '启用' },
+                { value: 'paused', label: '暂停' },
+              ]}
+              style={{ width: 120 }}
+            />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} />
@@ -316,7 +475,15 @@ function PlansTab({ rows, machineOptions, canWrite, loading, onDone }: {
 
 // ---------- 维保执行 / 故障停机 ----------
 
-function RecordsTab({ rows, machineOptions, planOptions, partOptions, canWrite, loading, onDone }: {
+function RecordsTab({
+  rows,
+  machineOptions,
+  planOptions,
+  partOptions,
+  canWrite,
+  loading,
+  onDone,
+}: {
   rows: RecordWire[]
   machineOptions: { value: string; label: string }[]
   planOptions: { value: string; label: string }[]
@@ -341,7 +508,11 @@ function RecordsTab({ rows, machineOptions, planOptions, partOptions, canWrite, 
     const v = await form.validateFields()
     const spareParts = (v.spareParts ?? [])
       .filter((s: { partId?: string; qty?: number }) => s.partId && s.qty != null && s.qty > 0)
-      .map((s: { partId: string; qty: number | undefined; cost?: number }) => ({ partId: s.partId, qty: s.qty ?? 0, cost: s.cost ?? 0 }))
+      .map((s: { partId: string; qty: number | undefined; cost?: number }) => ({
+        partId: s.partId,
+        qty: s.qty ?? 0,
+        cost: s.cost ?? 0,
+      }))
     const payload = {
       machineId: v.machineId,
       planId: v.type === 'planned' ? (v.planId ?? null) : null,
@@ -371,39 +542,104 @@ function RecordsTab({ rows, machineOptions, planOptions, partOptions, canWrite, 
   const columns = [
     { title: '记录号', dataIndex: 'recordNo' },
     { title: '机台', dataIndex: 'machineName' },
-    { title: '类型', dataIndex: 'type', render: (t: string) => <Tag color={t === 'breakdown' ? 'red' : 'blue'}>{RECORD_TYPE_LABEL[t]}</Tag> },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      render: (t: string) => (
+        <Tag color={t === 'breakdown' ? 'red' : 'blue'}>{RECORD_TYPE_LABEL[t]}</Tag>
+      ),
+    },
     { title: '项目/故障', dataIndex: 'category' },
     { title: '日期', dataIndex: 'date' },
     { title: '操作人', dataIndex: 'operatorName', render: (v: string | null) => v ?? '—' },
     { title: '停机(分)', dataIndex: 'downtimeMin', render: (v: number | null) => v ?? '—' },
-    { title: '费用', dataIndex: 'cost', render: (v: number) => `¥${v.toFixed(2)}`, align: 'right' as const },
-    { title: '结果', dataIndex: 'result', render: (r: string) => <Tag color={r === 'ok' ? 'green' : r === 'pending' ? 'orange' : 'red'}>{RESULT_LABEL[r]}</Tag> },
-    { title: '耗用备件', render: (_: unknown, r: RecordWire) => r.spareParts.length ? r.spareParts.map((s) => `${s.partName}×${s.qty}`).join('、') : '—' },
+    {
+      title: '费用',
+      dataIndex: 'cost',
+      render: (v: number) => `¥${v.toFixed(2)}`,
+      align: 'right' as const,
+    },
+    {
+      title: '结果',
+      dataIndex: 'result',
+      render: (r: string) => (
+        <Tag color={r === 'ok' ? 'green' : r === 'pending' ? 'orange' : 'red'}>
+          {RESULT_LABEL[r]}
+        </Tag>
+      ),
+    },
+    {
+      title: '耗用备件',
+      render: (_: unknown, r: RecordWire) =>
+        r.spareParts.length ? r.spareParts.map((s) => `${s.partName}×${s.qty}`).join('、') : '—',
+    },
   ]
 
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>录维保 / 故障</Button>
+        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+          录维保 / 故障
+        </Button>
         {!canWrite && <Text type="secondary">无维护权限（需 production.order.edit）</Text>}
       </Space>
-      <Table<RecordWire> rowKey="id" loading={loading} dataSource={rows} pagination={{ pageSize: 20 }} columns={columns} />
-      <Modal title="录维保执行 / 故障停机" open={open} onOk={submit} confirmLoading={submitting} onCancel={() => setOpen(false)} width={640} destroyOnClose>
+      <Table<RecordWire>
+        rowKey="id"
+        loading={loading}
+        dataSource={rows}
+        pagination={{ pageSize: 20 }}
+        columns={columns}
+      />
+      <Modal
+        title="录维保执行 / 故障停机"
+        open={open}
+        onOk={submit}
+        confirmLoading={submitting}
+        onCancel={() => setOpen(false)}
+        width={640}
+        destroyOnClose
+      >
         <Form form={form} layout="vertical">
-          <Form.Item name="machineId" label="机台" rules={[{ required: true, message: '请选择机台' }]}>
-            <Select options={machineOptions} placeholder="选择机台" showSearch optionFilterProp="label" />
+          <Form.Item
+            name="machineId"
+            label="机台"
+            rules={[{ required: true, message: '请选择机台' }]}
+          >
+            <Select
+              options={machineOptions}
+              placeholder="选择机台"
+              showSearch
+              optionFilterProp="label"
+            />
           </Form.Item>
           <Space>
             <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select options={Object.entries(RECORD_TYPE_LABEL).map(([k, v]) => ({ value: k, label: v }))} style={{ width: 140 }} />
+              <Select
+                options={Object.entries(RECORD_TYPE_LABEL).map(([k, v]) => ({
+                  value: k,
+                  label: v,
+                }))}
+                style={{ width: 140 }}
+              />
             </Form.Item>
             {recordType === 'planned' && (
               <Form.Item name="planId" label="关联计划">
-                <Select options={planOptions} placeholder="选填" showSearch optionFilterProp="label" allowClear style={{ width: 220 }} />
+                <Select
+                  options={planOptions}
+                  placeholder="选填"
+                  showSearch
+                  optionFilterProp="label"
+                  allowClear
+                  style={{ width: 220 }}
+                />
               </Form.Item>
             )}
           </Space>
-          <Form.Item name="category" label="保养项目 / 故障描述" rules={[{ required: true, message: '请填写' }]}>
+          <Form.Item
+            name="category"
+            label="保养项目 / 故障描述"
+            rules={[{ required: true, message: '请填写' }]}
+          >
             <Input placeholder="如 更换综丝 / 经轴卡死" />
           </Form.Item>
           <Space>
@@ -422,7 +658,10 @@ function RecordsTab({ rows, machineOptions, planOptions, partOptions, canWrite, 
               <InputNumber min={0} step={0.01} style={{ width: 120 }} />
             </Form.Item>
             <Form.Item name="result" label="结果" rules={[{ required: true }]}>
-              <Select options={Object.entries(RESULT_LABEL).map(([k, v]) => ({ value: k, label: v }))} style={{ width: 120 }} />
+              <Select
+                options={Object.entries(RESULT_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+                style={{ width: 120 }}
+              />
             </Form.Item>
           </Space>
           <Form.Item label="耗用备件">
@@ -431,19 +670,44 @@ function RecordsTab({ rows, machineOptions, planOptions, partOptions, canWrite, 
                 <>
                   {fields.map(({ key, name, ...rest }) => (
                     <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
-                      <Form.Item {...rest} name={[name, 'partId']} rules={[{ required: true, message: '备件' }]} style={{ marginBottom: 0 }}>
-                        <Select options={partOptions} placeholder="备件" showSearch optionFilterProp="label" style={{ width: 200 }} />
+                      <Form.Item
+                        {...rest}
+                        name={[name, 'partId']}
+                        rules={[{ required: true, message: '备件' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          options={partOptions}
+                          placeholder="备件"
+                          showSearch
+                          optionFilterProp="label"
+                          style={{ width: 200 }}
+                        />
                       </Form.Item>
-                      <Form.Item {...rest} name={[name, 'qty']} rules={[{ required: true, message: '数量' }]} style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        {...rest}
+                        name={[name, 'qty']}
+                        rules={[{ required: true, message: '数量' }]}
+                        style={{ marginBottom: 0 }}
+                      >
                         <InputNumber min={0.01} placeholder="数量" style={{ width: 100 }} />
                       </Form.Item>
                       <Form.Item {...rest} name={[name, 'cost']} style={{ marginBottom: 0 }}>
-                        <InputNumber min={0} step={0.01} placeholder="金额" style={{ width: 100 }} />
+                        <InputNumber
+                          min={0}
+                          step={0.01}
+                          placeholder="金额"
+                          style={{ width: 100 }}
+                        />
                       </Form.Item>
-                      <Button type="link" danger onClick={() => remove(name)}>删</Button>
+                      <Button type="link" danger onClick={() => remove(name)}>
+                        删
+                      </Button>
                     </Space>
                   ))}
-                  <Button type="dashed" onClick={() => add()} block>添加耗用备件</Button>
+                  <Button type="dashed" onClick={() => add()} block>
+                    添加耗用备件
+                  </Button>
                 </>
               )}
             </Form.List>
@@ -459,7 +723,12 @@ function RecordsTab({ rows, machineOptions, planOptions, partOptions, canWrite, 
 
 // ---------- 备件 ----------
 
-function SparePartsTab({ rows, canWrite, loading, onDone }: {
+function SparePartsTab({
+  rows,
+  canWrite,
+  loading,
+  onDone,
+}: {
   rows: SparePartWire[]
   canWrite: boolean
   loading: boolean
@@ -526,20 +795,37 @@ function SparePartsTab({ rows, canWrite, loading, onDone }: {
     { title: '库存', dataIndex: 'stock', align: 'right' as const },
     { title: '安全库存', dataIndex: 'minStock', align: 'right' as const },
     { title: '位置', dataIndex: 'location', render: (v: string | null) => v ?? '—' },
-    { title: '状态', render: (_: unknown, r: SparePartWire) => r.lowStock ? <Tag color="red">低于安全库存</Tag> : <Tag color="green">正常</Tag> },
+    {
+      title: '状态',
+      render: (_: unknown, r: SparePartWire) =>
+        r.lowStock ? <Tag color="red">低于安全库存</Tag> : <Tag color="green">正常</Tag>,
+    },
     {
       title: '操作',
-      render: (_: unknown, r: SparePartWire) => canWrite ? <Button size="small" onClick={() => openEdit(r)}>编辑</Button> : null,
+      render: (_: unknown, r: SparePartWire) =>
+        canWrite ? (
+          <Button size="small" onClick={() => openEdit(r)}>
+            编辑
+          </Button>
+        ) : null,
     },
   ]
 
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>新建备件</Button>
+        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+          新建备件
+        </Button>
         {!canWrite && <Text type="secondary">无维护权限（需 production.order.edit）</Text>}
       </Space>
-      <Table<SparePartWire> rowKey="id" loading={loading} dataSource={rows} pagination={{ pageSize: 50 }} columns={columns} />
+      <Table<SparePartWire>
+        rowKey="id"
+        loading={loading}
+        dataSource={rows}
+        pagination={{ pageSize: 50 }}
+        columns={columns}
+      />
       <Modal
         title={editing ? '编辑备件' : '新建备件'}
         open={open}
@@ -549,20 +835,36 @@ function SparePartsTab({ rows, canWrite, loading, onDone }: {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="partCode" label="备件编码" rules={[{ required: true, message: '请填写编码' }]}>
+          <Form.Item
+            name="partCode"
+            label="备件编码"
+            rules={[{ required: true, message: '请填写编码' }]}
+          >
             <Input disabled={!!editing} placeholder="公司内唯一" />
           </Form.Item>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请填写名称' }]}>
             <Input />
           </Form.Item>
           <Space>
-            <Form.Item name="spec" label="规格"><Input placeholder="选填" /></Form.Item>
-            <Form.Item name="unit" label="单位"><Input style={{ width: 100 }} /></Form.Item>
-            <Form.Item name="stock" label="库存"><InputNumber min={0} step={0.01} style={{ width: 120 }} /></Form.Item>
-            <Form.Item name="minStock" label="安全库存"><InputNumber min={0} step={0.01} style={{ width: 120 }} /></Form.Item>
+            <Form.Item name="spec" label="规格">
+              <Input placeholder="选填" />
+            </Form.Item>
+            <Form.Item name="unit" label="单位">
+              <Input style={{ width: 100 }} />
+            </Form.Item>
+            <Form.Item name="stock" label="库存">
+              <InputNumber min={0} step={0.01} style={{ width: 120 }} />
+            </Form.Item>
+            <Form.Item name="minStock" label="安全库存">
+              <InputNumber min={0} step={0.01} style={{ width: 120 }} />
+            </Form.Item>
           </Space>
-          <Form.Item name="location" label="存放位置"><Input placeholder="选填" /></Form.Item>
-          <Form.Item name="remark" label="备注"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="location" label="存放位置">
+            <Input placeholder="选填" />
+          </Form.Item>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={2} />
+          </Form.Item>
         </Form>
       </Modal>
     </>
@@ -575,13 +877,29 @@ function MtbfTab({ rows, loading }: { rows: MtbfWire[]; loading: boolean }) {
   const columns = [
     { title: '机台', dataIndex: 'machineName' },
     { title: '故障次数', dataIndex: 'breakdownCount', align: 'right' as const },
-    { title: '总停机(分)', dataIndex: 'totalDowntimeMin', align: 'right' as const, render: (v: number) => v || '—' },
-    { title: '平均间隔(天) MTBF', dataIndex: 'mtbfDays', align: 'right' as const, render: (v: number | null) => v == null ? '样本不足' : v },
+    {
+      title: '总停机(分)',
+      dataIndex: 'totalDowntimeMin',
+      align: 'right' as const,
+      render: (v: number) => v || '—',
+    },
+    {
+      title: '平均间隔(天) MTBF',
+      dataIndex: 'mtbfDays',
+      align: 'right' as const,
+      render: (v: number | null) => (v == null ? '样本不足' : v),
+    },
     { title: '最近故障', dataIndex: 'lastBreakdownDate', render: (v: string | null) => v ?? '—' },
   ]
   return (
     <Card size="small" title="按机台的故障统计（MTBF = 平均故障间隔，需 ≥2 次故障样本）">
-      <Table<MtbfWire> rowKey="machineId" loading={loading} dataSource={rows} pagination={false} columns={columns} />
+      <Table<MtbfWire>
+        rowKey="machineId"
+        loading={loading}
+        dataSource={rows}
+        pagination={false}
+        columns={columns}
+      />
     </Card>
   )
 }

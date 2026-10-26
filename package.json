@@ -20,8 +20,20 @@
     "start:desktop:dev": "node scripts/start-desktop.mjs --dev",
     "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "verify": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run lint && pnpm run build",
     "test:smoke": "node test/smoke/run.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.0"
   }
 }

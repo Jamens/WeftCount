@@ -67,7 +67,10 @@ function registerAppProtocol(backendOrigin: string): void {
     if (pathname.startsWith('/api')) {
       const target = `${backendOrigin}${pathname}${new URL(request.url).search}`
       try {
-        const body = request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer()
+        const body =
+          request.method === 'GET' || request.method === 'HEAD'
+            ? undefined
+            : await request.arrayBuffer()
         return await net.fetch(target, {
           method: request.method,
           headers: Object.fromEntries(request.headers.entries()),
@@ -130,7 +133,10 @@ function registerIpcHandlers(): void {
         resolve({ ok: false, reason: 'empty label html' })
         return
       }
-      const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true, javascript: false } })
+      const win = new BrowserWindow({
+        show: false,
+        webPreferences: { offscreen: true, javascript: false },
+      })
       void win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
       win.webContents.once('did-finish-load', () => {
         win.webContents.print({ silent: false, printBackground: true }, (success, reason) => {

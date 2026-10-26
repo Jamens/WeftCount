@@ -270,7 +270,7 @@ describe('5. 坯布→成品克重系数自学习', () => {
     const samples = [0.88, 0.89, 0.9, 0.88, 0.91]
     const sampleMean = samples.reduce((a, b) => a + b, 0) / samples.length // 0.892
     let factor = DEFAULT_GREIGE_FACTOR
-    let prev = factor.value
+    const prev = factor.value
     for (let i = 0; i < 12; i++) {
       factor = learnGreigeFactor(samples, factor)
     }

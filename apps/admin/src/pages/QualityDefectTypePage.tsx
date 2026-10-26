@@ -63,7 +63,13 @@ export default function QualityDefectTypePage() {
 
   const openCreate = () => {
     setEditing(null)
-    form.setFieldsValue({ category: 'other', penaltyMode: 'by_length', fixedPenalty: 4, code: '', name: '' })
+    form.setFieldsValue({
+      category: 'other',
+      penaltyMode: 'by_length',
+      fixedPenalty: 4,
+      code: '',
+      name: '',
+    })
     setOpen(true)
   }
 
@@ -122,8 +128,9 @@ export default function QualityDefectTypePage() {
 
       <Card size="small">
         <Text type="secondary">
-          扣分按这里的规则算：选「按长度四档扣分」时，≤3 英寸扣 1 分、3~6 扣 2 分、6~9 扣 3 分、&gt;9 扣 4 分；
-          选「固定扣分」则不看来长度（破洞一律 4 分）。名称可按各厂叫法自行修改。
+          扣分按这里的规则算：选「按长度四档扣分」时，≤3 英寸扣 1 分、3~6 扣 2 分、6~9 扣 3
+          分、&gt;9 扣 4 分； 选「固定扣分」则不看来长度（破洞一律 4
+          分）。名称可按各厂叫法自行修改。
         </Text>
       </Card>
 
@@ -161,7 +168,12 @@ export default function QualityDefectTypePage() {
               dataIndex: 'enabled',
               width: 90,
               render: (v: boolean, r) => (
-                <Switch size="small" checked={v} disabled={!canReview} onChange={(c) => void toggle(r, c)} />
+                <Switch
+                  size="small"
+                  checked={v}
+                  disabled={!canReview}
+                  onChange={(c) => void toggle(r, c)}
+                />
               ),
             },
             {
@@ -194,10 +206,12 @@ export default function QualityDefectTypePage() {
           </Form.Item>
           <Form.Item name="category" label="分类" rules={[{ required: true }]}>
             <Select
-              options={(['warp', 'weft', 'stain', 'broken', 'other'] as DefectCategoryValue[]).map((v) => ({
-                value: v,
-                label: DEFECT_CATEGORY_LABEL[v],
-              }))}
+              options={(['warp', 'weft', 'stain', 'broken', 'other'] as DefectCategoryValue[]).map(
+                (v) => ({
+                  value: v,
+                  label: DEFECT_CATEGORY_LABEL[v],
+                }),
+              )}
             />
           </Form.Item>
           <Form.Item name="penaltyMode" label="计分方式" rules={[{ required: true }]}>

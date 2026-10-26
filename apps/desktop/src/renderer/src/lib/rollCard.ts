@@ -14,7 +14,14 @@ export interface RollCardData {
 function barcodeSvg(code: string, height = 40, width = 1.5, fontSize = 12): string {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   try {
-    JsBarcode(svg, code, { format: 'CODE128', displayValue: true, height, width, fontSize, margin: 4 })
+    JsBarcode(svg, code, {
+      format: 'CODE128',
+      displayValue: true,
+      height,
+      width,
+      fontSize,
+      margin: 4,
+    })
   } catch {
     return `<div style="font:13px monospace;padding:6px">${code}</div>`
   }
@@ -22,12 +29,17 @@ function barcodeSvg(code: string, height = 40, width = 1.5, fontSize = 12): stri
 }
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 /** 单张件卡（一张=一匹） */
 function cardHtml(d: RollCardData): string {
-  const row = (k: string, v: string) => `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`
+  const row = (k: string, v: string) =>
+    `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`
   return `<div class="card">
     <div class="title">件卡 · 织数</div>
     <table>

@@ -1,7 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { OrderService } from './order.service'
-import { CreateOrderDto, CreateOrderFromAlertDto, OrderFilterDto, UpdateOrderDto } from './order.dto'
+import {
+  CreateOrderDto,
+  CreateOrderFromAlertDto,
+  OrderFilterDto,
+  UpdateOrderDto,
+} from './order.dto'
 import { TradeOrderEntity, type TradeOrderStatus } from './entities/trade-order.entity'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
@@ -27,7 +32,10 @@ export class OrderController {
   @RequirePermission(Permission.PURCHASE_MANAGE, Permission.SALES_MANAGE)
   @Audit({ action: 'create', module: 'order', targetType: 'order' })
   @ApiOperation({ summary: '新建采购/销售订单（草稿）' })
-  create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateOrderDto): Promise<TradeOrderEntity> {
+  create(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateOrderDto,
+  ): Promise<TradeOrderEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)
   }
 
@@ -46,7 +54,10 @@ export class OrderController {
   @Get()
   @RequirePermission(Permission.PURCHASE_VIEW, Permission.SALES_VIEW)
   @ApiOperation({ summary: '查询订单列表' })
-  findAll(@CurrentUser() ctx: RequestContext, @Query() filter: OrderFilterDto): Promise<TradeOrderEntity[]> {
+  findAll(
+    @CurrentUser() ctx: RequestContext,
+    @Query() filter: OrderFilterDto,
+  ): Promise<TradeOrderEntity[]> {
     return this.svc.findAll(ctx.tenantId, ctx.companyId, filter)
   }
 

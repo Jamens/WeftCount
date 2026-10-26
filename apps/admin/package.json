@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "echo \"admin: no tests yet\"",
-    "lint": "echo \"admin: no lint yet\""
+    "lint": "eslint ."
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.2",

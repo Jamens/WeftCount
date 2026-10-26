@@ -13,7 +13,12 @@ import { AuthModule } from '../auth/auth.module'
 @Module({
   imports: [
     // 注册 InventoryDocumentEntity 仅为按 order_id 汇总已履约单据/查关联单据，不注入 InventoryService（避免循环）
-    TypeOrmModule.forFeature([TradeOrderEntity, TradeOrderItemEntity, InventoryDocumentEntity, AlertEntity]),
+    TypeOrmModule.forFeature([
+      TradeOrderEntity,
+      TradeOrderItemEntity,
+      InventoryDocumentEntity,
+      AlertEntity,
+    ]),
     MaterialModule,
     PartnerModule,
     AuthModule,

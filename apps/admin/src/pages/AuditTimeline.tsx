@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Button, Card, Empty, Input, Select, Space, Table, Tag, Timeline, Typography } from 'antd'
+import {
+  App as AntdApp,
+  Button,
+  Card,
+  Empty,
+  Input,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd'
 import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { AUDIT_TARGET_TYPES, type AuditActionType } from '@weftcount/shared'
@@ -83,7 +95,12 @@ export default function AuditTimeline() {
         </Space>
       }
       extra={
-        <Button size="small" icon={<ReloadOutlined />} loading={loading} onClick={() => void load()}>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          loading={loading}
+          onClick={() => void load()}
+        >
           查询
         </Button>
       }
@@ -108,7 +125,10 @@ export default function AuditTimeline() {
         </Space>
 
         {records == null ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="输入对象类型与 ID 后查询其完整变更史" />
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="输入对象类型与 ID 后查询其完整变更史"
+          />
         ) : records.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="该对象暂无操作记录" />
         ) : (
@@ -129,7 +149,8 @@ export default function AuditTimeline() {
                         </Tag>
                         <Text strong>{r.realName || r.username}</Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          {targetLabel(r.targetType)} · {dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                          {targetLabel(r.targetType)} ·{' '}
+                          {dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                         </Text>
                       </Space>
                       {r.summary && (

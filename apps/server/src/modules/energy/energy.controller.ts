@@ -36,7 +36,11 @@ export class EnergyController {
   @Audit({ action: 'update', module: 'energy', targetIdParam: 'id' })
   @RequirePermission(Permission.COST_MANAGE)
   @ApiOperation({ summary: '改抄表记录（仅电价/备注——读数与日期属序列键，抄错请删后重录）' })
-  updateReading(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateReadingDto) {
+  updateReading(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateReadingDto,
+  ) {
     return this.service.updateReading(ctx, id, dto)
   }
 

@@ -28,9 +28,9 @@ async function main(): Promise<void> {
     const materialService = app.get(MaterialService)
     const inventoryService = app.get(InventoryService)
     // 演示件卡需要一个操作者(审计/流水用)，取演示账号里的 owner
-    const owner = await ds.getRepository(
-      (await import('../modules/auth/entities/user.entity')).UserEntity,
-    ).findOne({ where: { username: 'owner' } })
+    const owner = await ds
+      .getRepository((await import('../modules/auth/entities/user.entity')).UserEntity)
+      .findOne({ where: { username: 'owner' } })
     await seed(ds, materialService, inventoryService, owner?.id ?? '')
     console.log('[seed] 完成')
   } finally {

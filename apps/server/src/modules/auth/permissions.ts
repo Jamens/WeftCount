@@ -18,7 +18,6 @@ export {
 import { matches } from '@weftcount/shared'
 import type { BuiltinRoleCode } from '@weftcount/shared'
 
-
 /** 判断是否为内置角色 */
 export function isBuiltinRole(code: string): code is BuiltinRoleCode {
   return [

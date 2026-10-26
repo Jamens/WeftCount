@@ -1,4 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
@@ -93,7 +100,8 @@ export class AuthService {
     if (tenant.status !== 'active') {
       throw new UnauthorizedException({
         code: ErrorCode.TENANT_SUSPENDED,
-        message: tenant.status === 'expired' ? '订阅已到期，请续费后使用' : '服务已暂停，请联系客服',
+        message:
+          tenant.status === 'expired' ? '订阅已到期，请续费后使用' : '服务已暂停，请联系客服',
       })
     }
 
@@ -229,7 +237,10 @@ export class AuthService {
     }
     this.validatePasswordStrength(newPassword)
     if (await bcrypt.compare(newPassword, user.passwordHash)) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '新密码不能与原密码相同' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '新密码不能与原密码相同',
+      })
     }
     user.passwordHash = await bcrypt.hash(newPassword, 10)
     user.passwordChangedAt = new Date()
@@ -241,7 +252,10 @@ export class AuthService {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '密码至少 8 位' })
     }
     if (password.length > 64) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '密码不能超过 64 位' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '密码不能超过 64 位',
+      })
     }
     if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
       throw new BadRequestException({
@@ -262,7 +276,10 @@ export class AuthService {
   async createRole(tenantId: string, dto: CreateRoleDto): Promise<RoleEntity> {
     const exists = await this.roles.findOne({ where: { tenantId, code: dto.code } })
     if (exists) {
-      throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `角色编码 ${dto.code} 已存在` })
+      throw new ConflictException({
+        code: ErrorCode.DUPLICATE_CODE,
+        message: `角色编码 ${dto.code} 已存在`,
+      })
     }
     return this.roles.save(
       this.roles.create({
@@ -349,15 +366,26 @@ export class AuthService {
   async createUser(tenantId: string, dto: CreateUserDto): Promise<SafeUser> {
     const existing = await this.users.findOne({ where: { username: dto.username } })
     if (existing) {
-      throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `账号 ${dto.username} 已存在` })
+      throw new ConflictException({
+        code: ErrorCode.DUPLICATE_CODE,
+        message: `账号 ${dto.username} 已存在`,
+      })
     }
     const companies = await this.companies.find({ where: { id: In(dto.companyIds) } })
-    if (companies.length !== dto.companyIds.length || !companies.every((c) => c.tenantId === tenantId)) {
+    if (
+      companies.length !== dto.companyIds.length ||
+      !companies.every((c) => c.tenantId === tenantId)
+    ) {
       throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '关联公司非法' })
     }
-    const roles = await this.roles.find({ where: dto.roleCodes.map((code) => ({ tenantId, code })) })
+    const roles = await this.roles.find({
+      where: dto.roleCodes.map((code) => ({ tenantId, code })),
+    })
     if (roles.length !== dto.roleCodes.length) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '分配了不存在的角色' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '分配了不存在的角色',
+      })
     }
     this.validatePasswordStrength(dto.password)
     const user = await this.users.save(
@@ -388,22 +416,36 @@ export class AuthService {
     if (dto.status !== undefined) user.status = dto.status
     if (dto.companyIds !== undefined) {
       const companies = await this.companies.find({ where: { id: In(dto.companyIds) } })
-      if (companies.length !== dto.companyIds.length || !companies.every((c) => c.tenantId === tenantId)) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '关联公司非法' })
+      if (
+        companies.length !== dto.companyIds.length ||
+        !companies.every((c) => c.tenantId === tenantId)
+      ) {
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '关联公司非法',
+        })
       }
       user.companyIds = dto.companyIds
     }
     if (dto.roleCodes !== undefined) {
-      const roles = await this.roles.find({ where: dto.roleCodes.map((code) => ({ tenantId, code })) })
+      const roles = await this.roles.find({
+        where: dto.roleCodes.map((code) => ({ tenantId, code })),
+      })
       if (roles.length !== dto.roleCodes.length) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '分配了不存在的角色' })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '分配了不存在的角色',
+        })
       }
       user.roleCodes = dto.roleCodes
     }
     if (dto.password !== undefined) {
       this.validatePasswordStrength(dto.password)
       if (await bcrypt.compare(dto.password, user.passwordHash)) {
-        throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '新密码不能与原密码相同' })
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '新密码不能与原密码相同',
+        })
       }
       user.passwordHash = await bcrypt.hash(dto.password, 10)
       user.passwordChangedAt = new Date()
@@ -420,7 +462,10 @@ export class AuthService {
     if (!user) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '用户不存在' })
     this.validatePasswordStrength(dto.newPassword)
     if (await bcrypt.compare(dto.newPassword, user.passwordHash)) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '新密码不能与原密码相同' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '新密码不能与原密码相同',
+      })
     }
     user.passwordHash = await bcrypt.hash(dto.newPassword, 10)
     user.passwordChangedAt = new Date()

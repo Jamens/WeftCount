@@ -1,5 +1,17 @@
 import { useState } from 'react'
-import { App as AntdApp, Alert, Button, Card, Radio, Space, Statistic, Table, Tag, Typography, Upload } from 'antd'
+import {
+  App as AntdApp,
+  Alert,
+  Button,
+  Card,
+  Radio,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd'
 import { DownloadOutlined, InboxOutlined } from '@ant-design/icons'
 import { api, tokenStore, contextStore } from '../lib/api'
 import { PERM } from '../lib/erp'
@@ -85,20 +97,49 @@ export default function ImportExportPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
-          <Title level={4} style={{ margin: 0 }}><InboxOutlined /> 导入导出</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>批量导入物料/规格（CSV），导出物料（XLSX）——逐行校验，失败不影响其他行</Text>
+          <Title level={4} style={{ margin: 0 }}>
+            <InboxOutlined /> 导入导出
+          </Title>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            批量导入物料/规格（CSV），导出物料（XLSX）——逐行校验，失败不影响其他行
+          </Text>
         </div>
       </Space>
 
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <Card size="small">
           <Space wrap>
-            <Radio.Group value={kind} onChange={(e) => { setKind(e.target.value); setFileName(''); setCsv(''); setResult(null) }} optionType="button" buttonStyle="solid"
-              options={[{ label: '物料', value: 'materials' }, { label: '规格', value: 'specs' }]} />
-            <Button icon={<DownloadOutlined />} onClick={() => void download('template', kind)}>下载{label}模板(CSV)</Button>
-            {kind === 'materials' && <Button icon={<DownloadOutlined />} onClick={() => void download('export', 'materials')}>导出物料(XLSX)</Button>}
+            <Radio.Group
+              value={kind}
+              onChange={(e) => {
+                setKind(e.target.value)
+                setFileName('')
+                setCsv('')
+                setResult(null)
+              }}
+              optionType="button"
+              buttonStyle="solid"
+              options={[
+                { label: '物料', value: 'materials' },
+                { label: '规格', value: 'specs' },
+              ]}
+            />
+            <Button icon={<DownloadOutlined />} onClick={() => void download('template', kind)}>
+              下载{label}模板(CSV)
+            </Button>
+            {kind === 'materials' && (
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={() => void download('export', 'materials')}
+              >
+                导出物料(XLSX)
+              </Button>
+            )}
           </Space>
         </Card>
 
@@ -106,19 +147,44 @@ export default function ImportExportPage() {
           <Upload.Dragger
             accept=".csv,text/csv"
             maxCount={1}
-            beforeUpload={(f) => { onFile(f); return false }}
-            onRemove={() => { setFileName(''); setCsv(''); setResult(null) }}
+            beforeUpload={(f) => {
+              onFile(f)
+              return false
+            }}
+            onRemove={() => {
+              setFileName('')
+              setCsv('')
+              setResult(null)
+            }}
             disabled={!canEdit}
           >
-            <p style={{ margin: 0 }}>{fileName ? `已选择：${fileName}` : '点击或拖拽 CSV 文件到此处'}</p>
-            <Text type="secondary" style={{ fontSize: 12 }}>请先下载模板，按列填写后导入（列名带 * 为必填）</Text>
+            <p style={{ margin: 0 }}>
+              {fileName ? `已选择：${fileName}` : '点击或拖拽 CSV 文件到此处'}
+            </p>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              请先下载模板，按列填写后导入（列名带 * 为必填）
+            </Text>
           </Upload.Dragger>
           {canEdit && (
-            <Button type="primary" block style={{ marginTop: 12 }} loading={busy} disabled={!csv} onClick={() => void doImport()}>
+            <Button
+              type="primary"
+              block
+              style={{ marginTop: 12 }}
+              loading={busy}
+              disabled={!csv}
+              onClick={() => void doImport()}
+            >
               开始导入
             </Button>
           )}
-          {!canEdit && <Alert style={{ marginTop: 12 }} type="info" showIcon message="当前账号无导入权限（需 material.edit）" />}
+          {!canEdit && (
+            <Alert
+              style={{ marginTop: 12 }}
+              type="info"
+              showIcon
+              message="当前账号无导入权限（需 material.edit）"
+            />
+          )}
         </Card>
 
         {result && (
@@ -126,7 +192,11 @@ export default function ImportExportPage() {
             <Space size="large" style={{ marginBottom: 12 }}>
               <Statistic title="总行数" value={result.total} />
               <Statistic title="成功" value={result.succeeded} valueStyle={{ color: '#3f8600' }} />
-              <Statistic title="失败" value={result.failed} valueStyle={{ color: result.failed ? '#cf1322' : undefined }} />
+              <Statistic
+                title="失败"
+                value={result.failed}
+                valueStyle={{ color: result.failed ? '#cf1322' : undefined }}
+              />
             </Space>
             {result.errors.length > 0 && (
               <Table
@@ -135,7 +205,12 @@ export default function ImportExportPage() {
                 pagination={false}
                 dataSource={result.errors}
                 columns={[
-                  { title: '行号', dataIndex: 'row', width: 80, render: (v: number) => <Tag>第 {v} 行</Tag> },
+                  {
+                    title: '行号',
+                    dataIndex: 'row',
+                    width: 80,
+                    render: (v: number) => <Tag>第 {v} 行</Tag>,
+                  },
                   { title: '失败原因', dataIndex: 'message' },
                 ]}
               />

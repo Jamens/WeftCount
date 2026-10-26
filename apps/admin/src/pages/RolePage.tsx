@@ -15,12 +15,7 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import {
-  PERM,
-  PERMISSION_CATALOG,
-  type RoleWire,
-  LIST_TABLE_SCROLL_Y,
-} from '../lib/erp'
+import { PERM, PERMISSION_CATALOG, type RoleWire, LIST_TABLE_SCROLL_Y } from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
@@ -117,7 +112,10 @@ export default function RolePage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             角色管理
@@ -145,7 +143,11 @@ export default function RolePage() {
           loading={loading}
           dataSource={data}
           scroll={{ y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 个`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 个`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 140 },
             { title: '名称', dataIndex: 'name', width: 150 },
@@ -155,7 +157,12 @@ export default function RolePage() {
               width: 90,
               render: (b: boolean) => (b ? <Tag color="blue">内置</Tag> : <Tag>自定义</Tag>),
             },
-            { title: '描述', dataIndex: 'description', ellipsis: true, render: (v: string | null) => v ?? '-' },
+            {
+              title: '描述',
+              dataIndex: 'description',
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '权限',
               dataIndex: 'permissions',
@@ -214,16 +221,28 @@ export default function RolePage() {
         }
       >
         <Form<RoleForm> form={form} layout="vertical" initialValues={{ permissions: [] }}>
-          <Form.Item name="code" label="角色编码" rules={[{ required: !editing, message: '请输入编码' }]}>
+          <Form.Item
+            name="code"
+            label="角色编码"
+            rules={[{ required: !editing, message: '请输入编码' }]}
+          >
             <Input placeholder="如：workshop_manager" maxLength={32} disabled={!!editing} />
           </Form.Item>
-          <Form.Item name="name" label="角色名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="name"
+            label="角色名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input placeholder="如：车间主任" maxLength={64} />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} maxLength={255} placeholder="可选" />
           </Form.Item>
-          <Form.Item name="permissions" label="权限" rules={[{ required: true, message: '至少选择一项权限' }]}>
+          <Form.Item
+            name="permissions"
+            label="权限"
+            rules={[{ required: true, message: '至少选择一项权限' }]}
+          >
             <Select
               mode="multiple"
               allowClear

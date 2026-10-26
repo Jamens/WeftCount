@@ -35,77 +35,113 @@ class CountInput {
 }
 
 class CreateMaterialDto {
-  @IsOptional() @IsString() @MaxLength(32)
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
   code?: string
 
-  @IsString() @IsNotEmpty({ message: '物料名称不能为空' }) @MaxLength(128)
+  @IsString()
+  @IsNotEmpty({ message: '物料名称不能为空' })
+  @MaxLength(128)
   name!: string
 
   @IsEnum(['yarn', 'greige', 'finished', 'auxiliary', 'spare'], { message: '物料大类不合法' })
   category!: MaterialCategoryValue
 
-  @IsString() @IsNotEmpty({ message: '规格描述不能为空' }) @MaxLength(255)
+  @IsString()
+  @IsNotEmpty({ message: '规格描述不能为空' })
+  @MaxLength(255)
   specification!: string
 
-  @IsOptional() @IsEnum(['weight', 'length', 'area', 'count'])
+  @IsOptional()
+  @IsEnum(['weight', 'length', 'area', 'count'])
   measureMode?: MeasureMode
 
-  @IsOptional() @IsString() @MaxLength(16)
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
   primaryUnit?: string
 
-  @IsOptional() @IsString({ each: true })
+  @IsOptional()
+  @IsString({ each: true })
   allowedUnits?: string[]
 
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   batchManaged?: boolean
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   safetyStock?: number
 
   /** 采购提前期/采购周期（天）：补货点 = 日均用量×(提前期+周期)+安全库存 */
-  @IsOptional() @IsNumber() @Min(0, { message: '采购提前期不能为负' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0, { message: '采购提前期不能为负' })
   leadTimeDays?: number
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   standardPrice?: number
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string
 }
 
 class UpdateMaterialDto {
-  @IsOptional() @IsString() @MaxLength(32)
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
   code?: string
 
-  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(128)
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
   name?: string
 
-  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   specification?: string
 
-  @IsOptional() @IsEnum(['weight', 'length', 'area', 'count'])
+  @IsOptional()
+  @IsEnum(['weight', 'length', 'area', 'count'])
   measureMode?: MeasureMode
 
-  @IsOptional() @IsString() @MaxLength(16)
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
   primaryUnit?: string
 
-  @IsOptional() @IsString({ each: true })
+  @IsOptional()
+  @IsString({ each: true })
   allowedUnits?: string[]
 
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   batchManaged?: boolean
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   safetyStock?: number | null
 
   /** 采购提前期/采购周期（天） */
-  @IsOptional() @IsNumber() @Min(0, { message: '采购提前期不能为负' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0, { message: '采购提前期不能为负' })
   leadTimeDays?: number | null
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   standardPrice?: number | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
@@ -114,122 +150,187 @@ class UpdateMaterialDto {
  * 刻意不包含 name / measuredGsm 等业务字段：试算是纯计算，不需要落库信息
  */
 class TechParamsDto {
-  @IsNumber() @Min(1, { message: '成品门幅必须大于 0' })
+  @IsNumber()
+  @Min(1, { message: '成品门幅必须大于 0' })
   finishedWidth!: number
 
-  @IsNumber() @Min(1, { message: '经密必须大于 0' })
+  @IsNumber()
+  @Min(1, { message: '经密必须大于 0' })
   warpDensity!: number
 
-  @IsNumber() @Min(1, { message: '纬密必须大于 0' })
+  @IsNumber()
+  @Min(1, { message: '纬密必须大于 0' })
   weftDensity!: number
 
-  @IsOptional() @IsEnum(['plain', 'twill', 'satin', 'jacquard', 'leno', 'pile'])
+  @IsOptional()
+  @IsEnum(['plain', 'twill', 'satin', 'jacquard', 'leno', 'pile'])
   weaveType?: WeaveType
 
-  @ValidateNested() @Type(() => CountInput)
+  @ValidateNested()
+  @Type(() => CountInput)
   warpCount!: CountInput
 
-  @ValidateNested() @Type(() => CountInput)
+  @ValidateNested()
+  @Type(() => CountInput)
   weftCount!: CountInput
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   loomWidth?: number | null
 
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   widthAllowance?: number
 
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   warpLossRate?: number
 
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   weftLossRate?: number
 
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   picksPerMinute?: number | null
 
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   machineRunRate?: number
 }
 
 class CreateSpecDto extends TechParamsDto {
-  @IsOptional() @IsString() @MaxLength(32)
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
   code?: string
 
-  @IsString() @IsNotEmpty() @MaxLength(128)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
   name!: string
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   warpMaterialId?: string | null
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   weftMaterialId?: string | null
 
   /** 加工费（元/米），制造成本 = 纱线成本 + 加工费 */
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   overheadCostPerMeter?: number
 
   /** 出厂实测克重，仅用于校准，不影响计算值 */
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   measuredGsm?: number | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string
 }
 
 class UpdateSpecDto {
-  @IsOptional() @IsString() @MaxLength(128)
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
   name?: string
 
-  @IsOptional() @IsNumber() @Min(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
   finishedWidth?: number
 
-  @IsOptional() @IsNumber() @Min(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
   warpDensity?: number
 
-  @IsOptional() @IsNumber() @Min(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
   weftDensity?: number
 
-  @IsOptional() @IsEnum(['plain', 'twill', 'satin', 'jacquard', 'leno', 'pile'])
+  @IsOptional()
+  @IsEnum(['plain', 'twill', 'satin', 'jacquard', 'leno', 'pile'])
   weaveType?: WeaveType
 
-  @IsOptional() @ValidateNested() @Type(() => CountInput)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CountInput)
   warpCount?: CountInput
 
-  @IsOptional() @ValidateNested() @Type(() => CountInput)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CountInput)
   weftCount?: CountInput
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   warpMaterialId?: string | null
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   weftMaterialId?: string | null
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   loomWidth?: number | null
 
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   widthAllowance?: number
 
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   warpLossRate?: number
 
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   weftLossRate?: number
 
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   picksPerMinute?: number | null
 
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   machineRunRate?: number
 
   /** 加工费（元/米） */
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   overheadCostPerMeter?: number
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   measuredGsm?: number | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string
 }
 
@@ -250,7 +351,10 @@ export class MaterialController {
   @RequirePermission(Permission.MATERIAL_EDIT)
   @Audit({ action: 'create', module: 'material', targetType: 'material' })
   @ApiOperation({ summary: '新建物料' })
-  create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateMaterialDto): Promise<MaterialEntity> {
+  create(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateMaterialDto,
+  ): Promise<MaterialEntity> {
     return this.svc.create(ctx.tenantId, ctx.companyId, dto)
   }
 
@@ -304,10 +408,7 @@ export class MaterialController {
   @RequirePermission(Permission.MATERIAL_EDIT)
   @Audit({ action: 'update', module: 'material', targetType: 'material', targetIdParam: 'id' })
   @ApiOperation({ summary: '恢复启用物料' })
-  activate(
-    @CurrentUser() ctx: RequestContext,
-    @Param('id') id: string,
-  ): Promise<MaterialEntity> {
+  activate(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<MaterialEntity> {
     return this.svc.activate(ctx.tenantId, ctx.companyId, id)
   }
 }
@@ -323,7 +424,10 @@ export class GreigeSpecController {
   @RequirePermission(Permission.MATERIAL_EDIT)
   @Audit({ action: 'create', module: 'greige-spec', targetType: 'greige_spec' })
   @ApiOperation({ summary: '新建坯布规格（克重由工艺内核自动计算）' })
-  create(@CurrentUser() ctx: RequestContext, @Body() dto: CreateSpecDto): Promise<GreigeSpecEntity> {
+  create(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateSpecDto,
+  ): Promise<GreigeSpecEntity> {
     return this.svc.createSpec(ctx.tenantId, ctx.companyId, dto)
   }
 
@@ -365,7 +469,12 @@ export class GreigeSpecController {
 
   @Patch(':id')
   @RequirePermission(Permission.MATERIAL_EDIT)
-  @Audit({ action: 'update', module: 'greige-spec', targetType: 'greige_spec', targetIdParam: 'id' })
+  @Audit({
+    action: 'update',
+    module: 'greige-spec',
+    targetType: 'greige_spec',
+    targetIdParam: 'id',
+  })
   @ApiOperation({ summary: '更新规格（影响计算的字段变更会重算克重）' })
   update(
     @CurrentUser() ctx: RequestContext,

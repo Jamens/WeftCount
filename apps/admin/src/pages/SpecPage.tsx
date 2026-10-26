@@ -17,7 +17,13 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { PlusOutlined, PrinterOutlined, ReloadOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined,
+  PrinterOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
 import { api } from '../lib/api'
 import { usePrint } from '../lib/print'
 import { SpecSheet } from '../components/print-docs'
@@ -173,7 +179,10 @@ export default function SpecPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             坯布规格
@@ -217,7 +226,11 @@ export default function SpecPage() {
           loading={loading}
           dataSource={data}
           onRow={(r) => ({ onClick: () => setDetail(r) })}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '编码', dataIndex: 'code', width: 90 },
             { title: '名称', dataIndex: 'name', width: 180 },
@@ -231,8 +244,7 @@ export default function SpecPage() {
             {
               title: '经纬密',
               width: 130,
-              render: (_, r) =>
-                `${fmt(r.warpDensity, 1)}×${fmt(r.weftDensity, 1)} 根/英寸`,
+              render: (_, r) => `${fmt(r.warpDensity, 1)}×${fmt(r.weftDensity, 1)} 根/英寸`,
             },
             {
               title: '经/纬纱支',
@@ -289,7 +301,9 @@ export default function SpecPage() {
             <Descriptions.Item label="编码">{detail.code}</Descriptions.Item>
             <Descriptions.Item label="名称">{detail.name}</Descriptions.Item>
             <Descriptions.Item label="门幅">{fmt(detail.finishedWidth, 2)} cm</Descriptions.Item>
-            <Descriptions.Item label="组织">{WEAVE_TYPE_LABEL[detail.weaveType] ?? detail.weaveType}</Descriptions.Item>
+            <Descriptions.Item label="组织">
+              {WEAVE_TYPE_LABEL[detail.weaveType] ?? detail.weaveType}
+            </Descriptions.Item>
             <Descriptions.Item label="经密">{fmt(detail.warpDensity, 2)} 根/英寸</Descriptions.Item>
             <Descriptions.Item label="纬密">{fmt(detail.weftDensity, 2)} 根/英寸</Descriptions.Item>
             <Descriptions.Item label="经纱支数">
@@ -298,7 +312,9 @@ export default function SpecPage() {
             <Descriptions.Item label="纬纱支数">
               {dec(detail.weftCountValue)} {COUNT_SYSTEM_LABEL[detail.weftCountSystem]}
             </Descriptions.Item>
-            <Descriptions.Item label="计算克重">{fmt(detail.calculatedGsm, 2)} g/m²</Descriptions.Item>
+            <Descriptions.Item label="计算克重">
+              {fmt(detail.calculatedGsm, 2)} g/m²
+            </Descriptions.Item>
             <Descriptions.Item label="实测克重">
               {detail.measuredGsm == null ? '-' : `${fmt(detail.measuredGsm, 2)} g/m²`}
             </Descriptions.Item>
@@ -337,7 +353,11 @@ export default function SpecPage() {
             weftCount: { system: 'NeS' },
           }}
         >
-          <Form.Item name="name" label="规格名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="name"
+            label="规格名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input placeholder="如：全棉府绸 120×72" maxLength={128} />
           </Form.Item>
           <Row gutter={12}>
@@ -374,7 +394,12 @@ export default function SpecPage() {
               <Form.Item label="经纱支数" required>
                 <Space.Compact style={{ width: '100%' }}>
                   <Form.Item name={['warpCount', 'value']} noStyle rules={[{ required: true }]}>
-                    <InputNumber style={{ width: '60%' }} min={0.01} precision={2} placeholder="40" />
+                    <InputNumber
+                      style={{ width: '60%' }}
+                      min={0.01}
+                      precision={2}
+                      placeholder="40"
+                    />
                   </Form.Item>
                   <Form.Item name={['warpCount', 'system']} noStyle>
                     <Select style={{ width: '40%' }} options={COUNT_SYSTEM_OPTIONS} />
@@ -386,7 +411,12 @@ export default function SpecPage() {
               <Form.Item label="纬纱支数" required>
                 <Space.Compact style={{ width: '100%' }}>
                   <Form.Item name={['weftCount', 'value']} noStyle rules={[{ required: true }]}>
-                    <InputNumber style={{ width: '60%' }} min={0.01} precision={2} placeholder="40" />
+                    <InputNumber
+                      style={{ width: '60%' }}
+                      min={0.01}
+                      precision={2}
+                      placeholder="40"
+                    />
                   </Form.Item>
                   <Form.Item name={['weftCount', 'system']} noStyle>
                     <Select style={{ width: '40%' }} options={COUNT_SYSTEM_OPTIONS} />
@@ -426,19 +456,32 @@ export default function SpecPage() {
           </Row>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="overheadCostPerMeter" label="加工费(元/米)" extra="制造成本 = 纱线成本 + 加工费；按电费/人工/折旧核定">
+              <Form.Item
+                name="overheadCostPerMeter"
+                label="加工费(元/米)"
+                extra="制造成本 = 纱线成本 + 加工费；按电费/人工/折旧核定"
+              >
                 <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="如 0.5" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="measuredGsm" label="出厂实测克重(g/m²)" extra="仅用于校准内核的坯布→成品换算系数，不影响计算值">
+          <Form.Item
+            name="measuredGsm"
+            label="出厂实测克重(g/m²)"
+            extra="仅用于校准内核的坯布→成品换算系数，不影响计算值"
+          >
             <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="可选" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} maxLength={255} />
           </Form.Item>
 
-          <Button icon={<ThunderboltOutlined />} loading={previewing} onClick={() => void onPreview()} block>
+          <Button
+            icon={<ThunderboltOutlined />}
+            loading={previewing}
+            onClick={() => void onPreview()}
+            block
+          >
             试算预览（克重 / 用纱量 / 日产量）
           </Button>
         </Form>
@@ -454,9 +497,15 @@ export default function SpecPage() {
                 <Descriptions.Item label="坯布克重">
                   <Text strong>{fmt(preview.totalGsm, 2)} g/m²</Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="每米重量">{fmt(preview.kgPerMeter, 4)} kg/m</Descriptions.Item>
-                <Descriptions.Item label="每平米重量">{fmt(preview.kgPerM2, 4)} kg/m²</Descriptions.Item>
-                <Descriptions.Item label="百米用纱">{fmt(preview.totalKgPer100m, 3)} kg</Descriptions.Item>
+                <Descriptions.Item label="每米重量">
+                  {fmt(preview.kgPerMeter, 4)} kg/m
+                </Descriptions.Item>
+                <Descriptions.Item label="每平米重量">
+                  {fmt(preview.kgPerM2, 4)} kg/m²
+                </Descriptions.Item>
+                <Descriptions.Item label="百米用纱">
+                  {fmt(preview.totalKgPer100m, 3)} kg
+                </Descriptions.Item>
                 <Descriptions.Item label="日产量" span={2}>
                   {fmt(preview.dailyOutputM, 1)} 米/天
                 </Descriptions.Item>

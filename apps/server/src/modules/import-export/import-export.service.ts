@@ -17,11 +17,16 @@ export interface ImportResult {
 }
 
 const CATEGORY_MAP: Record<string, MaterialCategoryValue> = {
-  纱线: 'yarn', yarn: 'yarn',
-  坯布: 'greige', greige: 'greige',
-  成品: 'finished', finished: 'finished',
-  辅料: 'auxiliary', auxiliary: 'auxiliary',
-  备件: 'spare', spare: 'spare',
+  纱线: 'yarn',
+  yarn: 'yarn',
+  坯布: 'greige',
+  greige: 'greige',
+  成品: 'finished',
+  finished: 'finished',
+  辅料: 'auxiliary',
+  auxiliary: 'auxiliary',
+  备件: 'spare',
+  spare: 'spare',
 }
 
 @Injectable()
@@ -41,7 +46,16 @@ export class ImportExportService {
   // -------------------------------------------------------------------------
 
   materialTemplateCsv(): string {
-    const header = ['物料名称*', '大类*', '规格描述*', '计量方式', '主单位', '安全库存', '标准单价', '备注']
+    const header = [
+      '物料名称*',
+      '大类*',
+      '规格描述*',
+      '计量方式',
+      '主单位',
+      '安全库存',
+      '标准单价',
+      '备注',
+    ]
     const sample: string[][] = [
       ['精梳棉纱 40S', '纱线', '40S/1', 'weight', 'kg', '500', '22', '示例行，导入前可删除'],
       ['全棉府绸 120×72', '坯布', '40S 120×72', 'length', 'm', '', '', '示例行'],
@@ -50,18 +64,34 @@ export class ImportExportService {
     return toCsv(rows, true)
   }
 
-  async importMaterials(tenantId: string, companyId: string, csvText: string): Promise<ImportResult> {
+  async importMaterials(
+    tenantId: string,
+    companyId: string,
+    csvText: string,
+  ): Promise<ImportResult> {
     const rows = parseCsv(csvText)
-    if (rows.length < 2) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'CSV 至少需要表头 + 1 行数据' })
+    if (rows.length < 2)
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        message: 'CSV 至少需要表头 + 1 行数据',
+      })
     const header = rows[0].map((h) => h.trim())
     const col = (name: string) => header.indexOf(name)
     const ci = {
-      name: col('物料名称*'), category: col('大类*'), spec: col('规格描述*'),
-      measure: col('计量方式'), unit: col('主单位'),
-      safety: col('安全库存'), price: col('标准单价'), remark: col('备注'),
+      name: col('物料名称*'),
+      category: col('大类*'),
+      spec: col('规格描述*'),
+      measure: col('计量方式'),
+      unit: col('主单位'),
+      safety: col('安全库存'),
+      price: col('标准单价'),
+      remark: col('备注'),
     }
     if (ci.name < 0 || ci.category < 0 || ci.spec < 0) {
-      throw new BadRequestException({ code: 'VALIDATION_FAILED', message: '表头缺少必填列：物料名称*、大类*、规格描述*' })
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        message: '表头缺少必填列：物料名称*、大类*、规格描述*',
+      })
     }
 
     const result: ImportResult = { total: rows.length - 1, succeeded: 0, failed: 0, errors: [] }
@@ -78,8 +108,12 @@ export class ImportExportService {
         if (!category) throw new Error(`大类「${catRaw}」不合法（纱线/坯布/成品/辅料/备件）`)
 
         const input: CreateMaterialInput = {
-          name, category, specification: spec,
-          ...(ci.measure >= 0 && r[ci.measure] ? { measureMode: r[ci.measure].trim() as never } : {}),
+          name,
+          category,
+          specification: spec,
+          ...(ci.measure >= 0 && r[ci.measure]
+            ? { measureMode: r[ci.measure].trim() as never }
+            : {}),
           ...(ci.unit >= 0 && r[ci.unit] ? { primaryUnit: r[ci.unit].trim() } : {}),
           ...(ci.safety >= 0 && r[ci.safety] ? { safetyStock: Number(r[ci.safety]) } : {}),
           ...(ci.price >= 0 && r[ci.price] ? { standardPrice: Number(r[ci.price]) } : {}),
@@ -98,10 +132,29 @@ export class ImportExportService {
 
   async exportMaterialsXlsx(companyId: string): Promise<Buffer> {
     const mats = await this.materialRepo.find({ where: { companyId }, order: { code: 'ASC' } })
-    const header = ['编码', '名称', '大类', '规格描述', '计量方式', '主单位', '安全库存', '标准单价', '状态', '备注']
+    const header = [
+      '编码',
+      '名称',
+      '大类',
+      '规格描述',
+      '计量方式',
+      '主单位',
+      '安全库存',
+      '标准单价',
+      '状态',
+      '备注',
+    ]
     const rows = mats.map((m) => [
-      m.code, m.name, m.category, m.specification, m.measureMode, m.primaryUnit,
-      m.safetyStock ?? '', m.standardPrice ?? '', m.status, m.remark ?? '',
+      m.code,
+      m.name,
+      m.category,
+      m.specification,
+      m.measureMode,
+      m.primaryUnit,
+      m.safetyStock ?? '',
+      m.standardPrice ?? '',
+      m.status,
+      m.remark ?? '',
     ])
     return buildXlsx(header, rows)
   }
@@ -112,22 +165,66 @@ export class ImportExportService {
 
   specTemplateCsv(): string {
     const header = [
-      '规格名称*', '成品幅宽cm*', '经密(根/英寸)*', '纬密(根/英寸)*', '组织',
-      '经纱支数*', '经纱体系*', '纬纱支数*', '纬纱体系*', '上机幅宽cm', '加放量cm', '经纱损耗率', '纬纱损耗率', '备注',
+      '规格名称*',
+      '成品幅宽cm*',
+      '经密(根/英寸)*',
+      '纬密(根/英寸)*',
+      '组织',
+      '经纱支数*',
+      '经纱体系*',
+      '纬纱支数*',
+      '纬纱体系*',
+      '上机幅宽cm',
+      '加放量cm',
+      '经纱损耗率',
+      '纬纱损耗率',
+      '备注',
     ]
-    const sample: string[][] = [['全棉府绸 120×72', '150', '120', '72', 'plain', '40', 'NeS', '40', 'NeS', '150', '10', '0.055', '0.05', '示例行']]
+    const sample: string[][] = [
+      [
+        '全棉府绸 120×72',
+        '150',
+        '120',
+        '72',
+        'plain',
+        '40',
+        'NeS',
+        '40',
+        'NeS',
+        '150',
+        '10',
+        '0.055',
+        '0.05',
+        '示例行',
+      ],
+    ]
     const rows: string[][] = [header, ...sample]
     return toCsv(rows, true)
   }
 
   async importSpecs(tenantId: string, companyId: string, csvText: string): Promise<ImportResult> {
     const rows = parseCsv(csvText)
-    if (rows.length < 2) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'CSV 至少需要表头 + 1 行数据' })
+    if (rows.length < 2)
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        message: 'CSV 至少需要表头 + 1 行数据',
+      })
     const header = rows[0].map((h) => h.trim())
     const col = (n: string) => header.indexOf(n)
-    const need = ['规格名称*', '成品幅宽cm*', '经密(根/英寸)*', '纬密(根/英寸)*', '经纱支数*', '纬纱支数*']
+    const need = [
+      '规格名称*',
+      '成品幅宽cm*',
+      '经密(根/英寸)*',
+      '纬密(根/英寸)*',
+      '经纱支数*',
+      '纬纱支数*',
+    ]
     for (const n of need) {
-      if (col(n) < 0) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: `表头缺少必填列：${n}` })
+      if (col(n) < 0)
+        throw new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          message: `表头缺少必填列：${n}`,
+        })
     }
     const g = (r: string[], n: string) => (col(n) >= 0 ? (r[col(n)] ?? '').trim() : '')
     const numOr = (s: string, d: number) => (s === '' ? d : Number(s))
@@ -150,7 +247,8 @@ export class ImportExportService {
         await this.materials.createSpec(tenantId, companyId, {
           name,
           finishedWidth: width,
-          warpDensity, weftDensity,
+          warpDensity,
+          weftDensity,
           weaveType: (g(r, '组织') || 'plain') as never,
           warpCount: { value: warpVal, system: (g(r, '经纱体系*') || 'NeS') as never },
           weftCount: { value: weftVal, system: (g(r, '纬纱体系*') || 'NeS') as never },

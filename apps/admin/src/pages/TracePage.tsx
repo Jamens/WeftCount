@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { App as AntdApp, Button, Card, Descriptions, Empty, Input, Select, Space, Table, Tag, Typography } from 'antd'
+import {
+  App as AntdApp,
+  Button,
+  Card,
+  Descriptions,
+  Empty,
+  Input,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'antd'
 import { NodeIndexOutlined, SearchOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import {
@@ -101,7 +113,9 @@ function SpecCard({ spec }: { spec: SpecBrief | null }) {
   return (
     <Card size="small" title="规格 / 工艺" style={{ marginBottom: 12 }}>
       <Descriptions column={2} size="small">
-        <Descriptions.Item label="规格">{spec.code} {spec.name}</Descriptions.Item>
+        <Descriptions.Item label="规格">
+          {spec.code} {spec.name}
+        </Descriptions.Item>
         <Descriptions.Item label="门幅">{fmt(spec.finishedWidth, 0)} cm</Descriptions.Item>
         <Descriptions.Item label="经纱">{spec.warpCount}</Descriptions.Item>
         <Descriptions.Item label="纬纱">{spec.weftCount}</Descriptions.Item>
@@ -170,7 +184,9 @@ export default function TracePage() {
           message.warning('请输入件卡号')
           return
         }
-        const res = await api.get<RollTrace>(`/inventory/rolls/trace?rollNo=${encodeURIComponent(no)}`)
+        const res = await api.get<RollTrace>(
+          `/inventory/rolls/trace?rollNo=${encodeURIComponent(no)}`,
+        )
         setRollTrace(res.data.data)
         setSalesTrace(null)
         setBatchTrace(null)
@@ -210,11 +226,17 @@ export default function TracePage() {
     void search()
   }, [deepLinkFilled, canView, mode, rollNo, search])
 
-  const options = mode === 'sales' ? salesDocs.map((d) => ({ value: d.id, label: d.docNo })) : batches.map((b) => ({ value: b.id, label: b.batchNo }))
+  const options =
+    mode === 'sales'
+      ? salesDocs.map((d) => ({ value: d.id, label: d.docNo }))
+      : batches.map((b) => ({ value: b.id, label: b.batchNo }))
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             全链路追溯
@@ -226,7 +248,9 @@ export default function TracePage() {
       </Space>
 
       {!canView ? (
-        <Card size="small"><Text type="secondary">无报表查看权限</Text></Card>
+        <Card size="small">
+          <Text type="secondary">无报表查看权限</Text>
+        </Card>
       ) : (
         <>
           <Card size="small" style={{ marginBottom: 12 }}>
@@ -266,7 +290,12 @@ export default function TracePage() {
                   optionFilterProp="label"
                 />
               )}
-              <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={() => void search()}>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                loading={loading}
+                onClick={() => void search()}
+              >
                 追溯
               </Button>
               {mode === 'roll' && (
@@ -278,12 +307,26 @@ export default function TracePage() {
           </Card>
 
           {salesTrace && (
-            <Card size="small" title={<><NodeIndexOutlined /> 销售单追溯</>}>
+            <Card
+              size="small"
+              title={
+                <>
+                  <NodeIndexOutlined /> 销售单追溯
+                </>
+              }
+            >
               <Descriptions column={2} size="small" bordered style={{ marginBottom: 12 }}>
                 <Descriptions.Item label="销售单">{salesTrace.salesDoc.docNo}</Descriptions.Item>
-                <Descriptions.Item label="客户">{salesTrace.customer?.name ?? salesTrace.salesDoc.partnerName ?? '-'}</Descriptions.Item>
-                <Descriptions.Item label="销售订单">{salesTrace.salesOrder?.orderNo ?? '（未挂订单）'}</Descriptions.Item>
-                <Descriptions.Item label="出库量">{fmt(salesTrace.salesDoc.quantityM, 1)} m / {fmt(salesTrace.salesDoc.weightKg, 1)} kg / {fmt(salesTrace.salesDoc.areaM2, 1)} m²</Descriptions.Item>
+                <Descriptions.Item label="客户">
+                  {salesTrace.customer?.name ?? salesTrace.salesDoc.partnerName ?? '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="销售订单">
+                  {salesTrace.salesOrder?.orderNo ?? '（未挂订单）'}
+                </Descriptions.Item>
+                <Descriptions.Item label="出库量">
+                  {fmt(salesTrace.salesDoc.quantityM, 1)} m / {fmt(salesTrace.salesDoc.weightKg, 1)}{' '}
+                  kg / {fmt(salesTrace.salesDoc.areaM2, 1)} m²
+                </Descriptions.Item>
               </Descriptions>
               <SpecCard spec={salesTrace.spec} />
               <Card size="small" title={`消耗批次（${salesTrace.consumedBatches.length}）`}>
@@ -296,7 +339,9 @@ export default function TracePage() {
                         <Space wrap>
                           <Text strong>批次 {b.batchNo}</Text>
                           {b.warehouseName && <Tag>{b.warehouseName}</Tag>}
-                          <Text type="secondary">消耗 {fmt(b.consumedM, 1)}m / {fmt(b.consumedKg, 1)}kg</Text>
+                          <Text type="secondary">
+                            消耗 {fmt(b.consumedM, 1)}m / {fmt(b.consumedKg, 1)}kg
+                          </Text>
                         </Space>
                         <div style={{ marginTop: 4 }}>
                           <OriginChain origin={b.origin} />
@@ -310,14 +355,25 @@ export default function TracePage() {
           )}
 
           {rollTrace && (
-            <Card size="small" title={<><NodeIndexOutlined /> 件卡追溯</>}>
+            <Card
+              size="small"
+              title={
+                <>
+                  <NodeIndexOutlined /> 件卡追溯
+                </>
+              }
+            >
               <Descriptions column={2} size="small" bordered style={{ marginBottom: 12 }}>
                 <Descriptions.Item label="件卡号">
                   <Text strong>{rollTrace.roll.rollNo}</Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="状态">
                   <Tag color={rollTrace.roll.status === 'in_stock' ? 'green' : 'default'}>
-                    {rollTrace.roll.status === 'in_stock' ? '在库' : rollTrace.roll.status === 'out' ? '已出库' : rollTrace.roll.status}
+                    {rollTrace.roll.status === 'in_stock'
+                      ? '在库'
+                      : rollTrace.roll.status === 'out'
+                        ? '已出库'
+                        : rollTrace.roll.status}
                   </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="长度">
@@ -327,7 +383,9 @@ export default function TracePage() {
                   {fmt(rollTrace.roll.remainingM, 1)} m / {fmt(rollTrace.roll.remainingKg, 1)} kg
                 </Descriptions.Item>
                 <Descriptions.Item label="物料">
-                  {rollTrace.material ? `${rollTrace.material.code} ${rollTrace.material.name}` : '-'}
+                  {rollTrace.material
+                    ? `${rollTrace.material.code} ${rollTrace.material.name}`
+                    : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="所属批次">{rollTrace.batch.batchNo}</Descriptions.Item>
                 <Descriptions.Item label="规格">{rollTrace.spec.specName}</Descriptions.Item>
@@ -342,7 +400,9 @@ export default function TracePage() {
                   <Text type="secondary">（无来源记录）</Text>
                 ) : (
                   <Space wrap>
-                    <Tag color={rollTrace.source.docType === 'production_report' ? 'purple' : 'green'}>
+                    <Tag
+                      color={rollTrace.source.docType === 'production_report' ? 'purple' : 'green'}
+                    >
                       {rollTrace.source.docType === 'production_report' ? '织造产出' : '采购入库'}
                     </Tag>
                     <Text>单据 </Text>
@@ -415,12 +475,23 @@ export default function TracePage() {
           )}
 
           {batchTrace && (
-            <Card size="small" title={<><NodeIndexOutlined /> 批次追溯</>}>
+            <Card
+              size="small"
+              title={
+                <>
+                  <NodeIndexOutlined /> 批次追溯
+                </>
+              }
+            >
               <Descriptions column={2} size="small" bordered style={{ marginBottom: 12 }}>
                 <Descriptions.Item label="批次">{batchTrace.batch.batchNo}</Descriptions.Item>
                 <Descriptions.Item label="状态">{batchTrace.batch.status}</Descriptions.Item>
-                <Descriptions.Item label="入库量">{fmt(batchTrace.batch.quantity, 1)} m / {fmt(batchTrace.batch.weightKg, 1)} kg</Descriptions.Item>
-                <Descriptions.Item label="剩余">{fmt(batchTrace.batch.remaining, 1)} m</Descriptions.Item>
+                <Descriptions.Item label="入库量">
+                  {fmt(batchTrace.batch.quantity, 1)} m / {fmt(batchTrace.batch.weightKg, 1)} kg
+                </Descriptions.Item>
+                <Descriptions.Item label="剩余">
+                  {fmt(batchTrace.batch.remaining, 1)} m
+                </Descriptions.Item>
               </Descriptions>
               <SpecCard spec={batchTrace.spec} />
               <Card size="small" title="来源" style={{ marginBottom: 12 }}>
@@ -443,9 +514,23 @@ export default function TracePage() {
                         width: 110,
                         render: (v: string) => docTypeLabel(v),
                       },
-                      { title: '出库(m)', dataIndex: 'outM', width: 100, align: 'right', render: (v: number) => fmt(v, 1) },
-                      { title: '往来单位', dataIndex: 'partnerName', render: (v: string | null) => v ?? '-' },
-                      { title: '时间', dataIndex: 'date', render: (v: string) => new Date(v).toLocaleString('zh-CN') },
+                      {
+                        title: '出库(m)',
+                        dataIndex: 'outM',
+                        width: 100,
+                        align: 'right',
+                        render: (v: number) => fmt(v, 1),
+                      },
+                      {
+                        title: '往来单位',
+                        dataIndex: 'partnerName',
+                        render: (v: string | null) => v ?? '-',
+                      },
+                      {
+                        title: '时间',
+                        dataIndex: 'date',
+                        render: (v: string) => new Date(v).toLocaleString('zh-CN'),
+                      },
                     ]}
                   />
                 )}

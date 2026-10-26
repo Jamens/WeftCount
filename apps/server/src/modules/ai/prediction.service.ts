@@ -57,13 +57,22 @@ export class PredictionService {
   ) {}
 
   /** 确定性算料：需求/库存/缺口/成本 */
-  async predict(tenantId: string, companyId: string, specId: string, plannedMeters: number): Promise<PredictionData> {
+  async predict(
+    tenantId: string,
+    companyId: string,
+    specId: string,
+    plannedMeters: number,
+  ): Promise<PredictionData> {
     const spec = await this.materials.findSpec(tenantId, companyId, specId)
     const snap = this.materials.getSnapshot(spec)
     const warpKgPer100m = Number(snap.warpKgPer100m)
     const weftKgPer100m = Number(snap.weftKgPer100m)
 
-    const build = async (role: 'warp' | 'weft', materialId: string | null, kgPer100m: number): Promise<YarnNeed> => {
+    const build = async (
+      role: 'warp' | 'weft',
+      materialId: string | null,
+      kgPer100m: number,
+    ): Promise<YarnNeed> => {
       const needKg = (kgPer100m / 100) * plannedMeters
       let stockKg = 0
       let pricePerKg: number | null = null
@@ -100,25 +109,40 @@ export class PredictionService {
     const weft = await build('weft', spec.weftMaterialId ?? null, weftKgPer100m)
     const totalNeedKg = warp.needKg + weft.needKg
     const totalGapKg = warp.gapKg + weft.gapKg
-    const hasPrice = (warp.pricePerKg != null || weft.pricePerKg != null)
+    const hasPrice = warp.pricePerKg != null || weft.pricePerKg != null
     const estPurchaseCost = hasPrice
-      ? (warp.pricePerKg != null ? warp.gapKg * warp.pricePerKg : 0) + (weft.pricePerKg != null ? weft.gapKg * weft.pricePerKg : 0)
+      ? (warp.pricePerKg != null ? warp.gapKg * warp.pricePerKg : 0) +
+        (weft.pricePerKg != null ? weft.gapKg * weft.pricePerKg : 0)
       : null
 
     return {
-      specId, specName: spec.name, plannedMeters,
-      warp, weft, totalNeedKg, totalGapKg, estPurchaseCost,
-      warpKgPer100m, weftKgPer100m,
+      specId,
+      specName: spec.name,
+      plannedMeters,
+      warp,
+      weft,
+      totalNeedKg,
+      totalGapKg,
+      estPurchaseCost,
+      warpKgPer100m,
+      weftKgPer100m,
     }
   }
 
   /** 用料预测 + AI 采购建议 */
-  async advise(tenantId: string, companyId: string, specId: string, plannedMeters: number): Promise<AiInsight<PredictionData>> {
+  async advise(
+    tenantId: string,
+    companyId: string,
+    specId: string,
+    plannedMeters: number,
+  ): Promise<AiInsight<PredictionData>> {
     const data = await this.predict(tenantId, companyId, specId, plannedMeters)
     const derivation = [
       `计划产量 ${plannedMeters} 米（${data.specName}），工艺单耗：经纱 ${data.warpKgPer100m.toFixed(2)} + 纬纱 ${data.weftKgPer100m.toFixed(2)} kg/100m（含实测校准系数）`,
       `需经纱 ${data.warp.needKg.toFixed(1)}kg（库存 ${data.warp.stockKg.toFixed(1)}，缺口 ${data.warp.gapKg.toFixed(1)}）、纬纱 ${data.weft.needKg.toFixed(1)}kg（库存 ${data.weft.stockKg.toFixed(1)}，缺口 ${data.weft.gapKg.toFixed(1)}）`,
-      data.estPurchaseCost != null ? `预计采购成本 ${data.estPurchaseCost.toFixed(0)} 元` : '纱线无价格数据，不估算成本',
+      data.estPurchaseCost != null
+        ? `预计采购成本 ${data.estPurchaseCost.toFixed(0)} 元`
+        : '纱线无价格数据，不估算成本',
     ]
     const enough = data.totalGapKg <= 0
     const fallback: AiInsight<PredictionData> = {
@@ -144,7 +168,10 @@ export class PredictionService {
     ])
     if (!res.ok) return fallback
     try {
-      const parsed = JSON.parse(extractJson(res.content)) as { reasoning?: string; confidence?: number }
+      const parsed = JSON.parse(extractJson(res.content)) as {
+        reasoning?: string
+        confidence?: number
+      }
       return {
         source: 'llm',
         confidence: Math.min(Math.max(Number(parsed.confidence ?? 0.7), 0), 1),

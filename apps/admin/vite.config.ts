@@ -7,7 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@weftcount/shared': fileURLToPath(new URL('../../packages/shared/dist-esm/index.js', import.meta.url)),
+      '@weftcount/shared': fileURLToPath(
+        new URL('../../packages/shared/dist-esm/index.js', import.meta.url),
+      ),
     },
   },
   server: {

@@ -17,7 +17,8 @@ import type { SpecCalculationSnapshot } from '@weftcount/shared'
  *   completed  已完成（累计产出≥计划量自动转，或手动完成）
  *   cancelled  已取消
  */
-export type ProductionOrderStatus = 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+export type ProductionOrderStatus =
+  'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 
 /**
  * 生产工单（织造任务）
@@ -68,7 +69,11 @@ export class ProductionOrderEntity {
   @Column({ type: 'char', length: 36, nullable: true })
   machineId!: string | null
 
-  @Column({ type: 'enum', enum: ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'], default: 'draft' })
+  @Column({
+    type: 'enum',
+    enum: ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'],
+    default: 'draft',
+  })
   status!: ProductionOrderStatus
 
   @Column({ type: 'date', nullable: true })

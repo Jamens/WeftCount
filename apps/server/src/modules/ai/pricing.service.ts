@@ -52,7 +52,9 @@ export class PricingService {
     if (!Number.isFinite(quantityM) || quantityM <= 0) {
       throw new BadRequestException({ code: 'VALIDATION_FAILED', message: '报价数量必须大于 0' })
     }
-    const targetMargin = Number.isFinite(Number(input.targetMarginRate)) ? Number(input.targetMarginRate) : DEFAULT_TARGET_MARGIN
+    const targetMargin = Number.isFinite(Number(input.targetMarginRate))
+      ? Number(input.targetMarginRate)
+      : DEFAULT_TARGET_MARGIN
 
     const costRow = await this.cost.specCost(tenantId, companyId, input.specId)
     if (!costRow) {
@@ -66,7 +68,8 @@ export class PricingService {
     if (!costKnown && !band) {
       throw new BadRequestException({
         code: 'VALIDATION_FAILED',
-        message: '该规格缺少纱线价格(成本数据)与历史成交价，无法给出可靠报价，请先补纱线采购价或成交记录',
+        message:
+          '该规格缺少纱线价格(成本数据)与历史成交价，无法给出可靠报价，请先补纱线采购价或成交记录',
       })
     }
     // 确定性事实
@@ -104,7 +107,9 @@ export class PricingService {
       `规格：${costRow.specName}（${costRow.specCode}）\n` +
       `数量：${quantityM} 米\n` +
       `单米成本：${costPerM.toFixed(4)} 元（材料 ${costRow.materialCostPerM.toFixed(4)} + 加工费 ${costRow.overheadPerM.toFixed(4)}）\n` +
-      (band ? `该规格近 ${band.count} 笔成交价：${band.min.toFixed(2)}~${band.max.toFixed(2)}，均价 ${band.avg.toFixed(2)} 元/米\n` : '该规格无历史成交\n') +
+      (band
+        ? `该规格近 ${band.count} 笔成交价：${band.min.toFixed(2)}~${band.max.toFixed(2)}，均价 ${band.avg.toFixed(2)} 元/米\n`
+        : '该规格无历史成交\n') +
       `目标毛利率：${(targetMargin * 100).toFixed(1)}%\n` +
       `请给出建议报价。`
     const res = await this.llm.chat([
@@ -140,7 +145,12 @@ export class PricingService {
   }
 
   /** 规则建议价：成本已知则成本加成并向历史成交均价靠拢；成本未知则退化为历史均价 */
-  private rulePrice(costPerM: number, costKnown: boolean, targetMargin: number, band: { min: number; max: number; avg: number } | null): number {
+  private rulePrice(
+    costPerM: number,
+    costKnown: boolean,
+    targetMargin: number,
+    band: { min: number; max: number; avg: number } | null,
+  ): number {
     if (!costKnown) {
       // 成本缺失：只能参考历史成交价带（此时必有 band，否则上面已报错）
       return band ? round2(band.avg) : 0
@@ -154,7 +164,13 @@ export class PricingService {
   }
 
   private buildData(
-    costRow: { specId: string; specName: string; totalCostPerM: number; materialCostPerM: number; overheadPerM: number },
+    costRow: {
+      specId: string
+      specName: string
+      totalCostPerM: number
+      materialCostPerM: number
+      overheadPerM: number
+    },
     quantityM: number,
     price: number,
     targetMargin: number,

@@ -81,7 +81,11 @@ describe('整匹扣分密度 scoreRoll', () => {
   it('收货红线独立判定：密度 > 4 才报警，与定等无关', () => {
     const clean = scoreRoll({ meters: 1000, widthInch: 63, totalPoints: 4 })
     const dirty = scoreRoll({ meters: 10, widthInch: 63, totalPoints: 4 })
-    const atLimit = scoreRoll({ meters: 100, widthInch: 63, totalPoints: RECEIVING_LIMIT_PER_100_SQYD * sqYardsOf(100, 63) / 100 })
+    const atLimit = scoreRoll({
+      meters: 100,
+      widthInch: 63,
+      totalPoints: (RECEIVING_LIMIT_PER_100_SQYD * sqYardsOf(100, 63)) / 100,
+    })
 
     expect(clean.overReceivingLimit).toBe(false)
     expect(dirty.overReceivingLimit).toBe(true)

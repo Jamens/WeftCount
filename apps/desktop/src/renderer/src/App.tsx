@@ -114,11 +114,15 @@ export default function App() {
   // 权限就绪后，若当前页无权访问，自动落到第一个有权的页面
   // 有权的车间视图；权限未加载时为空数组
   const allowedViews = useMemo(
-    () => (session ? (Object.keys(VIEW_PERM) as View[]).filter((v) => sessionStore.has(VIEW_PERM[v])) : []),
-    [session]
+    () =>
+      session
+        ? (Object.keys(VIEW_PERM) as View[]).filter((v) => sessionStore.has(VIEW_PERM[v]))
+        : [],
+    [session],
   )
   // 渲染前就落到有权的视图：只靠 effect 后置切换会先渲染一次无权页再切，仍会撞 403
-  const safeView: View = session && sessionStore.has(VIEW_PERM[view]) ? view : (allowedViews[0] ?? view)
+  const safeView: View =
+    session && sessionStore.has(VIEW_PERM[view]) ? view : (allowedViews[0] ?? view)
   useEffect(() => {
     if (safeView !== view) setView(safeView)
   }, [safeView, view])
@@ -196,38 +200,38 @@ export default function App() {
               </Text>
             </Space>
           </Layout.Header>
-        <Layout style={{ background: token.colorBgLayout }}>
-          <Layout.Sider
-            width={176}
-            className="weft-sider"
-            style={{
-              background: shellBg,
-              borderRight: `1px solid ${shellBorder}`,
-            }}
-          >
-            <Menu
-              theme={mode}
-              mode="inline"
-              style={{ background: 'transparent', borderInlineEnd: 0 }}
-              selectedKeys={[safeView]}
-              items={[
-                { key: 'report', icon: <FundOutlined />, label: '织机报工' },
-                { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
-                { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
-                { key: 'pickin', icon: <InboxOutlined />, label: '扫码入库' },
-                { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
-                { key: 'rollcard', icon: <BarcodeOutlined />, label: '件卡打印' },
-                { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
-                { key: 'inspect', icon: <FileSearchOutlined />, label: '验布录入' },
-              ]
-                // 菜单按权限门控：低权限账号(如挡车工)看不到无权访问的车间页，
-                // 避免「点了才报无权限」。与后端端点权限码一一对应。
-                .filter((item) => !session || sessionStore.has(VIEW_PERM[item.key as View]))}
-              onClick={({ key }) => setView(key as View)}
-            />
-          </Layout.Sider>
-          <Layout.Content style={{ background: token.colorBgLayout }}>{children}</Layout.Content>
-        </Layout>
+          <Layout style={{ background: token.colorBgLayout }}>
+            <Layout.Sider
+              width={176}
+              className="weft-sider"
+              style={{
+                background: shellBg,
+                borderRight: `1px solid ${shellBorder}`,
+              }}
+            >
+              <Menu
+                theme={mode}
+                mode="inline"
+                style={{ background: 'transparent', borderInlineEnd: 0 }}
+                selectedKeys={[safeView]}
+                items={[
+                  { key: 'report', icon: <FundOutlined />, label: '织机报工' },
+                  { key: 'board', icon: <DashboardOutlined />, label: '车间大屏' },
+                  { key: 'pick', icon: <SendOutlined />, label: '扫码出库' },
+                  { key: 'pickin', icon: <InboxOutlined />, label: '扫码入库' },
+                  { key: 'label', icon: <PrinterOutlined />, label: '标签打印' },
+                  { key: 'rollcard', icon: <BarcodeOutlined />, label: '件卡打印' },
+                  { key: 'scan', icon: <BarcodeOutlined />, label: '扫码查询' },
+                  { key: 'inspect', icon: <FileSearchOutlined />, label: '验布录入' },
+                ]
+                  // 菜单按权限门控：低权限账号(如挡车工)看不到无权访问的车间页，
+                  // 避免「点了才报无权限」。与后端端点权限码一一对应。
+                  .filter((item) => !session || sessionStore.has(VIEW_PERM[item.key as View]))}
+                onClick={({ key }) => setView(key as View)}
+              />
+            </Layout.Sider>
+            <Layout.Content style={{ background: token.colorBgLayout }}>{children}</Layout.Content>
+          </Layout>
         </Layout>
       </div>
     </AntdApp>
@@ -247,7 +251,14 @@ export default function App() {
   if (!session) {
     return (
       <AntdApp>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+          }}
+        >
           <Spin size="large" tip="加载账号权限…" />
         </div>
       </AntdApp>
@@ -259,15 +270,42 @@ export default function App() {
   if (allowedViews.length === 0) {
     return (
       <AntdApp>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <Result status="403" title="无可访问的车间页面" subTitle="该账号未被授予任何车间权限，请联系管理员在「角色管理」中配置。" />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+          }}
+        >
+          <Result
+            status="403"
+            title="无可访问的车间页面"
+            subTitle="该账号未被授予任何车间权限，请联系管理员在「角色管理」中配置。"
+          />
         </div>
       </AntdApp>
     )
   }
 
   const page =
-    safeView === 'report' ? <ReportPage /> : safeView === 'board' ? <BoardPage /> : safeView === 'label' ? <LabelPage /> : safeView === 'rollcard' ? <RollCardPage /> : safeView === 'pick' ? <PickPage /> : safeView === 'pickin' ? <PickInPage /> : safeView === 'inspect' ? <InspectPage /> : <ScanPage />
+    safeView === 'report' ? (
+      <ReportPage />
+    ) : safeView === 'board' ? (
+      <BoardPage />
+    ) : safeView === 'label' ? (
+      <LabelPage />
+    ) : safeView === 'rollcard' ? (
+      <RollCardPage />
+    ) : safeView === 'pick' ? (
+      <PickPage />
+    ) : safeView === 'pickin' ? (
+      <PickInPage />
+    ) : safeView === 'inspect' ? (
+      <InspectPage />
+    ) : (
+      <ScanPage />
+    )
 
   return shell(page)
 }

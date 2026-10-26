@@ -10,7 +10,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "test": "echo \"desktop: no tests yet\"",
-    "lint": "echo \"desktop: no lint yet\"",
+    "lint": "eslint .",
     "package:win": "electron-vite build && electron-builder --win"
   },
   "dependencies": {

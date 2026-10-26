@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useMemo, useState, } from 'react'
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   App as AntdApp,
   Button,
@@ -79,7 +79,10 @@ export default function ReportPage() {
     void load()
   }, [load])
 
-  const activeOutputM = useMemo(() => orders.reduce((s, o) => s + num(o.producedQuantityM), 0), [orders])
+  const activeOutputM = useMemo(
+    () => orders.reduce((s, o) => s + num(o.producedQuantityM), 0),
+    [orders],
+  )
 
   const onSubmit = async () => {
     if (!target) return
@@ -107,7 +110,9 @@ export default function ReportPage() {
       if (r.queued) {
         message.warning(`网络中断，报工已离线暂存（${effectiveOutput}m），恢复后自动同步`)
       } else {
-      message.success(`报工成功：${effectiveOutput}m 已入库${rolls.length ? `（${rolls.length} 匹）` : ''}${target.status === 'scheduled' ? '，工单转入生产中' : ''}`)
+        message.success(
+          `报工成功：${effectiveOutput}m 已入库${rolls.length ? `（${rolls.length} 匹）` : ''}${target.status === 'scheduled' ? '，工单转入生产中' : ''}`,
+        )
       }
       setTarget(null)
       setOutputM(null)
@@ -144,7 +149,12 @@ export default function ReportPage() {
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
           <Col flex="none">
             <Card size="small" style={{ minWidth: 170 }}>
-              <Statistic title="可报工工单" value={orders.length} suffix="单" valueStyle={{ fontSize: 24 }} />
+              <Statistic
+                title="可报工工单"
+                value={orders.length}
+                suffix="单"
+                valueStyle={{ fontSize: 24 }}
+              />
             </Card>
           </Col>
           <Col flex="none">
@@ -165,7 +175,12 @@ export default function ReportPage() {
         title="选择工本报工"
         styles={{ body: { paddingTop: 8 } }}
         extra={
-          <Button size="small" icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            onClick={() => void load()}
+            loading={loading}
+          >
             刷新
           </Button>
         }
@@ -206,21 +221,48 @@ export default function ReportPage() {
              */
             columns={[
               { title: '工单号', dataIndex: 'orderNo', width: 150 },
-              { title: '规格', dataIndex: 'specName', width: 140, render: (v: string | null) => v ?? '-' },
-              { title: '机台', dataIndex: 'machineName', width: 110, render: (v: string | null) => v ?? '-' },
+              {
+                title: '规格',
+                dataIndex: 'specName',
+                width: 140,
+                render: (v: string | null) => v ?? '-',
+              },
+              {
+                title: '机台',
+                dataIndex: 'machineName',
+                width: 110,
+                render: (v: string | null) => v ?? '-',
+              },
               {
                 title: '状态',
                 dataIndex: 'status',
                 width: 90,
-                render: (s: string) => (s === 'in_progress' ? <Tag color="processing">生产中</Tag> : <Tag color="blue">已排产</Tag>),
+                render: (s: string) =>
+                  s === 'in_progress' ? (
+                    <Tag color="processing">生产中</Tag>
+                  ) : (
+                    <Tag color="blue">已排产</Tag>
+                  ),
               },
               /**
                * 表头用 `title` 包裹而不是直接写字符串：
                * 「已产(米)」与相邻的「进度」列宽都偏窄时，纯文本表头会紧贴成
                * 「已产(米)进度」，读起来像一列。title 元素自带换行与 ellipsis 间距。
                */
-              { title: <span title="计划米数">计划(米)</span>, dataIndex: 'plannedQuantityM', width: 100, align: 'right', render: (v: string) => fmt(v, 0) },
-              { title: <span title="已产出米数">已产(米)</span>, dataIndex: 'producedQuantityM', width: 100, align: 'right', render: (v: string) => fmt(v, 0) },
+              {
+                title: <span title="计划米数">计划(米)</span>,
+                dataIndex: 'plannedQuantityM',
+                width: 100,
+                align: 'right',
+                render: (v: string) => fmt(v, 0),
+              },
+              {
+                title: <span title="已产出米数">已产(米)</span>,
+                dataIndex: 'producedQuantityM',
+                width: 100,
+                align: 'right',
+                render: (v: string) => fmt(v, 0),
+              },
               {
                 title: '进度',
                 dataIndex: 'producedQuantityM',
@@ -235,7 +277,12 @@ export default function ReportPage() {
                 title: '操作',
                 width: 90,
                 render: (_, o) => (
-                  <Button type="primary" size="small" icon={<SendOutlined />} onClick={() => setTarget(o)}>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<SendOutlined />}
+                    onClick={() => setTarget(o)}
+                  >
                     报工
                   </Button>
                 ),
@@ -253,14 +300,16 @@ export default function ReportPage() {
           extra={
             <Space>
               <Button onClick={() => setTarget(null)}>取消</Button>
-              <Button type="primary" loading={submitting} onClick={() => void onSubmit()}>提交报工</Button>
+              <Button type="primary" loading={submitting} onClick={() => void onSubmit()}>
+                提交报工
+              </Button>
             </Space>
           }
         >
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Text type="secondary">
-              规格 {target.specName ?? '-'} · 机台 {target.machineName ?? '-'} · 计划 {fmt(target.plannedQuantityM, 0)}m · 已产{' '}
-              {fmt(target.producedQuantityM, 0)}m
+              规格 {target.specName ?? '-'} · 机台 {target.machineName ?? '-'} · 计划{' '}
+              {fmt(target.plannedQuantityM, 0)}m · 已产 {fmt(target.producedQuantityM, 0)}m
             </Text>
             {/**
              * 三个控件按**车间触摸屏**标准定尺寸，而非桌面默认值：
@@ -320,7 +369,11 @@ export default function ReportPage() {
               </div>
             </Space>
             {rollMode && (
-              <Card size="small" title={`本次产出件卡（${rolls.length} 匹）`} style={{ background: token.colorFillAlter }}>
+              <Card
+                size="small"
+                title={`本次产出件卡（${rolls.length} 匹）`}
+                style={{ background: token.colorFillAlter }}
+              >
                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
                   {/**
                    * 件卡登记行。
@@ -357,24 +410,43 @@ export default function ReportPage() {
                       controls={false}
                       placeholder="如 30"
                     />
-                    <Button type="primary" size="large" onClick={addRoll} style={{ flex: '0 0 auto' }}>
+                    <Button
+                      type="primary"
+                      size="large"
+                      onClick={addRoll}
+                      style={{ flex: '0 0 auto' }}
+                    >
                       登记一匹
                     </Button>
                   </Space>
                   {rolls.length > 0 && (
                     <Space wrap size={4}>
                       {rolls.map((r) => (
-                        <Tag key={r.rollNo} closable color="blue" onClose={(e) => { e.preventDefault(); removeRoll(r.rollNo) }}>
+                        <Tag
+                          key={r.rollNo}
+                          closable
+                          color="blue"
+                          onClose={(e) => {
+                            e.preventDefault()
+                            removeRoll(r.rollNo)
+                          }}
+                        >
                           {r.rollNo} · {r.meters}m
                         </Tag>
                       ))}
                     </Space>
                   )}
-                  <Text type="secondary" style={{ fontSize: 12 }}>扫一件卡登记一匹织出的布（默认每匹 {rollMeters}m，可改）；各匹合计=本次产出，自动生成件卡可追溯。</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    扫一件卡登记一匹织出的布（默认每匹 {rollMeters}
+                    m，可改）；各匹合计=本次产出，自动生成件卡可追溯。
+                  </Text>
                 </Space>
               </Card>
             )}
-            <Text type="secondary" style={{ fontSize: 12 }}>提交后本次产出自动入库为坯布批次，并累加工单进度（满额自动完成）。{rollMode ? '按匹报工会为每匹生成件卡。' : ''}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              提交后本次产出自动入库为坯布批次，并累加工单进度（满额自动完成）。
+              {rollMode ? '按匹报工会为每匹生成件卡。' : ''}
+            </Text>
           </Space>
         </Card>
       )}

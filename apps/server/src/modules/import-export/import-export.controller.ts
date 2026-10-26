@@ -1,4 +1,16 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoundException, Param, Post, Query, Res, UseGuards } from '@nestjs/common'
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator'
 import type { Response } from 'express'
@@ -13,16 +25,19 @@ import { Audit } from '../audit/audit.interceptor'
 
 class ImportCsvDto {
   /** CSV 文本内容（前端用 FileReader 读取后提交，避免 multipart 依赖）。必须用值导入以保留校验元数据。 */
-  @IsString() @IsNotEmpty({ message: 'CSV 内容不能为空' })
+  @IsString()
+  @IsNotEmpty({ message: 'CSV 内容不能为空' })
   csv!: string
 }
 
 class ReportQueryDto {
   /** 时间窗（天）；不传=不限 */
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   days?: string
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   machineId?: string
 }
 
@@ -76,7 +91,9 @@ export class ImportExportController {
 
   @Get('reports/:key/export')
   @RequirePermission(Permission.MATERIAL_VIEW)
-  @ApiOperation({ summary: '按报表 key 导出 XLSX（库存/流水/单据/件卡/主数据/订单/生产/成本/趋势/盘点/审计）' })
+  @ApiOperation({
+    summary: '按报表 key 导出 XLSX（库存/流水/单据/件卡/主数据/订单/生产/成本/趋势/盘点/审计）',
+  })
   async exportReport(
     @CurrentUser() ctx: RequestContext,
     @Query() q: ReportQueryDto,
@@ -85,7 +102,10 @@ export class ImportExportController {
   ) {
     const key = String(keyParam)
     if (!REPORT_KEY_RE.test(key)) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '报表标识不合法' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '报表标识不合法',
+      })
     }
     // 每个报表按其数据归属校验权限：审计日志只有审计权限的人能带走，
     // 不能因为共用一个控制器就用最低门槛的物料权限把审计数据导出去。
@@ -99,7 +119,10 @@ export class ImportExportController {
       ...(q.machineId ? { machineId: q.machineId } : {}),
     })
     const fileName = `${key}-${new Date().toISOString().slice(0, 10)}.xlsx`
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
     // 行数放在响应头：前端无法读 xlsx 内容，给个提示便于展示「已导出 N 行」
     res.setHeader('X-Row-Count', String(rowCount))
@@ -156,7 +179,10 @@ export class ImportExportController {
   @ApiOperation({ summary: '导出物料(XLSX)' })
   async exportMaterials(@CurrentUser() ctx: RequestContext, @Res() res: Response) {
     const buf = await this.svc.exportMaterialsXlsx(ctx.companyId)
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
     res.setHeader('Content-Disposition', 'attachment; filename="materials.xlsx"')
     res.send(buf)
   }

@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo \"server: no unit tests yet\"",
-    "lint": "echo \"server: no lint yet\"",
+    "lint": "eslint .",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs -d src/data-source.ts migration:run",
     "migration:revert": "typeorm-ts-node-commonjs -d src/data-source.ts migration:revert",

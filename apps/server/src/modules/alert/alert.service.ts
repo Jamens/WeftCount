@@ -115,7 +115,11 @@ export class AlertService {
    * 绝对值之和——这才是真实消耗。不用常数、不用拍脑袋。
    * 注意只统计 `after` 之后仍有效的批次不限——流水是既成事实，即使批次已耗尽也计。
    */
-  private async consumedInWindow(companyId: string, materialId: string, days: number): Promise<number> {
+  private async consumedInWindow(
+    companyId: string,
+    materialId: string,
+    days: number,
+  ): Promise<number> {
     const since = new Date(Date.now() - days * 86400000)
     const row = await this.txns
       .createQueryBuilder('t')
@@ -270,24 +274,31 @@ export class AlertService {
     for (const o of liveOrders) {
       if (o.status === 'cancelled') continue
       const refId = (o as unknown as { sourceAlert?: { refId?: string } }).sourceAlert?.refId
-      if (refId) orderedRefIds.add(`${o.orderType === 'purchase' ? 'low_stock' : o.orderType}:${refId}`)
+      if (refId)
+        orderedRefIds.add(`${o.orderType === 'purchase' ? 'low_stock' : o.orderType}:${refId}`)
     }
 
     const toCreate = candidates.filter(
-      (c) => !seen.has(`${c.type}:${c.refId}`) && !silenced.has(`${c.type}:${c.refId}`) && !orderedRefIds.has(`${c.type}:${c.refId}`),
+      (c) =>
+        !seen.has(`${c.type}:${c.refId}`) &&
+        !silenced.has(`${c.type}:${c.refId}`) &&
+        !orderedRefIds.has(`${c.type}:${c.refId}`),
     )
     if (toCreate.length) {
       await this.alerts.save(
         toCreate.map((c) => this.alerts.create({ tenantId, companyId, ...c, acknowledged: false })),
       )
-      this.log.log(`预警扫描：新增 ${toCreate.length} 条（逾期${overdue.length} 低库存${candidates.length - overdue.length - stale.length} 呆滞${stale.length}）`)
+      this.log.log(
+        `预警扫描：新增 ${toCreate.length} 条（逾期${overdue.length} 低库存${candidates.length - overdue.length - stale.length} 呆滞${stale.length}）`,
+      )
     }
 
     return {
       created: toCreate.length,
       stats: {
         orderOverdue: overdue.length,
-        lowStock: matsWithSafety.length > 0 ? candidates.filter((c) => c.type === 'low_stock').length : 0,
+        lowStock:
+          matsWithSafety.length > 0 ? candidates.filter((c) => c.type === 'low_stock').length : 0,
         staleBatch: stale.length,
       },
     }

@@ -87,7 +87,11 @@ export class TradeOrderEntity {
   @JoinColumn({ name: 'source_alert_id' })
   sourceAlert?: AlertEntity
 
-  @Column({ type: 'enum', enum: ['draft', 'confirmed', 'completed', 'cancelled'], default: 'draft' })
+  @Column({
+    type: 'enum',
+    enum: ['draft', 'confirmed', 'completed', 'cancelled'],
+    default: 'draft',
+  })
   status!: TradeOrderStatus
 
   /** 交期 */

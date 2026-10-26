@@ -1,6 +1,15 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator'
 import { AuditService, type AuditQueryResult } from './audit.service'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
@@ -10,36 +19,65 @@ import type { AuditActionType } from '@weftcount/shared'
 import type { AuditLogEntity } from './entities/audit-log.entity'
 
 class AuditQueryDto {
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   page?: number
 
-  @IsOptional() @IsInt() @Min(1) @Max(200)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(200)
   pageSize?: number
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   userId?: string
 
   /** 模块前缀，如 purchase */
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   module?: string
 
   @IsOptional()
-  @IsIn(['create', 'update', 'delete', 'submit', 'approve', 'reject', 'cancel', 'login', 'logout', 'export', 'print', 'ai_call'])
+  @IsIn([
+    'create',
+    'update',
+    'delete',
+    'submit',
+    'approve',
+    'reject',
+    'cancel',
+    'login',
+    'logout',
+    'export',
+    'print',
+    'ai_call',
+  ])
   action?: AuditActionType
 
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   targetType?: string
 
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   targetId?: string
 
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   keyword?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   from?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   to?: string
 }
 

@@ -9,14 +9,26 @@ import type { GreigeSpecWire, ProductionOrderWire } from '../lib/erp'
  * 数据全部来自工艺快照（确定性），不含 AI 推测。
  */
 
-const n = (v: string | number | null | undefined, d = 2) => (v == null || v === '' ? '-' : Number(v).toFixed(d))
+const n = (v: string | number | null | undefined, d = 2) =>
+  v == null || v === '' ? '-' : Number(v).toFixed(d)
 const sysLabel = (s: string) => ({ NeS: '英支', Nm: '公支', Tex: '特', D: '旦' })[s] ?? s
 
 /** 规格单 */
-export function SpecSheet({ spec, snapshot }: { spec: GreigeSpecWire; snapshot: SpecCalculationSnapshot }) {
+export function SpecSheet({
+  spec,
+  snapshot,
+}: {
+  spec: GreigeSpecWire
+  snapshot: SpecCalculationSnapshot
+}) {
   return (
     <div style={{ fontFamily: 'sans-serif', color: '#000' }}>
-      <SheetHeader title="坯布规格单" subtitle="工艺参数（由确定性引擎计算，AI 不参与）" no={spec.code} date={new Date().toLocaleDateString('zh-CN')} />
+      <SheetHeader
+        title="坯布规格单"
+        subtitle="工艺参数（由确定性引擎计算，AI 不参与）"
+        no={spec.code}
+        date={new Date().toLocaleDateString('zh-CN')}
+      />
       <MetaGrid
         items={[
           ['规格名称', spec.name],
@@ -41,7 +53,10 @@ export function SpecSheet({ spec, snapshot }: { spec: GreigeSpecWire; snapshot: 
           ['纬纱单耗', `${n(snapshot.weftKgPer100m, 2)} kg/100m`],
           ['合计单耗', `${n(snapshot.totalKgPer100m, 2)} kg/100m`],
           ['单米面积', `${n(snapshot.kgPerM2, 4)} kg/m²`],
-          ['日产量', snapshot.dailyOutputM > 0 ? `${n(snapshot.dailyOutputM, 0)} m/台·日` : '未设置纬密机速'],
+          [
+            '日产量',
+            snapshot.dailyOutputM > 0 ? `${n(snapshot.dailyOutputM, 0)} m/台·日` : '未设置纬密机速',
+          ],
         ]}
       />
       <div style={{ fontSize: 13, fontWeight: 700, margin: '6px 0 4px' }}>工艺系数</div>
@@ -67,11 +82,26 @@ export function SpecSheet({ spec, snapshot }: { spec: GreigeSpecWire; snapshot: 
 }
 
 /** 生产工单 */
-export function WorkOrderSheet({ order, machineName, specName, materialName }: { order: ProductionOrderWire; machineName: string; specName: string; materialName: string }) {
+export function WorkOrderSheet({
+  order,
+  machineName,
+  specName,
+  materialName,
+}: {
+  order: ProductionOrderWire
+  machineName: string
+  specName: string
+  materialName: string
+}) {
   const s = order.specSnapshot
   return (
     <div style={{ fontFamily: 'sans-serif', color: '#000' }}>
-      <SheetHeader title="生产工单" subtitle="机台随工，产量以报工为准" no={order.orderNo} date={new Date().toLocaleDateString('zh-CN')} />
+      <SheetHeader
+        title="生产工单"
+        subtitle="机台随工，产量以报工为准"
+        no={order.orderNo}
+        date={new Date().toLocaleDateString('zh-CN')}
+      />
       <MetaGrid
         items={[
           ['工单号', order.orderNo],
@@ -85,7 +115,9 @@ export function WorkOrderSheet({ order, machineName, specName, materialName }: {
           ['状态', order.status],
         ]}
       />
-      <div style={{ fontSize: 13, fontWeight: 700, margin: '6px 0 4px' }}>织造参数（供机台参考）</div>
+      <div style={{ fontSize: 13, fontWeight: 700, margin: '6px 0 4px' }}>
+        织造参数（供机台参考）
+      </div>
       <DetailTable
         columns={[
           { title: '总克重', align: 'right' },
@@ -102,7 +134,9 @@ export function WorkOrderSheet({ order, machineName, specName, materialName }: {
           ],
         ]}
       />
-      <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+      <div
+        style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}
+      >
         <span>挡车工签字：________________</span>
         <span>检验签字：________________</span>
         <span>车间主任：________________</span>

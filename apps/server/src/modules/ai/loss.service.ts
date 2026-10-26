@@ -183,11 +183,18 @@ export class LossService {
         /* 取不到价就不折金额，不臆造 */
       }
       rows.push({
-        specId, specName: spec.name,
-        inputM, outputM,
-        inputYarnKg, outputKg,
-        standardYield, actualYield,
-        excessLossM, excessLossKg, excessLossRate, lossAmount,
+        specId,
+        specName: spec.name,
+        inputM,
+        outputM,
+        inputYarnKg,
+        outputKg,
+        standardYield,
+        actualYield,
+        excessLossM,
+        excessLossKg,
+        excessLossRate,
+        lossAmount,
         outputCount: output.count,
       })
     }
@@ -265,10 +272,18 @@ export class LossService {
       const report = reportById.get(b.sourceDocId)
       const order = report ? orderMap.get(report.orderId) : undefined
       const orderNo = order?.orderNo ?? '-'
-      const machineName = order?.machineId ? (machineMap.get(order.machineId) ?? order.machineId) : '-'
+      const machineName = order?.machineId
+        ? (machineMap.get(order.machineId) ?? order.machineId)
+        : '-'
       const arr = rollsBySpec.get(b.specId) ?? []
       for (const r of rollsByBatch.get(b.id) ?? []) {
-        arr.push({ rollNo: r.rollNo, meters: Number(r.meters), status: r.status, orderNo, machineName })
+        arr.push({
+          rollNo: r.rollNo,
+          meters: Number(r.meters),
+          status: r.status,
+          orderNo,
+          machineName,
+        })
       }
       rollsBySpec.set(b.specId, arr)
     }
@@ -318,7 +333,10 @@ export class LossService {
     const user =
       `织造损耗归因数据（得布率=产出/投料，越低损耗越大）：\n` +
       worst
-        .map((r) => `- ${r.specName}：投料当量${r.inputM.toFixed(0)}m，产出${r.outputM.toFixed(0)}m，实际得布率${(r.actualYield * 100).toFixed(1)}%，标准得布率${(r.standardYield * 100).toFixed(1)}%，超额损耗${r.excessLossM.toFixed(0)}m（${(r.excessLossRate * 100).toFixed(1)}%）`)
+        .map(
+          (r) =>
+            `- ${r.specName}：投料当量${r.inputM.toFixed(0)}m，产出${r.outputM.toFixed(0)}m，实际得布率${(r.actualYield * 100).toFixed(1)}%，标准得布率${(r.standardYield * 100).toFixed(1)}%，超额损耗${r.excessLossM.toFixed(0)}m（${(r.excessLossRate * 100).toFixed(1)}%）`,
+        )
         .join('\n') +
       `\n请归因并给出改进建议。`
     const res = await this.llm.chat([

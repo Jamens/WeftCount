@@ -39,7 +39,9 @@ export class CreateWarehouse1731000000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('ALTER TABLE `inventory_batches` DROP KEY `idx_batches_warehouse`, DROP COLUMN `warehouse_id`')
+    await queryRunner.query(
+      'ALTER TABLE `inventory_batches` DROP KEY `idx_batches_warehouse`, DROP COLUMN `warehouse_id`',
+    )
     await queryRunner.query('DROP TABLE IF EXISTS `warehouses`')
   }
 }

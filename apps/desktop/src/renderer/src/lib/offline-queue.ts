@@ -68,7 +68,11 @@ export function isNetworkError(e: unknown): boolean {
   }
   // 经 api.ts 响应拦截器包装的错误：noResponse=true 即「请求没到服务端」
   if (anyE?.isAxios) return anyE.noResponse === true
-  if (anyE?.code === 'ERR_NETWORK' || anyE?.code === 'ECONNABORTED' || /timeout|network/i.test(anyE?.message ?? '')) {
+  if (
+    anyE?.code === 'ERR_NETWORK' ||
+    anyE?.code === 'ECONNABORTED' ||
+    /timeout|network/i.test(anyE?.message ?? '')
+  ) {
     return true
   }
   return false
@@ -138,7 +142,9 @@ export const offlineQueue = {
         if (isNetworkError(e)) {
           // 还可能是网络问题：留队，下轮再试
           const items2 = read().map((x) =>
-            x.id === op.id ? { ...x, attempts: x.attempts + 1, lastError: (e as Error)?.message } : x,
+            x.id === op.id
+              ? { ...x, attempts: x.attempts + 1, lastError: (e as Error)?.message }
+              : x,
           )
           write(items2)
         } else {

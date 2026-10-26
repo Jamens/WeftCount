@@ -1,12 +1,24 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { App as AntdApp, Button, Layout, Menu, Typography, Dropdown, Space, Tag, Avatar, Switch, Result, type MenuProps } from 'antd'
+import {
+  App as AntdApp,
+  Button,
+  Layout,
+  Menu,
+  Typography,
+  Dropdown,
+  Space,
+  Tag,
+  Avatar,
+  Switch,
+  Result,
+  type MenuProps,
+} from 'antd'
 type ItemType = NonNullable<MenuProps['items']>[number]
 import {
   DashboardOutlined,
   FileSearchOutlined,
   LogoutOutlined,
-
   ShopOutlined,
   SwapOutlined,
   UserOutlined,
@@ -110,13 +122,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
  * 前端门控只改善体验，真正的拦截在服务端 `@RequirePermission`。
  * 这里挡不住改前端代码的人，但能挡住绝大多数误操作与好奇点击。
  */
-function RequirePerm({
-  path,
-  children,
-}: {
-  path: string
-  children: React.ReactNode
-}) {
+function RequirePerm({ path, children }: { path: string; children: React.ReactNode }) {
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const loading = useAuthStore((s) => s.permissionsLoading)
   const perms = routePerms(path)
@@ -132,9 +138,7 @@ function RequirePerm({
       title="无权访问该页面"
       subTitle={
         <Space direction="vertical" size={4}>
-          <Text type="secondary">
-            你的角色缺少以下任一权限：{perms.join(' 或 ')}
-          </Text>
+          <Text type="secondary">你的角色缺少以下任一权限：{perms.join(' 或 ')}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
             如需开通，请联系系统管理员在「角色管理」中调整。
           </Text>
@@ -165,7 +169,12 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   // 菜单按业务分组（antd Menu type:'group'）：26 项平铺太深，「用户/角色管理」这类
   // 系统入口容易被埋掉找不到。分组后每组可折叠、可扫读。
-  const g = (label: string, children: ItemType[]) => ({ key: label, label, type: 'group' as const, children })
+  const g = (label: string, children: ItemType[]) => ({
+    key: label,
+    label,
+    type: 'group' as const,
+    children,
+  })
 
   /**
    * 菜单项是否可见
@@ -195,56 +204,80 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   // 过滤空分组：某用户若无某组全部权限，不显示该组空标题
   const menuItems: ItemType[] = [
-    g('概览', items([
-      { key: '/', icon: <DashboardOutlined />, label: '工作台' },
-      { key: '/production', icon: <ClusterOutlined />, label: '生产管理' },
-      { key: '/machine-maintenance', icon: <ToolOutlined />, label: '设备维保' },
-      { key: '/wages', icon: <DollarOutlined />, label: '计件工资' },
-      { key: '/alerts', icon: <BellOutlined />, label: '预警中心' },
-    ])),
-    g('基础资料', items([
-      { key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' },
-      { key: '/greige-specs', icon: <AppstoreOutlined />, label: '坯布规格' },
-      { key: '/partners', icon: <TeamOutlined />, label: '往来单位' },
-      { key: '/supplier-codes', icon: <BarcodeOutlined />, label: '供应商条码映射' },
-      { key: '/warehouses', icon: <BankOutlined />, label: '仓库管理' },
-      { key: '/import-export', icon: <InboxOutlined />, label: '导入导出' },
-      { key: '/report-export', icon: <FileExcelOutlined />, label: '报表导出' },
-    ])),
-    g('采购销售', items([
-      { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
-      { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
-    ])),
-    g('库存与三算', items([
-      { key: '/inventory/batches', icon: <AppstoreOutlined />, label: '库存批次' },
-      { key: '/inventory/documents', icon: <AppstoreOutlined />, label: '三算单据' },
-      { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
-      { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
-      { key: '/stocktakes', icon: <FileDoneOutlined />, label: '库存盘点' },
-    ])),
-    g('成本与报表', items([
-      { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
-      { key: '/energy', icon: <ThunderboltOutlined />, label: '设备能耗' },
-      { key: '/receivables', icon: <TransactionOutlined />, label: '应收账款' },
-      { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
-      { key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' },
-    ])),
-    g('质检', items([
-      { key: '/quality/inspections', icon: <FileSearchOutlined />, label: '坯布检验分等' },
-      { key: '/quality/defect-types', icon: <ExperimentOutlined />, label: '疵点类型' },
-      { key: '/quality/grade-prices', icon: <DollarOutlined />, label: '分等价目' },
-    ])),
-    g('AI 智能', items([
-      { key: '/ai-quote', icon: <RobotOutlined />, label: '智能核价' },
-      { key: '/ai-loss', icon: <ExperimentOutlined />, label: '损耗归因' },
-      { key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习' },
-      { key: '/ai-production', icon: <ExperimentOutlined />, label: 'AI 生产助手' },
-    ])),
-    g('系统管理', items([
-      { key: '/users', icon: <UserOutlined />, label: '用户管理' },
-      { key: '/roles', icon: <KeyOutlined />, label: '角色管理' },
-      { key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' },
-    ])),
+    g(
+      '概览',
+      items([
+        { key: '/', icon: <DashboardOutlined />, label: '工作台' },
+        { key: '/production', icon: <ClusterOutlined />, label: '生产管理' },
+        { key: '/machine-maintenance', icon: <ToolOutlined />, label: '设备维保' },
+        { key: '/wages', icon: <DollarOutlined />, label: '计件工资' },
+        { key: '/alerts', icon: <BellOutlined />, label: '预警中心' },
+      ]),
+    ),
+    g(
+      '基础资料',
+      items([
+        { key: '/materials', icon: <AppstoreOutlined />, label: '物料主数据' },
+        { key: '/greige-specs', icon: <AppstoreOutlined />, label: '坯布规格' },
+        { key: '/partners', icon: <TeamOutlined />, label: '往来单位' },
+        { key: '/supplier-codes', icon: <BarcodeOutlined />, label: '供应商条码映射' },
+        { key: '/warehouses', icon: <BankOutlined />, label: '仓库管理' },
+        { key: '/import-export', icon: <InboxOutlined />, label: '导入导出' },
+        { key: '/report-export', icon: <FileExcelOutlined />, label: '报表导出' },
+      ]),
+    ),
+    g(
+      '采购销售',
+      items([
+        { key: '/orders', icon: <ShoppingCartOutlined />, label: '采购/销售订单' },
+        { key: '/contracts', icon: <FileProtectOutlined />, label: '合同/价格' },
+      ]),
+    ),
+    g(
+      '库存与三算',
+      items([
+        { key: '/inventory/batches', icon: <AppstoreOutlined />, label: '库存批次' },
+        { key: '/inventory/documents', icon: <AppstoreOutlined />, label: '三算单据' },
+        { key: '/inventory/transactions', icon: <AppstoreOutlined />, label: '事务流水' },
+        { key: '/inventory/reconcile', icon: <AppstoreOutlined />, label: '三算对账' },
+        { key: '/stocktakes', icon: <FileDoneOutlined />, label: '库存盘点' },
+      ]),
+    ),
+    g(
+      '成本与报表',
+      items([
+        { key: '/cost', icon: <PieChartOutlined />, label: '成本报表' },
+        { key: '/energy', icon: <ThunderboltOutlined />, label: '设备能耗' },
+        { key: '/receivables', icon: <TransactionOutlined />, label: '应收账款' },
+        { key: '/trends', icon: <AreaChartOutlined />, label: '趋势分析' },
+        { key: '/traceability', icon: <NodeIndexOutlined />, label: '全链路追溯' },
+      ]),
+    ),
+    g(
+      '质检',
+      items([
+        { key: '/quality/inspections', icon: <FileSearchOutlined />, label: '坯布检验分等' },
+        { key: '/quality/defect-types', icon: <ExperimentOutlined />, label: '疵点类型' },
+        { key: '/quality/grade-prices', icon: <DollarOutlined />, label: '分等价目' },
+      ]),
+    ),
+    g(
+      'AI 智能',
+      items([
+        { key: '/ai-quote', icon: <RobotOutlined />, label: '智能核价' },
+        { key: '/ai-loss', icon: <ExperimentOutlined />, label: '损耗归因' },
+        { key: '/ai-coefficient', icon: <ThunderboltOutlined />, label: '系数自学习' },
+        { key: '/ai-production', icon: <ExperimentOutlined />, label: 'AI 生产助手' },
+      ]),
+    ),
+    g(
+      '系统管理',
+      items([
+        { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+        { key: '/roles', icon: <KeyOutlined />, label: '角色管理' },
+        { key: '/audit-logs', icon: <FileSearchOutlined />, label: '审计日志' },
+      ]),
+    ),
   ].filter((it) => (it as { children?: unknown[] }).children?.length) as ItemType[]
 
   const onLogout = () => {
@@ -285,9 +318,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Dropdown>
           )}
 
-          {tenant && (
-            <Tag color={tenant.aiEnabled ? 'gold' : 'default'}>{tenant.planLabel}</Tag>
-          )}
+          {tenant && <Tag color={tenant.aiEnabled ? 'gold' : 'default'}>{tenant.planLabel}</Tag>}
 
           <Switch
             checkedChildren="暗"
@@ -331,7 +362,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             overflow: 'hidden',
           }}
         >
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
+          <div
+            style={{ flex: 1, minHeight: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}
+          >
             <Menu
               mode="inline"
               selectedKeys={[location.pathname]}
@@ -419,7 +452,9 @@ const PROTECTED_ROUTES: { path: string; page: React.ReactNode }[] = [
 {
   const missing = PROTECTED_ROUTES.map((r) => r.path).filter((p) => !routePerms(p))
   if (missing.length > 0) {
-    throw new Error(`以下路由未在 ROUTE_PERMS 中登记权限，将完全不受门控保护：${missing.join(', ')}`)
+    throw new Error(
+      `以下路由未在 ROUTE_PERMS 中登记权限，将完全不受门控保护：${missing.join(', ')}`,
+    )
   }
 }
 
@@ -433,7 +468,13 @@ export default function App() {
           const d = res.data.data
           useAuthStore.setState({
             // 刷新后恢复用户信息：否则右上角显示 undefined(undefined)
-            user: { id: d.userId, username: d.username, realName: d.realName, phone: null, email: null },
+            user: {
+              id: d.userId,
+              username: d.username,
+              realName: d.realName,
+              phone: null,
+              email: null,
+            },
             permissions: d.permissions,
             permissionsLoading: false,
             currentCompanyId: d.companyId,

@@ -31,7 +31,11 @@ function toSnake(input: string): string {
  * 别只看 information_schema 里列存在——列存在不代表名字对。
  */
 export class WeftNamingStrategy extends DefaultNamingStrategy {
-  columnName(propertyName: string, _customName: string | undefined, _embeddedPrefixes: string[]): string {
+  columnName(
+    propertyName: string,
+    _customName: string | undefined,
+    _embeddedPrefixes: string[],
+  ): string {
     return toSnake(propertyName)
   }
 

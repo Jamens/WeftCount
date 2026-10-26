@@ -40,7 +40,11 @@ interface RowState {
   value: number | null
 }
 
-const EMPTY_ROWS: RowState[] = GREIGE_GRADES.map((g) => ({ grade: g, mode: 'delta', value: g === 'A' ? 0 : null }))
+const EMPTY_ROWS: RowState[] = GREIGE_GRADES.map((g) => ({
+  grade: g,
+  mode: 'delta',
+  value: g === 'A' ? 0 : null,
+}))
 
 export default function QualityGradePricePage() {
   const { message } = AntdApp.useApp()
@@ -60,8 +64,14 @@ export default function QualityGradePricePage() {
   const refId = scope === 'contract_item' ? itemId : specId
 
   useEffect(() => {
-    api.get<ContractWire[]>('/contracts').then((r) => setContracts(r.data.data)).catch(() => setContracts([]))
-    api.get<GreigeSpecWire[]>('/greige-specs').then((r) => setSpecs(r.data.data)).catch(() => setSpecs([]))
+    api
+      .get<ContractWire[]>('/contracts')
+      .then((r) => setContracts(r.data.data))
+      .catch(() => setContracts([]))
+    api
+      .get<GreigeSpecWire[]>('/greige-specs')
+      .then((r) => setSpecs(r.data.data))
+      .catch(() => setSpecs([]))
   }, [])
 
   useEffect(() => {
@@ -84,7 +94,9 @@ export default function QualityGradePricePage() {
       setRows(EMPTY_ROWS)
       return
     }
-    const res = await api.get<GradePriceWire[]>(`/quality/grade-prices?scope=${scope}&refId=${refId}`)
+    const res = await api.get<GradePriceWire[]>(
+      `/quality/grade-prices?scope=${scope}&refId=${refId}`,
+    )
     const byGrade = new Map(res.data.data.map((r) => [r.grade, r]))
     setRows(
       GREIGE_GRADES.map((g) => {
@@ -143,7 +155,13 @@ export default function QualityGradePricePage() {
             刷新
           </Button>
           {canReview && (
-            <Button type="primary" icon={<SaveOutlined />} loading={busy} disabled={!refId} onClick={() => void save()}>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={busy}
+              disabled={!refId}
+              onClick={() => void save()}
+            >
               保存
             </Button>
           )}
@@ -186,7 +204,10 @@ export default function QualityGradePricePage() {
                   placeholder="选择合同"
                   value={contractId ?? undefined}
                   onChange={setContractId}
-                  options={contracts.map((c) => ({ value: c.id, label: `${c.contractNo} · ${c.partnerName}` }))}
+                  options={contracts.map((c) => ({
+                    value: c.id,
+                    label: `${c.contractNo} · ${c.partnerName}`,
+                  }))}
                 />
               </Col>
               <Col flex="1 1 260px">
@@ -284,8 +305,13 @@ export default function QualityGradePricePage() {
                 width: 180,
                 align: 'right',
                 render: (_: unknown, r) => {
-                  if (r.value == null) return <Text type="secondary">沿用基准价 {fmt(basePriceActual, 4)}</Text>
-                  const price = calcGradePrice(basePriceActual, { grade: r.grade, mode: r.mode, value: r.value })
+                  if (r.value == null)
+                    return <Text type="secondary">沿用基准价 {fmt(basePriceActual, 4)}</Text>
+                  const price = calcGradePrice(basePriceActual, {
+                    grade: r.grade,
+                    mode: r.mode,
+                    value: r.value,
+                  })
                   return <Text strong>{fmt(price, 4)}</Text>
                 },
               },

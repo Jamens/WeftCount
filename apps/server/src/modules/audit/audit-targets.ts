@@ -83,4 +83,11 @@ if (registered.join(',') !== declared.join(',')) {
  * `create` 不在其列：新建前实体不存在，before 天然为 null，
  * 走请求体快照即可（`after` 语义相同）。
  */
-export const SNAPSHOT_ACTIONS = new Set(['update', 'delete', 'submit', 'approve', 'reject', 'cancel'])
+export const SNAPSHOT_ACTIONS = new Set([
+  'update',
+  'delete',
+  'submit',
+  'approve',
+  'reject',
+  'cancel',
+])

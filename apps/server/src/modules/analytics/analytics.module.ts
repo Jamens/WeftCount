@@ -12,7 +12,18 @@ import { MachineEntity } from '../production/entities/machine.entity'
 import { AuthModule } from '../auth/auth.module'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([InventoryBatchEntity, InventoryDocumentEntity, GreigeSpecEntity, RollEntity, ProductionReportEntity, ProductionOrderEntity, MachineEntity]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      InventoryBatchEntity,
+      InventoryDocumentEntity,
+      GreigeSpecEntity,
+      RollEntity,
+      ProductionReportEntity,
+      ProductionOrderEntity,
+      MachineEntity,
+    ]),
+    AuthModule,
+  ],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
   exports: [AnalyticsService],

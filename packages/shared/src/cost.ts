@@ -71,9 +71,14 @@ export function computeSpecCost(input: SpecCostInput): SpecCostResult {
   const totalCostPerM2 = totalCostPerKg * (s.kgPerM2 ?? 0)
 
   const salesPricePerM =
-    input.salesPricePerMeter != null && Number.isFinite(input.salesPricePerMeter) ? input.salesPricePerMeter : null
+    input.salesPricePerMeter != null && Number.isFinite(input.salesPricePerMeter)
+      ? input.salesPricePerMeter
+      : null
   const grossProfitPerM = salesPricePerM != null ? salesPricePerM - totalCostPerM : null
-  const grossMarginRate = grossProfitPerM != null && salesPricePerM != null && salesPricePerM > 0 ? grossProfitPerM / salesPricePerM : null
+  const grossMarginRate =
+    grossProfitPerM != null && salesPricePerM != null && salesPricePerM > 0
+      ? grossProfitPerM / salesPricePerM
+      : null
 
   return {
     warpCostPerM: round(warpCostPerM),

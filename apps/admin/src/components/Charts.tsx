@@ -86,7 +86,14 @@ export function LineChart({
       {gridY.map((g) => (
         <g key={g.v}>
           <line x1={padL} x2={W - padR} y1={g.y} y2={g.y} stroke="#e8e8e8" strokeWidth={1} />
-          <text x={padL - 8} y={g.y} textAnchor="end" dominantBaseline="central" fontSize={11} fill="#8c8c8c">
+          <text
+            x={padL - 8}
+            y={g.y}
+            textAnchor="end"
+            dominantBaseline="central"
+            fontSize={11}
+            fill="#8c8c8c"
+          >
             {fmtNum(g.v)}
           </text>
         </g>
@@ -97,7 +104,15 @@ export function LineChart({
       ))}
       {/* 折线 */}
       {paths.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <path
+          key={i}
+          d={d}
+          fill="none"
+          stroke={PALETTE[i % PALETTE.length]}
+          strokeWidth={2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
       ))}
       {/* X 轴标签（首/中/尾，防拥挤） */}
       {ticks.map((t, i) => {
@@ -117,8 +132,24 @@ export function Legend({ names }: { names: string[] }) {
   return (
     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
       {names.map((n, i) => (
-        <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555' }}>
-          <span style={{ width: 12, height: 3, borderRadius: 2, background: PALETTE[i % PALETTE.length] }} />
+        <span
+          key={n}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: '#555',
+          }}
+        >
+          <span
+            style={{
+              width: 12,
+              height: 3,
+              borderRadius: 2,
+              background: PALETTE[i % PALETTE.length],
+            }}
+          />
           {n}
         </span>
       ))}
@@ -129,7 +160,15 @@ export function Legend({ names }: { names: string[] }) {
 /**
  * 柱状图（纵向）：用于单系列按类目对比。
  */
-export function BarChart({ data, height = 220, color = PALETTE[0] }: { data: SeriesPoint[]; height?: number; color?: string }) {
+export function BarChart({
+  data,
+  height = 220,
+  color = PALETTE[0],
+}: {
+  data: SeriesPoint[]
+  height?: number
+  color?: string
+}) {
   const W = 720
   const H = height
   const padL = 48
@@ -145,14 +184,22 @@ export function BarChart({ data, height = 220, color = PALETTE[0] }: { data: Ser
   const yAt = (v: number) => padT + ih - (v / maxV) * ih
   const gridY = [0, maxV / 2, maxV].map((v) => ({ v, y: yAt(v) }))
 
-  if (!data.length) return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>
+  if (!data.length)
+    return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" style={{ display: 'block' }}>
       {gridY.map((g) => (
         <g key={g.v}>
           <line x1={padL} x2={W - padR} y1={g.y} y2={g.y} stroke="#e8e8e8" strokeWidth={1} />
-          <text x={padL - 8} y={g.y} textAnchor="end" dominantBaseline="central" fontSize={11} fill="#8c8c8c">
+          <text
+            x={padL - 8}
+            y={g.y}
+            textAnchor="end"
+            dominantBaseline="central"
+            fontSize={11}
+            fill="#8c8c8c"
+          >
             {fmtNum(g.v)}
           </text>
         </g>
@@ -160,12 +207,21 @@ export function BarChart({ data, height = 220, color = PALETTE[0] }: { data: Ser
       {data.map((d, i) => {
         const v = d.values[0] ?? 0
         const y = yAt(v)
-        return <rect key={i} x={xAt(i)} y={y} width={bw} height={padT + ih - y} fill={color} rx={2} />
+        return (
+          <rect key={i} x={xAt(i)} y={y} width={bw} height={padT + ih - y} fill={color} rx={2} />
+        )
       })}
       {data.map((d, i) => {
         if (i !== 0 && i !== data.length - 1 && i !== Math.floor(data.length / 2)) return null
         return (
-          <text key={i} x={xAt(i) + bw / 2} y={H - 8} textAnchor="middle" fontSize={11} fill="#8c8c8c">
+          <text
+            key={i}
+            x={xAt(i) + bw / 2}
+            y={H - 8}
+            textAnchor="middle"
+            fontSize={11}
+            fill="#8c8c8c"
+          >
             {d.label}
           </text>
         )
@@ -187,7 +243,8 @@ export function HBarChart({ data }: { data: SeriesPoint[] }) {
   const barW = W - labelW - valW - 16
   const total = data.reduce((s, d) => s + (d.values[0] ?? 0), 0)
 
-  if (!data.length) return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>
+  if (!data.length)
+    return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" style={{ display: 'block' }}>
@@ -198,12 +255,33 @@ export function HBarChart({ data }: { data: SeriesPoint[] }) {
         const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0'
         return (
           <g key={i}>
-            <text x={labelW - 10} y={y + rowH / 2 - 6} textAnchor="end" dominantBaseline="central" fontSize={12} fill="#333">
+            <text
+              x={labelW - 10}
+              y={y + rowH / 2 - 6}
+              textAnchor="end"
+              dominantBaseline="central"
+              fontSize={12}
+              fill="#333"
+            >
               {d.label.length > 12 ? d.label.slice(0, 12) + '…' : d.label}
             </text>
             <rect x={labelW} y={y + 4} width={barW} height={rowH - 16} fill="#f0f0f0" rx={3} />
-            <rect x={labelW} y={y + 4} width={Math.max(w, 1)} height={rowH - 16} fill={PALETTE[i % PALETTE.length]} rx={3} />
-            <text x={W - 8} y={y + rowH / 2 - 6} textAnchor="end" dominantBaseline="central" fontSize={11} fill="#666">
+            <rect
+              x={labelW}
+              y={y + 4}
+              width={Math.max(w, 1)}
+              height={rowH - 16}
+              fill={PALETTE[i % PALETTE.length]}
+              rx={3}
+            />
+            <text
+              x={W - 8}
+              y={y + rowH / 2 - 6}
+              textAnchor="end"
+              dominantBaseline="central"
+              fontSize={11}
+              fill="#666"
+            >
               {fmtNum(v)} ({pct}%)
             </text>
           </g>

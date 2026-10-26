@@ -56,7 +56,10 @@ export class CostService {
   ) {}
 
   /** 批量取物料最新采购单价（batch 化，避免 N+1） */
-  private async latestPurchasePrices(companyId: string, materialIds: string[]): Promise<Map<string, number>> {
+  private async latestPurchasePrices(
+    companyId: string,
+    materialIds: string[],
+  ): Promise<Map<string, number>> {
     const map = new Map<string, number>()
     if (materialIds.length === 0) return map
     const batches = await this.batchRepo
@@ -74,7 +77,10 @@ export class CostService {
   }
 
   /** 批量取物料参考价 */
-  private async standardPrices(companyId: string, materialIds: string[]): Promise<Map<string, number>> {
+  private async standardPrices(
+    companyId: string,
+    materialIds: string[],
+  ): Promise<Map<string, number>> {
     const map = new Map<string, number>()
     if (materialIds.length === 0) return map
     const mats = await this.matRepo
@@ -89,7 +95,10 @@ export class CostService {
   }
 
   /** 批量取规格最近销售出库单价 */
-  private async latestSalesPrices(companyId: string, specIds: string[]): Promise<Map<string, number>> {
+  private async latestSalesPrices(
+    companyId: string,
+    specIds: string[],
+  ): Promise<Map<string, number>> {
     const map = new Map<string, number>()
     if (specIds.length === 0) return map
     const docs = await this.docRepo
@@ -111,7 +120,11 @@ export class CostService {
     const specs = await this.materials.findSpecs(tenantId, companyId)
     if (specs.length === 0) return []
 
-    const yarnIds = [...new Set(specs.flatMap((s) => [s.warpMaterialId, s.weftMaterialId].filter((v): v is string => !!v)))]
+    const yarnIds = [
+      ...new Set(
+        specs.flatMap((s) => [s.warpMaterialId, s.weftMaterialId].filter((v): v is string => !!v)),
+      ),
+    ]
     const specIds = specs.map((s) => s.id)
     const [purchaseMap, standardMap, salesMap] = await Promise.all([
       this.latestPurchasePrices(companyId, yarnIds),
@@ -214,12 +227,17 @@ export class CostService {
       salesPricePerMeter: salesMap.get(spec.id) ?? null,
     })
     return {
-      specId: spec.id, specCode: spec.code, specName: spec.name,
+      specId: spec.id,
+      specCode: spec.code,
+      specName: spec.name,
       warpMaterialName: spec.warpMaterialId ? (matName.get(spec.warpMaterialId) ?? null) : null,
       weftMaterialName: spec.weftMaterialId ? (matName.get(spec.weftMaterialId) ?? null) : null,
-      warpYarnPrice: warp.price, weftYarnPrice: weft.price,
-      warpPriceSource: warp.source, weftPriceSource: weft.source,
-      warpKgPer100m: snapshot.warpKgPer100m, weftKgPer100m: snapshot.weftKgPer100m,
+      warpYarnPrice: warp.price,
+      weftYarnPrice: weft.price,
+      warpPriceSource: warp.source,
+      weftPriceSource: weft.source,
+      warpKgPer100m: snapshot.warpKgPer100m,
+      weftKgPer100m: snapshot.weftKgPer100m,
       ...cost,
     }
   }
@@ -228,7 +246,11 @@ export class CostService {
    * 某规格近期成交价带（最近 limit 笔销售出库单价）。
    * 供智能核价参考市场价——没有历史成交就没有价带，不臆造。
    */
-  async salesPriceBand(companyId: string, specId: string, limit = 12): Promise<{ min: number; max: number; avg: number; count: number } | null> {
+  async salesPriceBand(
+    companyId: string,
+    specId: string,
+    limit = 12,
+  ): Promise<{ min: number; max: number; avg: number; count: number } | null> {
     const docs = await this.docRepo
       .createQueryBuilder('d')
       .select('d.unit_price', 'unitPrice')

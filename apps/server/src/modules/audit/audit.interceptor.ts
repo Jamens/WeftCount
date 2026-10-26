@@ -78,7 +78,12 @@ export class AuditInterceptor implements NestInterceptor {
     const method = req.method.toUpperCase()
 
     // 显式跳过
-    if (this.reflector.getAllAndOverride<boolean>(NO_AUDIT_KEY, [context.getHandler(), context.getClass()])) {
+    if (
+      this.reflector.getAllAndOverride<boolean>(NO_AUDIT_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    ) {
       return next.handle()
     }
 
@@ -340,12 +345,7 @@ export class AuditInterceptor implements NestInterceptor {
     return { action: actionMap[method] ?? 'update', module, targetIdParam: 'id' }
   }
 
-  private buildSummary(
-    meta: AuditMeta,
-    req: Request,
-    data: unknown,
-    resolvedId?: string,
-  ): string {
+  private buildSummary(meta: AuditMeta, req: Request, data: unknown, resolvedId?: string): string {
     const labels: Record<AuditActionType, string> = {
       create: '新建',
       update: '修改',

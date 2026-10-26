@@ -98,21 +98,21 @@ export default function ReportExportPage() {
    * 让用户点进去撞 403。口径与后端 REPORT_PERMISSION 保持一致。
    */
   const PERM_OF: Record<string, string[]> = {
-      'inventory-batches': [PERM.INVENTORY_VIEW],
-      'inventory-transactions': [PERM.INVENTORY_VIEW],
-      'inventory-documents': [PERM.INVENTORY_VIEW],
-      rolls: [PERM.INVENTORY_VIEW],
-      materials: [PERM.MATERIAL_VIEW],
-      specs: [PERM.MATERIAL_VIEW],
-      warehouses: [PERM.WAREHOUSE_VIEW],
-      orders: [PERM.PURCHASE_VIEW, PERM.SALES_VIEW],
-      'production-orders': [PERM.PRODUCTION_VIEW],
-      'production-reports': [PERM.PRODUCTION_VIEW],
-      cost: [PERM.COST_VIEW, PERM.REPORT_VIEW],
-      trends: [PERM.REPORT_VIEW, PERM.COST_VIEW],
-      stocktakes: [PERM.INVENTORY_VIEW],
-      'audit-logs': [PERM.AUDIT_VIEW],
-    }
+    'inventory-batches': [PERM.INVENTORY_VIEW],
+    'inventory-transactions': [PERM.INVENTORY_VIEW],
+    'inventory-documents': [PERM.INVENTORY_VIEW],
+    rolls: [PERM.INVENTORY_VIEW],
+    materials: [PERM.MATERIAL_VIEW],
+    specs: [PERM.MATERIAL_VIEW],
+    warehouses: [PERM.WAREHOUSE_VIEW],
+    orders: [PERM.PURCHASE_VIEW, PERM.SALES_VIEW],
+    'production-orders': [PERM.PRODUCTION_VIEW],
+    'production-reports': [PERM.PRODUCTION_VIEW],
+    cost: [PERM.COST_VIEW, PERM.REPORT_VIEW],
+    trends: [PERM.REPORT_VIEW, PERM.COST_VIEW],
+    stocktakes: [PERM.INVENTORY_VIEW],
+    'audit-logs': [PERM.AUDIT_VIEW],
+  }
 
   const allowed = reports.filter((r) => {
     const need = PERM_OF[r.key]
@@ -134,19 +134,21 @@ export default function ReportExportPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
-          <Title level={4} style={{ margin: 0 }}><FileExcelOutlined /> 报表导出</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            <FileExcelOutlined /> 报表导出
+          </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            库存/流水/单据/件卡/主数据/订单/生产/成本/趋势/盘点/审计 → 一键导出 XLSX（口径与对应页面完全一致）
+            库存/流水/单据/件卡/主数据/订单/生产/成本/趋势/盘点/审计 → 一键导出
+            XLSX（口径与对应页面完全一致）
           </Text>
         </div>
         <Space>
-          <Segmented
-            value={days}
-            onChange={(v) => setDays(Number(v))}
-            options={DAY_PRESETS}
-          />
+          <Segmented value={days} onChange={(v) => setDays(Number(v))} options={DAY_PRESETS} />
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading} />
         </Space>
       </Space>
@@ -167,10 +169,22 @@ export default function ReportExportPage() {
 
       {allowed.length === 0 ? (
         <Card size="small">
-          <Empty description={loading ? '加载中…' : '当前账号没有可导出的报表（需 inventory.view / material.view / report.view / audit.view 等）'} />
+          <Empty
+            description={
+              loading
+                ? '加载中…'
+                : '当前账号没有可导出的报表（需 inventory.view / material.view / report.view / audit.view 等）'
+            }
+          />
         </Card>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: 12,
+          }}
+        >
           {allowed.map((r) => (
             <Card
               key={r.key}
@@ -195,7 +209,9 @@ export default function ReportExportPage() {
                 </Button>
               }
             >
-              <Text type="secondary" style={{ fontSize: 12 }}>{r.description}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {r.description}
+              </Text>
             </Card>
           ))}
         </div>

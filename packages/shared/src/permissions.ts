@@ -109,14 +109,14 @@ export type PermissionValue = (typeof Permission)[keyof typeof Permission]
  * 避免「点了才报无权限」。新增车间页时同步加这里 + 后端端点。
  */
 export const WORKSHOP_VIEW_PERM = {
-  report: Permission.PRODUCTION_REPORT,   // 织机报工
-  board: Permission.PRODUCTION_VIEW,      // 车间大屏（工单/机台）
-  pick: Permission.INVENTORY_MANAGE,     // 扫码出库
-  pickin: Permission.INVENTORY_MANAGE,   // 扫码入库
-  label: Permission.INVENTORY_VIEW,      // 布匹标签打印
-  rollcard: Permission.INVENTORY_VIEW,   // 件卡打印
-  scan: Permission.REPORT_VIEW,          // 扫码查询（件卡/批次追溯）
-  inspect: Permission.QUALITY_INSPECT,   // 验布录入（逐匹疵点 → 定等）
+  report: Permission.PRODUCTION_REPORT, // 织机报工
+  board: Permission.PRODUCTION_VIEW, // 车间大屏（工单/机台）
+  pick: Permission.INVENTORY_MANAGE, // 扫码出库
+  pickin: Permission.INVENTORY_MANAGE, // 扫码入库
+  label: Permission.INVENTORY_VIEW, // 布匹标签打印
+  rollcard: Permission.INVENTORY_VIEW, // 件卡打印
+  scan: Permission.REPORT_VIEW, // 扫码查询（件卡/批次追溯）
+  inspect: Permission.QUALITY_INSPECT, // 验布录入（逐匹疵点 → 定等）
 } as const
 
 export type WorkshopView = keyof typeof WORKSHOP_VIEW_PERM

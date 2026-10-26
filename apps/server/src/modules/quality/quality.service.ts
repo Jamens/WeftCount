@@ -16,7 +16,11 @@ import {
   type GradePriceRule,
   type GradeRule,
 } from '@weftcount/shared'
-import { DefectTypeEntity, type DefectCategory, type DefectPenaltyMode } from './entities/defect-type.entity'
+import {
+  DefectTypeEntity,
+  type DefectCategory,
+  type DefectPenaltyMode,
+} from './entities/defect-type.entity'
 import { InspectionEntity, type InspectionMode } from './entities/inspection.entity'
 import { InspectionRollEntity } from './entities/inspection-roll.entity'
 import { InspectionDefectEntity } from './entities/inspection-defect.entity'
@@ -44,7 +48,13 @@ function toNum(v: string | null | undefined): number {
  * 检验员找不到自己习惯的词就会随便选一个——**字典不对，后面所有数据都废了**。
  * 所以建公司时灌这套初值，之后由各公司自行增删改。
  */
-const DEFAULT_DEFECT_TYPES: { code: string; name: string; category: DefectCategory; penaltyMode: DefectPenaltyMode; fixedPenalty?: number }[] = [
+const DEFAULT_DEFECT_TYPES: {
+  code: string
+  name: string
+  category: DefectCategory
+  penaltyMode: DefectPenaltyMode
+  fixedPenalty?: number
+}[] = [
   { code: 'BROKEN_WARP', name: '断经', category: 'warp', penaltyMode: 'by_length' },
   { code: 'BROKEN_WEFT', name: '断纬', category: 'weft', penaltyMode: 'by_length' },
   { code: 'COARSE_WEFT', name: '粗纬', category: 'weft', penaltyMode: 'by_length' },
@@ -56,8 +66,20 @@ const DEFAULT_DEFECT_TYPES: { code: string; name: string; category: DefectCatego
   { code: 'DENSE_THIN', name: '稀密路', category: 'other', penaltyMode: 'by_length' },
   { code: 'SKIP_YARN', name: '跳纱', category: 'warp', penaltyMode: 'by_length' },
   { code: 'CENTIPede', name: '百脚', category: 'weft', penaltyMode: 'by_length' },
-  { code: 'HOLE', name: '破洞', category: 'broken', penaltyMode: 'fixed', fixedPenalty: MAX_POINTS_PER_DEFECT },
-  { code: 'TEAR', name: '撕裂', category: 'broken', penaltyMode: 'fixed', fixedPenalty: MAX_POINTS_PER_DEFECT },
+  {
+    code: 'HOLE',
+    name: '破洞',
+    category: 'broken',
+    penaltyMode: 'fixed',
+    fixedPenalty: MAX_POINTS_PER_DEFECT,
+  },
+  {
+    code: 'TEAR',
+    name: '撕裂',
+    category: 'broken',
+    penaltyMode: 'fixed',
+    fixedPenalty: MAX_POINTS_PER_DEFECT,
+  },
   { code: 'OIL_STAIN', name: '油污', category: 'stain', penaltyMode: 'by_length' },
   { code: 'RUST_STAIN', name: '锈渍', category: 'stain', penaltyMode: 'by_length' },
   { code: 'COLOR_DIFF', name: '色差', category: 'other', penaltyMode: 'by_length' },
@@ -105,7 +127,11 @@ export class QualityService {
     opts: { includeDisabled?: boolean } = {},
   ): Promise<DefectTypeEntity[]> {
     const rows = await this.defectTypes.find({
-      where: { tenantId: ctx.tenantId, companyId: ctx.companyId, ...(opts.includeDisabled ? {} : { enabled: true }) },
+      where: {
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+        ...(opts.includeDisabled ? {} : { enabled: true }),
+      },
       order: { sortOrder: 'ASC', code: 'ASC' },
     })
     // 首次使用时灌初值：没有字典检验员无从下手
@@ -137,9 +163,18 @@ export class QualityService {
 
   async createDefectType(
     ctx: { tenantId: string; companyId: string },
-    dto: { code: string; name: string; category?: DefectCategory; penaltyMode?: DefectPenaltyMode; fixedPenalty?: number; sortOrder?: number },
+    dto: {
+      code: string
+      name: string
+      category?: DefectCategory
+      penaltyMode?: DefectPenaltyMode
+      fixedPenalty?: number
+      sortOrder?: number
+    },
   ): Promise<DefectTypeEntity> {
-    const dup = await this.defectTypes.findOne({ where: { companyId: ctx.companyId, code: dto.code } })
+    const dup = await this.defectTypes.findOne({
+      where: { companyId: ctx.companyId, code: dto.code },
+    })
     if (dup) throw new BadRequestException(`疵点代码 ${dto.code} 已存在`)
     return this.defectTypes.save(
       this.defectTypes.create({
@@ -149,7 +184,10 @@ export class QualityService {
         name: dto.name,
         category: dto.category ?? 'other',
         penaltyMode: dto.penaltyMode ?? 'by_length',
-        fixedPenalty: dto.penaltyMode === 'fixed' ? (dto.fixedPenalty ?? MAX_POINTS_PER_DEFECT) : MAX_POINTS_PER_DEFECT,
+        fixedPenalty:
+          dto.penaltyMode === 'fixed'
+            ? (dto.fixedPenalty ?? MAX_POINTS_PER_DEFECT)
+            : MAX_POINTS_PER_DEFECT,
         sortOrder: dto.sortOrder ?? 0,
         enabled: true,
       }),
@@ -159,9 +197,18 @@ export class QualityService {
   async updateDefectType(
     ctx: { tenantId: string; companyId: string },
     id: string,
-    dto: { name?: string; category?: DefectCategory; penaltyMode?: DefectPenaltyMode; fixedPenalty?: number; sortOrder?: number; enabled?: boolean },
+    dto: {
+      name?: string
+      category?: DefectCategory
+      penaltyMode?: DefectPenaltyMode
+      fixedPenalty?: number
+      sortOrder?: number
+      enabled?: boolean
+    },
   ): Promise<DefectTypeEntity> {
-    const dt = await this.defectTypes.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const dt = await this.defectTypes.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!dt) throw new NotFoundException('疵点类型不存在')
     Object.assign(dt, dto)
     return this.defectTypes.save(dt)
@@ -197,7 +244,14 @@ export class QualityService {
 
   async createInspection(
     ctx: { tenantId: string; companyId: string; userId: string },
-    input: { batchId?: string | null; warehouseId?: string | null; inspectedAt?: string | null; mode?: InspectionMode | null; sampleRate?: number | null; remark?: string | null },
+    input: {
+      batchId?: string | null
+      warehouseId?: string | null
+      inspectedAt?: string | null
+      mode?: InspectionMode | null
+      sampleRate?: number | null
+      remark?: string | null
+    },
   ): Promise<InspectionEntity> {
     const inspectionNo = await this.nextNo(ctx.companyId)
     return this.inspections.save(
@@ -213,7 +267,8 @@ export class QualityService {
         sampleRate: input.sampleRate != null ? num(input.sampleRate, 2) : null,
         gradeRuleSnapshot: DEFAULT_GRADE_RULES.map((r) => ({
           grade: r.grade,
-          maxPenaltyDensity: r.maxPenaltyDensity === Number.POSITIVE_INFINITY ? null : r.maxPenaltyDensity,
+          maxPenaltyDensity:
+            r.maxPenaltyDensity === Number.POSITIVE_INFINITY ? null : r.maxPenaltyDensity,
         })) as unknown as InspectionEntity['gradeRuleSnapshot'],
         status: 'draft',
         remark: input.remark ?? null,
@@ -255,7 +310,10 @@ export class QualityService {
     })
     const rollIds = rolls.map((r) => r.id)
     const defects = rollIds.length
-      ? await this.defects.find({ where: { inspectionRollId: In(rollIds) }, order: { positionM: 'ASC' } })
+      ? await this.defects.find({
+          where: { inspectionRollId: In(rollIds) },
+          order: { positionM: 'ASC' },
+        })
       : []
 
     return {
@@ -284,11 +342,16 @@ export class QualityService {
     inspectionId: string,
     rollIds: string[],
   ): Promise<InspectionRollEntity[]> {
-    const inspection = await this.inspections.findOne({ where: { id: inspectionId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const inspection = await this.inspections.findOne({
+      where: { id: inspectionId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!inspection) throw new NotFoundException('检验单不存在')
-    if (inspection.status !== 'draft') throw new BadRequestException('检验单已定等或作废，不能再加匹')
+    if (inspection.status !== 'draft')
+      throw new BadRequestException('检验单已定等或作废，不能再加匹')
 
-    const found = await this.rolls.find({ where: { id: In(rollIds), tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const found = await this.rolls.find({
+      where: { id: In(rollIds), tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (found.length === 0) throw new BadRequestException('未找到可检的件卡')
 
     const batchIds = [...new Set(found.map((r) => r.batchId))]
@@ -341,7 +404,12 @@ export class QualityService {
     ctx: { tenantId: string; companyId: string },
     inspectionId: string,
     rollId: string,
-    items: { defectTypeId: string; positionM?: number | null; lengthInch?: number | null; remark?: string | null }[],
+    items: {
+      defectTypeId: string
+      positionM?: number | null
+      lengthInch?: number | null
+      remark?: string | null
+    }[],
   ) {
     const ir = await this.inspectionRolls.findOne({
       where: { inspectionId, rollId, tenantId: ctx.tenantId, companyId: ctx.companyId },
@@ -349,9 +417,12 @@ export class QualityService {
     if (!ir) throw new NotFoundException('该匹不在此检验单中')
     const inspection = await this.inspections.findOne({ where: { id: inspectionId } })
     if (!inspection) throw new NotFoundException('检验单不存在')
-    if (inspection.status !== 'draft') throw new BadRequestException('检验单已定等或作废，不能再改疵点')
+    if (inspection.status !== 'draft')
+      throw new BadRequestException('检验单已定等或作废，不能再改疵点')
 
-    const types = await this.defectTypes.find({ where: { companyId: ctx.companyId, id: In(items.map((i) => i.defectTypeId)) } })
+    const types = await this.defectTypes.find({
+      where: { companyId: ctx.companyId, id: In(items.map((i) => i.defectTypeId)) },
+    })
     const typeById = new Map(types.map((t) => [t.id, t]))
 
     const rows = items.map((it) => {
@@ -389,7 +460,11 @@ export class QualityService {
     const totalPoints = rows.reduce((s, r) => s + r.penalty, 0)
     const meters = toNum(ir.meters)
     const widthInch = toNum(ir.widthInch)
-    const { sqYards, penaltyDensity, overReceivingLimit } = scoreRoll({ meters, widthInch, totalPoints })
+    const { sqYards, penaltyDensity, overReceivingLimit } = scoreRoll({
+      meters,
+      widthInch,
+      totalPoints,
+    })
     ir.totalPoints = totalPoints
     ir.sqYards = num(sqYards, 4)
     ir.penaltyDensity = num(penaltyDensity, 4)
@@ -410,7 +485,9 @@ export class QualityService {
     insp.totalSqYd = num(totalSqYd, 4)
     insp.avgPenaltyDensity = num(totalSqYd > 0 ? (totalPoints * 100) / totalSqYd : 0, 4)
     insp.passRate =
-      rolls.length > 0 ? num((rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) * 100, 2) : null
+      rolls.length > 0
+        ? num((rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) * 100, 2)
+        : null
     await manager.save(insp)
   }
 
@@ -441,9 +518,14 @@ export class QualityService {
    * 这一步之前，等级只存在于检验单里；这一步之后 `rolls.grade` 才有值，
    * 出库选匹、追溯、打标签、分等计价才读得到。
    */
-  async finalize(ctx: { tenantId: string; companyId: string }, id: string): Promise<InspectionEntity> {
+  async finalize(
+    ctx: { tenantId: string; companyId: string },
+    id: string,
+  ): Promise<InspectionEntity> {
     return this.dataSource.transaction(async (manager) => {
-      const insp = await manager.findOne(InspectionEntity, { where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+      const insp = await manager.findOne(InspectionEntity, {
+        where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+      })
       if (!insp) throw new NotFoundException('检验单不存在')
       if (insp.status !== 'draft') throw new BadRequestException('检验单已定等或作废')
 
@@ -452,11 +534,15 @@ export class QualityService {
 
       for (const ir of rolls) {
         await this.recalcRoll(manager, ir)
-        await manager.update(RollEntity, { id: ir.rollId, companyId: ctx.companyId }, {
-          grade: ir.grade,
-          inspectedAt: new Date(),
-          lastInspectionId: id,
-        })
+        await manager.update(
+          RollEntity,
+          { id: ir.rollId, companyId: ctx.companyId },
+          {
+            grade: ir.grade,
+            inspectedAt: new Date(),
+            lastInspectionId: id,
+          },
+        )
       }
       await this.recalcInspection(manager, id)
       insp.status = 'done'
@@ -470,15 +556,22 @@ export class QualityService {
    * 回退到**除本单外最近一次仍有效检验的等级**，没有就回到未检验（null）。
    * 不能简单置 null——一匹可能被验过两次，第二次作废后应当是第一次的等级。
    */
-  async voidInspection(ctx: { tenantId: string; companyId: string }, id: string): Promise<InspectionEntity> {
+  async voidInspection(
+    ctx: { tenantId: string; companyId: string },
+    id: string,
+  ): Promise<InspectionEntity> {
     return this.dataSource.transaction(async (manager) => {
-      const insp = await manager.findOne(InspectionEntity, { where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+      const insp = await manager.findOne(InspectionEntity, {
+        where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+      })
       if (!insp) throw new NotFoundException('检验单不存在')
       if (insp.status === 'void') return insp
 
       const rolls = await manager.find(InspectionRollEntity, { where: { inspectionId: id } })
       for (const ir of rolls) {
-        const roll = await manager.findOne(RollEntity, { where: { id: ir.rollId, companyId: ctx.companyId } })
+        const roll = await manager.findOne(RollEntity, {
+          where: { id: ir.rollId, companyId: ctx.companyId },
+        })
         if (!roll || roll.lastInspectionId !== id) continue
 
         const prev = await manager.findOne(InspectionRollEntity, {
@@ -488,14 +581,20 @@ export class QualityService {
         const prevValid = prev && prev.inspectionId !== id ? prev : null
         // 上一版必须来自一张 done 的单，draft/void 的不能算
         const fallback = prevValid
-          ? await manager.findOne(InspectionEntity, { where: { id: prevValid.inspectionId, status: 'done' } })
+          ? await manager.findOne(InspectionEntity, {
+              where: { id: prevValid.inspectionId, status: 'done' },
+            })
           : null
 
-        await manager.update(RollEntity, { id: ir.rollId }, {
-          grade: fallback ? prevValid!.grade : null,
-          inspectedAt: fallback ? roll.inspectedAt : null,
-          lastInspectionId: fallback ? prevValid!.inspectionId : null,
-        })
+        await manager.update(
+          RollEntity,
+          { id: ir.rollId },
+          {
+            grade: fallback ? prevValid!.grade : null,
+            inspectedAt: fallback ? roll.inspectedAt : null,
+            lastInspectionId: fallback ? prevValid!.inspectionId : null,
+          },
+        )
       }
       insp.status = 'void'
       return manager.save(insp)
@@ -554,18 +653,37 @@ export class QualityService {
    */
   async resolveUnitPrice(
     ctx: { tenantId: string; companyId: string },
-    input: { contractItemId?: string | null; specId?: string | null; grade?: GreigeGrade | null; basePrice: number },
-  ): Promise<{ price: number; basePrice: number; source: 'contract_item' | 'spec' | 'base'; mode?: GradePriceMode }> {
+    input: {
+      contractItemId?: string | null
+      specId?: string | null
+      grade?: GreigeGrade | null
+      basePrice: number
+    },
+  ): Promise<{
+    price: number
+    basePrice: number
+    source: 'contract_item' | 'spec' | 'base'
+    mode?: GradePriceMode
+  }> {
     const basePrice = input.basePrice
     if (!input.grade) return { price: basePrice, basePrice, source: 'base' }
 
     if (input.contractItemId) {
       const hit = await this.gradePrices.findOne({
-        where: { companyId: ctx.companyId, scope: 'contract_item', refId: input.contractItemId, grade: input.grade },
+        where: {
+          companyId: ctx.companyId,
+          scope: 'contract_item',
+          refId: input.contractItemId,
+          grade: input.grade,
+        },
       })
       if (hit) {
         return {
-          price: calcGradePrice(basePrice, { grade: hit.grade, mode: hit.mode, value: toNum(hit.value) }),
+          price: calcGradePrice(basePrice, {
+            grade: hit.grade,
+            mode: hit.mode,
+            value: toNum(hit.value),
+          }),
           basePrice,
           source: 'contract_item',
           mode: hit.mode,
@@ -579,7 +697,11 @@ export class QualityService {
       })
       if (hit) {
         return {
-          price: calcGradePrice(basePrice, { grade: hit.grade, mode: hit.mode, value: toNum(hit.value) }),
+          price: calcGradePrice(basePrice, {
+            grade: hit.grade,
+            mode: hit.mode,
+            value: toNum(hit.value),
+          }),
           basePrice,
           source: 'spec',
           mode: hit.mode,

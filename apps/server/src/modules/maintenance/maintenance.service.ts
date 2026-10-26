@@ -3,8 +3,16 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, type EntityManager, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { MachineEntity } from '../production/entities/machine.entity'
-import { MaintenancePlanEntity, type MaintenanceCycleType, type MaintenancePlanType } from './entities/maintenance-plan.entity'
-import { MaintenanceRecordEntity, type MaintenanceRecordType, type MaintenanceResult } from './entities/maintenance-record.entity'
+import {
+  MaintenancePlanEntity,
+  type MaintenanceCycleType,
+  type MaintenancePlanType,
+} from './entities/maintenance-plan.entity'
+import {
+  MaintenanceRecordEntity,
+  type MaintenanceRecordType,
+  type MaintenanceResult,
+} from './entities/maintenance-record.entity'
 import { SparePartEntity } from './entities/spare-part.entity'
 import { MaintenanceSparePartEntity } from './entities/maintenance-spare-part.entity'
 import type { RequestContext } from '../auth/auth-context'
@@ -113,29 +121,36 @@ export interface MtbfRow {
 export class MaintenanceService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
-    @InjectRepository(MaintenancePlanEntity) private readonly plans: Repository<MaintenancePlanEntity>,
-    @InjectRepository(MaintenanceRecordEntity) private readonly records: Repository<MaintenanceRecordEntity>,
+    @InjectRepository(MaintenancePlanEntity)
+    private readonly plans: Repository<MaintenancePlanEntity>,
+    @InjectRepository(MaintenanceRecordEntity)
+    private readonly records: Repository<MaintenanceRecordEntity>,
     @InjectRepository(SparePartEntity) private readonly parts: Repository<SparePartEntity>,
-    @InjectRepository(MaintenanceSparePartEntity) private readonly usages: Repository<MaintenanceSparePartEntity>,
+    @InjectRepository(MaintenanceSparePartEntity)
+    private readonly usages: Repository<MaintenanceSparePartEntity>,
     @InjectRepository(MachineEntity) private readonly machines: Repository<MachineEntity>,
   ) {}
 
   // ---------- 写：保养计划 ----------
 
-  async createPlan(ctx: RequestContext, dto: {
-    machineId: string
-    planName: string
-    type?: MaintenancePlanType
-    cycleType?: MaintenanceCycleType
-    cycleValue?: number
-    lastDoneDate?: string | null
-    responsible?: string | null
-    remark?: string | null
-  }): Promise<PlanView> {
+  async createPlan(
+    ctx: RequestContext,
+    dto: {
+      machineId: string
+      planName: string
+      type?: MaintenancePlanType
+      cycleType?: MaintenanceCycleType
+      cycleValue?: number
+      lastDoneDate?: string | null
+      responsible?: string | null
+      remark?: string | null
+    },
+  ): Promise<PlanView> {
     const machine = await this.machines.findOne({
       where: { id: dto.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
     })
-    if (!machine) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '机台不存在' })
+    if (!machine)
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '机台不存在' })
 
     return withUniqueNo(async () => {
       return this.dataSource.transaction(async (manager) => {
@@ -164,18 +179,24 @@ export class MaintenanceService {
     })
   }
 
-  async updatePlan(ctx: RequestContext, id: string, dto: {
-    planName?: string
-    type?: MaintenancePlanType
-    cycleType?: MaintenanceCycleType
-    cycleValue?: number
-    lastDoneDate?: string | null
-    nextDueDate?: string | null
-    responsible?: string | null
-    status?: 'active' | 'paused'
-    remark?: string | null
-  }): Promise<PlanView> {
-    const plan = await this.plans.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+  async updatePlan(
+    ctx: RequestContext,
+    id: string,
+    dto: {
+      planName?: string
+      type?: MaintenancePlanType
+      cycleType?: MaintenanceCycleType
+      cycleValue?: number
+      lastDoneDate?: string | null
+      nextDueDate?: string | null
+      responsible?: string | null
+      status?: 'active' | 'paused'
+      remark?: string | null
+    },
+  ): Promise<PlanView> {
+    const plan = await this.plans.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!plan) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '保养计划不存在' })
 
     if (dto.planName !== undefined) plan.planName = dto.planName
@@ -190,23 +211,32 @@ export class MaintenanceService {
     // 到期日：显式传则用之；否则改了基准/周期就重算（按天循环）
     if (dto.nextDueDate !== undefined) {
       plan.nextDueDate = dto.nextDueDate
-    } else if (dto.lastDoneDate !== undefined || dto.cycleType !== undefined || dto.cycleValue !== undefined) {
+    } else if (
+      dto.lastDoneDate !== undefined ||
+      dto.cycleType !== undefined ||
+      dto.cycleValue !== undefined
+    ) {
       const base = plan.lastDoneDate
       plan.nextDueDate = this.computeNextDueDate(base, plan.cycleType, plan.cycleValue)
     }
 
     const saved = await this.plans.save(plan)
-    const machine = await this.machines.findOne({ where: { id: plan.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const machine = await this.machines.findOne({
+      where: { id: plan.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     return this.toPlanView(saved, machine?.name ?? '', machine?.code ?? '')
   }
 
-  async listPlans(ctx: RequestContext, filter: {
-    machineId?: string
-    status?: 'active' | 'paused'
-    dueSoon?: number
-    page?: number
-    pageSize?: number
-  }): Promise<{ records: PlanView[]; total: number; page: number; pageSize: number }> {
+  async listPlans(
+    ctx: RequestContext,
+    filter: {
+      machineId?: string
+      status?: 'active' | 'paused'
+      dueSoon?: number
+      page?: number
+      pageSize?: number
+    },
+  ): Promise<{ records: PlanView[]; total: number; page: number; pageSize: number }> {
     const page = Math.max(1, filter.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 20))
     const where: Record<string, unknown> = { tenantId: ctx.tenantId, companyId: ctx.companyId }
@@ -219,8 +249,13 @@ export class MaintenanceService {
       skip: (page - 1) * pageSize,
       take: pageSize,
     })
-    const names = await this.loadMachineNames(ctx, rows.map((r) => r.machineId))
-    let views = rows.map((p) => this.toPlanView(p, names.get(p.machineId)?.name ?? '', names.get(p.machineId)?.code ?? ''))
+    const names = await this.loadMachineNames(
+      ctx,
+      rows.map((r) => r.machineId),
+    )
+    let views = rows.map((p) =>
+      this.toPlanView(p, names.get(p.machineId)?.name ?? '', names.get(p.machineId)?.code ?? ''),
+    )
 
     if (filter.dueSoon !== undefined) {
       const horizon = atMidnight(new Date())
@@ -235,36 +270,50 @@ export class MaintenanceService {
   }
 
   async getPlan(ctx: RequestContext, id: string): Promise<PlanView> {
-    const p = await this.plans.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const p = await this.plans.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!p) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '保养计划不存在' })
-    const m = await this.machines.findOne({ where: { id: p.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const m = await this.machines.findOne({
+      where: { id: p.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     return this.toPlanView(p, m?.name ?? '', m?.code ?? '')
   }
 
   // ---------- 写：维保执行 / 故障停机 ----------
 
-  async createRecord(ctx: RequestContext, dto: {
-    machineId: string
-    planId?: string | null
-    type?: MaintenanceRecordType
-    category: string
-    date: string
-    durationMin?: number | null
-    downtimeMin?: number | null
-    cost?: number
-    result?: MaintenanceResult
-    remark?: string | null
-    spareParts?: { partId: string; qty: number; cost: number }[]
-  }): Promise<RecordView> {
+  async createRecord(
+    ctx: RequestContext,
+    dto: {
+      machineId: string
+      planId?: string | null
+      type?: MaintenanceRecordType
+      category: string
+      date: string
+      durationMin?: number | null
+      downtimeMin?: number | null
+      cost?: number
+      result?: MaintenanceResult
+      remark?: string | null
+      spareParts?: { partId: string; qty: number; cost: number }[]
+    },
+  ): Promise<RecordView> {
     const machine = await this.machines.findOne({
       where: { id: dto.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
     })
-    if (!machine) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '机台不存在' })
+    if (!machine)
+      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '机台不存在' })
 
     let plan: MaintenancePlanEntity | null = null
     if (dto.planId) {
-      plan = await this.plans.findOne({ where: { id: dto.planId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
-      if (!plan) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '关联的保养计划不存在' })
+      plan = await this.plans.findOne({
+        where: { id: dto.planId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+      })
+      if (!plan)
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '关联的保养计划不存在',
+        })
     }
 
     return withUniqueNo(async () => {
@@ -297,7 +346,11 @@ export class MaintenanceService {
             const part = await manager.findOne(SparePartEntity, {
               where: { id: u.partId, tenantId: ctx.tenantId, companyId: ctx.companyId },
             })
-            if (!part) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '备件不存在' })
+            if (!part)
+              throw new BadRequestException({
+                code: ErrorCode.VALIDATION_FAILED,
+                message: '备件不存在',
+              })
             const newStock = toNum(part.stock) - u.qty
             if (newStock < -0.001) {
               throw new BadRequestException({
@@ -307,15 +360,23 @@ export class MaintenanceService {
             }
             part.stock = num(newStock, 2)
             await manager.save(part)
-            const urow = await manager.save(manager.create(MaintenanceSparePartEntity, {
-              tenantId: ctx.tenantId,
-              companyId: ctx.companyId,
-              recordId: saved.id,
+            const urow = await manager.save(
+              manager.create(MaintenanceSparePartEntity, {
+                tenantId: ctx.tenantId,
+                companyId: ctx.companyId,
+                recordId: saved.id,
+                partId: part.id,
+                qty: num(u.qty, 2),
+                cost: num(u.cost, 2),
+              }),
+            )
+            usageViews.push({
+              id: urow.id,
               partId: part.id,
-              qty: num(u.qty, 2),
-              cost: num(u.cost, 2),
-            }))
-            usageViews.push({ id: urow.id, partId: part.id, partName: part.name, qty: u.qty, cost: u.cost })
+              partName: part.name,
+              qty: u.qty,
+              cost: u.cost,
+            })
           }
         }
 
@@ -332,20 +393,31 @@ export class MaintenanceService {
         return { saved, usageViews }
       })
     }).then(async ({ saved, usageViews }) => {
-      const m = await this.machines.findOne({ where: { id: saved.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
-      const pName = dto.planId ? (await this.plans.findOne({ where: { id: dto.planId, tenantId: ctx.tenantId, companyId: ctx.companyId } }))?.planName ?? null : null
+      const m = await this.machines.findOne({
+        where: { id: saved.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+      })
+      const pName = dto.planId
+        ? ((
+            await this.plans.findOne({
+              where: { id: dto.planId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+            })
+          )?.planName ?? null)
+        : null
       return this.toRecordView(saved, usageViews, m?.name ?? '', pName)
     })
   }
 
-  async listRecords(ctx: RequestContext, filter: {
-    machineId?: string
-    type?: MaintenanceRecordType
-    from?: string
-    to?: string
-    page?: number
-    pageSize?: number
-  }): Promise<{ records: RecordView[]; total: number; page: number; pageSize: number }> {
+  async listRecords(
+    ctx: RequestContext,
+    filter: {
+      machineId?: string
+      type?: MaintenanceRecordType
+      from?: string
+      to?: string
+      page?: number
+      pageSize?: number
+    },
+  ): Promise<{ records: RecordView[]; total: number; page: number; pageSize: number }> {
     const page = Math.max(1, filter.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 20))
     const where: Record<string, unknown> = { tenantId: ctx.tenantId, companyId: ctx.companyId }
@@ -362,16 +434,27 @@ export class MaintenanceService {
       skip: (page - 1) * pageSize,
       take: pageSize,
     })
-    const names = await this.loadMachineNames(ctx, rows.map((r) => r.machineId))
-    const planNames = await this.loadPlanNames(ctx, rows.map((r) => r.planId).filter((x): x is string => !!x))
-    const usages = await this.loadUsages(ctx, rows.map((r) => r.id))
+    const names = await this.loadMachineNames(
+      ctx,
+      rows.map((r) => r.machineId),
+    )
+    const planNames = await this.loadPlanNames(
+      ctx,
+      rows.map((r) => r.planId).filter((x): x is string => !!x),
+    )
+    const usages = await this.loadUsages(
+      ctx,
+      rows.map((r) => r.id),
+    )
     return {
-      records: rows.map((r) => this.toRecordView(
-        r,
-        usages.get(r.id) ?? [],
-        names.get(r.machineId)?.name ?? '',
-        r.planId ? (planNames.get(r.planId) ?? null) : null,
-      )),
+      records: rows.map((r) =>
+        this.toRecordView(
+          r,
+          usages.get(r.id) ?? [],
+          names.get(r.machineId)?.name ?? '',
+          r.planId ? (planNames.get(r.planId) ?? null) : null,
+        ),
+      ),
       total,
       page,
       pageSize,
@@ -379,11 +462,19 @@ export class MaintenanceService {
   }
 
   async getRecord(ctx: RequestContext, id: string): Promise<RecordView> {
-    const r = await this.records.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const r = await this.records.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!r) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '维保记录不存在' })
-    const m = await this.machines.findOne({ where: { id: r.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const m = await this.machines.findOne({
+      where: { id: r.machineId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     const pName = r.planId
-      ? (await this.plans.findOne({ where: { id: r.planId, tenantId: ctx.tenantId, companyId: ctx.companyId } }))?.planName ?? null
+      ? ((
+          await this.plans.findOne({
+            where: { id: r.planId, tenantId: ctx.tenantId, companyId: ctx.companyId },
+          })
+        )?.planName ?? null)
       : null
     const us = await this.loadUsages(ctx, [r.id])
     return this.toRecordView(r, us.get(r.id) ?? [], m?.name ?? '', pName)
@@ -391,20 +482,27 @@ export class MaintenanceService {
 
   // ---------- 写：备件 ----------
 
-  async createSparePart(ctx: RequestContext, dto: {
-    partCode: string
-    name: string
-    spec?: string | null
-    unit?: string
-    stock?: number
-    minStock?: number
-    location?: string | null
-    remark?: string | null
-  }): Promise<SparePartView> {
+  async createSparePart(
+    ctx: RequestContext,
+    dto: {
+      partCode: string
+      name: string
+      spec?: string | null
+      unit?: string
+      stock?: number
+      minStock?: number
+      location?: string | null
+      remark?: string | null
+    },
+  ): Promise<SparePartView> {
     const dup = await this.parts.findOne({
       where: { partCode: dto.partCode, tenantId: ctx.tenantId, companyId: ctx.companyId },
     })
-    if (dup) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `备件编码「${dto.partCode}」已存在` })
+    if (dup)
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `备件编码「${dto.partCode}」已存在`,
+      })
     const part = this.parts.create({
       tenantId: ctx.tenantId,
       companyId: ctx.companyId,
@@ -421,16 +519,22 @@ export class MaintenanceService {
     return this.toPartView(saved)
   }
 
-  async updateSparePart(ctx: RequestContext, id: string, dto: {
-    name?: string
-    spec?: string | null
-    unit?: string
-    stock?: number
-    minStock?: number
-    location?: string | null
-    remark?: string | null
-  }): Promise<SparePartView> {
-    const part = await this.parts.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+  async updateSparePart(
+    ctx: RequestContext,
+    id: string,
+    dto: {
+      name?: string
+      spec?: string | null
+      unit?: string
+      stock?: number
+      minStock?: number
+      location?: string | null
+      remark?: string | null
+    },
+  ): Promise<SparePartView> {
+    const part = await this.parts.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!part) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '备件不存在' })
     if (dto.name !== undefined) part.name = dto.name
     if (dto.spec !== undefined) part.spec = dto.spec
@@ -443,11 +547,14 @@ export class MaintenanceService {
     return this.toPartView(saved)
   }
 
-  async listSpareParts(ctx: RequestContext, filter: {
-    lowStock?: number
-    page?: number
-    pageSize?: number
-  }): Promise<{ records: SparePartView[]; total: number; page: number; pageSize: number }> {
+  async listSpareParts(
+    ctx: RequestContext,
+    filter: {
+      lowStock?: number
+      page?: number
+      pageSize?: number
+    },
+  ): Promise<{ records: SparePartView[]; total: number; page: number; pageSize: number }> {
     const page = Math.max(1, filter.page ?? 1)
     const pageSize = Math.min(200, Math.max(1, filter.pageSize ?? 50))
     const where: Record<string, unknown> = { tenantId: ctx.tenantId, companyId: ctx.companyId }
@@ -465,7 +572,9 @@ export class MaintenanceService {
   }
 
   async getSparePart(ctx: RequestContext, id: string): Promise<SparePartView> {
-    const p = await this.parts.findOne({ where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const p = await this.parts.findOne({
+      where: { id, tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     if (!p) throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '备件不存在' })
     return this.toPartView(p)
   }
@@ -478,7 +587,9 @@ export class MaintenanceService {
     })
     const totalMachines = machines.filter((m) => m.status !== 'retired').length
 
-    const plans = await this.plans.find({ where: { tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const plans = await this.plans.find({
+      where: { tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     const activePlans = plans.filter((p) => p.status === 'active').length
     const today = atMidnight(new Date())
     const dueSoonHorizon = atMidnight(new Date())
@@ -492,17 +603,32 @@ export class MaintenanceService {
       else if (d.getTime() <= dueSoonHorizon.getTime()) dueSoonPlans++
     }
 
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10)
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      .toISOString()
+      .slice(0, 10)
     const breakdowns = await this.records.find({
       where: { tenantId: ctx.tenantId, companyId: ctx.companyId, type: 'breakdown' },
     })
-    const breakdownThisMonth = breakdowns.filter((r) => r.date >= startOfMonth && r.date <= endOfMonth).length
+    const breakdownThisMonth = breakdowns.filter(
+      (r) => r.date >= startOfMonth && r.date <= endOfMonth,
+    ).length
 
-    const parts = await this.parts.find({ where: { tenantId: ctx.tenantId, companyId: ctx.companyId } })
+    const parts = await this.parts.find({
+      where: { tenantId: ctx.tenantId, companyId: ctx.companyId },
+    })
     const lowStockParts = parts.filter((p) => toNum(p.stock) < toNum(p.minStock) - 0.001).length
 
-    return { totalMachines, activePlans, dueSoonPlans, overduePlans, breakdownThisMonth, lowStockParts }
+    return {
+      totalMachines,
+      activePlans,
+      dueSoonPlans,
+      overduePlans,
+      breakdownThisMonth,
+      lowStockParts,
+    }
   }
 
   async getMtbf(ctx: RequestContext): Promise<MtbfRow[]> {
@@ -547,18 +673,27 @@ export class MaintenanceService {
    * - 按天循环：lastDone + cycleValue 天；无基准则以今天为基准（首次到期）
    * - 按运转小时循环：需累计运行小时，本系统未采集，返回 null 由人工维护
    */
-  private computeNextDueDate(lastDone: string | null, cycleType: MaintenanceCycleType, cycleValue: number): string | null {
+  private computeNextDueDate(
+    lastDone: string | null,
+    cycleType: MaintenanceCycleType,
+    cycleValue: number,
+  ): string | null {
     if (cycleType === 'run_hour') return null
     const base = lastDone ? atMidnight(lastDone) : atMidnight(new Date())
     base.setDate(base.getDate() + cycleValue)
     return base.toISOString().slice(0, 10)
   }
 
-  private async loadMachineNames(ctx: RequestContext, ids: string[]): Promise<Map<string, { name: string; code: string }>> {
+  private async loadMachineNames(
+    ctx: RequestContext,
+    ids: string[],
+  ): Promise<Map<string, { name: string; code: string }>> {
     const map = new Map<string, { name: string; code: string }>()
     const uniq = [...new Set(ids.filter(Boolean))]
     if (!uniq.length) return map
-    const rows = await this.machines.find({ where: uniq.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })) })
+    const rows = await this.machines.find({
+      where: uniq.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+    })
     for (const m of rows) map.set(m.id, { name: m.name, code: m.code })
     return map
   }
@@ -567,24 +702,39 @@ export class MaintenanceService {
     const map = new Map<string, string>()
     const uniq = [...new Set(ids.filter(Boolean))]
     if (!uniq.length) return map
-    const rows = await this.plans.find({ where: uniq.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })) })
+    const rows = await this.plans.find({
+      where: uniq.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+    })
     for (const p of rows) map.set(p.id, p.planName)
     return map
   }
 
-  private async loadUsages(ctx: RequestContext, recordIds: string[]): Promise<Map<string, SpareUsageView[]>> {
+  private async loadUsages(
+    ctx: RequestContext,
+    recordIds: string[],
+  ): Promise<Map<string, SpareUsageView[]>> {
     const map = new Map<string, SpareUsageView[]>()
     const uniq = [...new Set(recordIds.filter(Boolean))]
     if (!uniq.length) return map
-    const rows = await this.usages.find({ where: uniq.map((id) => ({ recordId: id, tenantId: ctx.tenantId, companyId: ctx.companyId })) })
+    const rows = await this.usages.find({
+      where: uniq.map((id) => ({ recordId: id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+    })
     const partIds = [...new Set(rows.map((u) => u.partId))]
     const parts = partIds.length
-      ? await this.parts.find({ where: partIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })) })
+      ? await this.parts.find({
+          where: partIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+        })
       : []
     const partMap = new Map(parts.map((p) => [p.id, p.name]))
     for (const u of rows) {
       const arr = map.get(u.recordId) ?? []
-      arr.push({ id: u.id, partId: u.partId, partName: partMap.get(u.partId) ?? '', qty: toNum(u.qty), cost: toNum(u.cost) })
+      arr.push({
+        id: u.id,
+        partId: u.partId,
+        partName: partMap.get(u.partId) ?? '',
+        qty: toNum(u.qty),
+        cost: toNum(u.cost),
+      })
       map.set(u.recordId, arr)
     }
     return map
@@ -625,7 +775,10 @@ export class MaintenanceService {
       planName,
       type: r.type,
       category: r.category,
-      date: (r.date as unknown) instanceof Date ? (r.date as unknown as Date).toISOString().slice(0, 10) : String(r.date),
+      date:
+        (r.date as unknown) instanceof Date
+          ? (r.date as unknown as Date).toISOString().slice(0, 10)
+          : String(r.date),
       operatorId: r.operatorId,
       operatorName: r.operatorName,
       durationMin: r.durationMin,

@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  computeReorderSuggestion,
-  DEFAULT_LEAD_TIME_DAYS,
-  type ReorderInput,
-} from '../reorder'
+import { computeReorderSuggestion, DEFAULT_LEAD_TIME_DAYS, type ReorderInput } from '../reorder'
 
 /**
  * 期望值一律由输入分量现算，不手写常数（手算极易 100×/1000× 错位）
@@ -48,7 +44,12 @@ describe('补货建议 computeReorderSuggestion', () => {
   it('建议补货量 = 补到(补货点+一个周期用量) − 现有库存', () => {
     const daily = base.consumedQty / base.windowDays
     const rp = daily * (base.leadTimeDays + base.orderCycleDays) + base.safetyStock
-    expect2(base, (s) => s.suggestQty, rp + daily * base.orderCycleDays - base.currentStock, '建议补货量')
+    expect2(
+      base,
+      (s) => s.suggestQty,
+      rp + daily * base.orderCycleDays - base.currentStock,
+      '建议补货量',
+    )
   })
 
   it('库存充足(≥补货点)时不建议补货', () => {
@@ -67,7 +68,12 @@ describe('补货建议 computeReorderSuggestion', () => {
   })
 
   it('提前期与采购周期为 0 时只补到安全库存', () => {
-    const s = computeReorderSuggestion({ ...base, leadTimeDays: 0, orderCycleDays: 0, consumedQty: 600 })
+    const s = computeReorderSuggestion({
+      ...base,
+      leadTimeDays: 0,
+      orderCycleDays: 0,
+      consumedQty: 600,
+    })
     expect(s.reorderPoint).toBe(200) // 0*日均 + 安全库存
   })
 

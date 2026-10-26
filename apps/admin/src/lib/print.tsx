@@ -56,7 +56,17 @@ export function usePrint() {
 }
 
 /** 单据抬头（厂名 + 标题 + 单号/日期） */
-export function SheetHeader({ title, no, date, subtitle }: { title: string; no?: string; date?: string; subtitle?: string }) {
+export function SheetHeader({
+  title,
+  no,
+  date,
+  subtitle,
+}: {
+  title: string
+  no?: string
+  date?: string
+  subtitle?: string
+}) {
   return (
     <div style={{ borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -100,13 +110,28 @@ export function MetaGrid({ items }: { items: (string | number | null | undefined
 }
 
 /** 明细表：columns=[{title, align?, render}] */
-export function DetailTable({ columns, rows }: { columns: { title: string; align?: 'left' | 'right' | 'center'; width?: string }[]; rows: (string | number | null | undefined)[][] }) {
+export function DetailTable({
+  columns,
+  rows,
+}: {
+  columns: { title: string; align?: 'left' | 'right' | 'center'; width?: string }[]
+  rows: (string | number | null | undefined)[][]
+}) {
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
       <thead>
         <tr>
           {columns.map((c, i) => (
-            <th key={i} style={{ border: '1px solid #000', padding: '5px 6px', textAlign: c.align ?? 'left', width: c.width, background: '#f0f0f0' }}>
+            <th
+              key={i}
+              style={{
+                border: '1px solid #000',
+                padding: '5px 6px',
+                textAlign: c.align ?? 'left',
+                width: c.width,
+                background: '#f0f0f0',
+              }}
+            >
               {c.title}
             </th>
           ))}
@@ -116,7 +141,14 @@ export function DetailTable({ columns, rows }: { columns: { title: string; align
         {rows.map((r, ri) => (
           <tr key={ri}>
             {r.map((cell, ci) => (
-              <td key={ci} style={{ border: '1px solid #999', padding: '4px 6px', textAlign: columns[ci]?.align ?? 'left' }}>
+              <td
+                key={ci}
+                style={{
+                  border: '1px solid #999',
+                  padding: '4px 6px',
+                  textAlign: columns[ci]?.align ?? 'left',
+                }}
+              >
                 {cell ?? '-'}
               </td>
             ))}
@@ -130,7 +162,15 @@ export function DetailTable({ columns, rows }: { columns: { title: string; align
 /** 页脚（打印时间） */
 export function SheetFooter() {
   return (
-    <div style={{ marginTop: 16, fontSize: 11, color: '#666', display: 'flex', justifyContent: 'space-between' }}>
+    <div
+      style={{
+        marginTop: 16,
+        fontSize: 11,
+        color: '#666',
+        display: 'flex',
+        justifyContent: 'space-between',
+      }}
+    >
       <span>制表：系统自动生成</span>
       <span>打印时间：{new Date().toLocaleString('zh-CN')}</span>
     </div>

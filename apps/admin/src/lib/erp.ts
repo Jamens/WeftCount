@@ -82,7 +82,8 @@ export interface BatchWire {
   remainingWeightKg: string
   remainingAreaM2: string
   unitCost: string | null
-  sourceType: 'purchase_inbound' | 'production_in' | 'stock_transfer' | 'stock_adjust' | 'count_gain'
+  sourceType:
+    'purchase_inbound' | 'production_in' | 'stock_transfer' | 'stock_adjust' | 'count_gain'
   sourceDocId: string
   status: 'normal' | 'frozen' | 'depleted'
   inboundAt: string
@@ -237,10 +238,12 @@ export const ORDER_TYPE_LABEL: Record<TradeOrderTypeValue, string> = {
   sales: '销售订单',
 }
 
-export const ORDER_TYPE_OPTIONS = (Object.keys(ORDER_TYPE_LABEL) as TradeOrderTypeValue[]).map((k) => ({
-  value: k,
-  label: ORDER_TYPE_LABEL[k],
-}))
+export const ORDER_TYPE_OPTIONS = (Object.keys(ORDER_TYPE_LABEL) as TradeOrderTypeValue[]).map(
+  (k) => ({
+    value: k,
+    label: ORDER_TYPE_LABEL[k],
+  }),
+)
 
 export const ORDER_STATUS_LABEL: Record<TradeOrderStatusValue, { text: string; color: string }> = {
   draft: { text: '草稿', color: 'default' },
@@ -505,12 +508,24 @@ export interface AlertWire {
 
 export interface TrendData {
   days: number
-  daily: { date: string; meters: number; weightKg: number; purchaseAmount: number; salesAmount: number }[]
+  daily: {
+    date: string
+    meters: number
+    weightKg: number
+    purchaseAmount: number
+    salesAmount: number
+  }[]
   specShare: { specId: string; specName: string; meters: number }[]
   totals: { meters: number; purchaseAmount: number; salesAmount: number }
   /** 损耗趋势：投料(领用) vs 产出 vs 当日/累计损耗（米） */
   loss: {
-    daily: { date: string; inputM: number; outputM: number; excessM: number; cumulativeExcessM: number }[]
+    daily: {
+      date: string
+      inputM: number
+      outputM: number
+      excessM: number
+      cumulativeExcessM: number
+    }[]
     totalExcessM: number
     windowInputM: number
     windowOutputM: number
@@ -528,7 +543,8 @@ export interface TrendData {
 // ---------------------------------------------------------------------------
 
 export type MachineStatusValue = 'idle' | 'running' | 'maintenance' | 'retired'
-export type ProductionOrderStatusValue = 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+export type ProductionOrderStatusValue =
+  'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 
 export interface MachineWire {
   id: string
@@ -577,13 +593,17 @@ export interface ProductionOrderDetail {
   progressPct: number
 }
 
-export const MACHINE_STATUS_LABEL: Record<MachineStatusValue, { text: string; color: string }> = {  idle: { text: '空闲', color: 'default' },
+export const MACHINE_STATUS_LABEL: Record<MachineStatusValue, { text: string; color: string }> = {
+  idle: { text: '空闲', color: 'default' },
   running: { text: '运转中', color: 'green' },
   maintenance: { text: '维修中', color: 'orange' },
   retired: { text: '已报废', color: 'red' },
 }
 
-export const PRODUCTION_STATUS_LABEL: Record<ProductionOrderStatusValue, { text: string; color: string }> = {
+export const PRODUCTION_STATUS_LABEL: Record<
+  ProductionOrderStatusValue,
+  { text: string; color: string }
+> = {
   draft: { text: '草稿', color: 'default' },
   scheduled: { text: '已排产', color: 'blue' },
   in_progress: { text: '生产中', color: 'processing' },
@@ -677,85 +697,86 @@ export const USER_STATUS_LABEL: Record<UserStatusValue, { text: string; color: s
  * 用于角色编辑器的多选项。后端角色权限可能含通配（如 material.*、*），
  * 这些不在目录里，前端仍以原始码展示，不丢信息。
  */
-export const PERMISSION_CATALOG: { group: string; options: { value: string; label: string }[] }[] = [
-  {
-    group: '基础资料',
-    options: [
-      { value: 'material.view', label: '物料查看' },
-      { value: 'material.edit', label: '物料编辑' },
-      { value: 'partner.view', label: '往来单位查看' },
-      { value: 'partner.edit', label: '往来单位编辑' },
-      { value: 'warehouse.view', label: '仓库查看' },
-      { value: 'warehouse.manage', label: '仓库管理' },
-    ],
-  },
-  {
-    group: '库存',
-    options: [
-      { value: 'inventory.view', label: '库存查看' },
-      { value: 'inventory.manage', label: '库存管理' },
-    ],
-  },
-  {
-    group: '质检',
-    options: [
-      { value: 'quality.view', label: '质检查看' },
-      { value: 'quality.inspect', label: '检验录入' },
-      { value: 'quality.review', label: '定等复核' },
-    ],
-  },
-  {
-    group: '采购 / 销售',
-    options: [
-      { value: 'purchase.view', label: '采购查看' },
-      { value: 'purchase.manage', label: '采购管理' },
-      { value: 'sales.view', label: '销售查看' },
-      { value: 'sales.manage', label: '销售管理' },
-    ],
-  },
-  {
-    group: '生产',
-    options: [
-      { value: 'production.view', label: '生产查看' },
-      { value: 'production.order.edit', label: '工单编辑' },
-      { value: 'production.report', label: '生产报工' },
-      { value: 'production.self.view', label: '本机产量' },
-    ],
-  },
-  {
-    group: '成本 / 报表',
-    options: [
-      { value: 'cost.view', label: '成本查看' },
-      { value: 'cost.manage', label: '成本管理' },
-      { value: 'report.view', label: '报表查看' },
-      { value: 'report.sales', label: '销售报表' },
-    ],
-  },
-  {
-    group: '工艺系数',
-    options: [
-      { value: 'coefficient.view', label: '系数查看' },
-      { value: 'coefficient.edit', label: '系数编辑' },
-      { value: 'tech.calc', label: '工艺试算' },
-    ],
-  },
-  {
-    group: '用户 / 角色',
-    options: [
-      { value: 'user.view', label: '用户查看' },
-      { value: 'user.manage', label: '用户管理' },
-      { value: 'role.view', label: '角色查看' },
-      { value: 'role.manage', label: '角色管理' },
-    ],
-  },
-  {
-    group: '审计 / AI',
-    options: [
-      { value: 'audit.view', label: '审计查看' },
-      { value: 'ai.use', label: 'AI 使用' },
-    ],
-  },
-]
+export const PERMISSION_CATALOG: { group: string; options: { value: string; label: string }[] }[] =
+  [
+    {
+      group: '基础资料',
+      options: [
+        { value: 'material.view', label: '物料查看' },
+        { value: 'material.edit', label: '物料编辑' },
+        { value: 'partner.view', label: '往来单位查看' },
+        { value: 'partner.edit', label: '往来单位编辑' },
+        { value: 'warehouse.view', label: '仓库查看' },
+        { value: 'warehouse.manage', label: '仓库管理' },
+      ],
+    },
+    {
+      group: '库存',
+      options: [
+        { value: 'inventory.view', label: '库存查看' },
+        { value: 'inventory.manage', label: '库存管理' },
+      ],
+    },
+    {
+      group: '质检',
+      options: [
+        { value: 'quality.view', label: '质检查看' },
+        { value: 'quality.inspect', label: '检验录入' },
+        { value: 'quality.review', label: '定等复核' },
+      ],
+    },
+    {
+      group: '采购 / 销售',
+      options: [
+        { value: 'purchase.view', label: '采购查看' },
+        { value: 'purchase.manage', label: '采购管理' },
+        { value: 'sales.view', label: '销售查看' },
+        { value: 'sales.manage', label: '销售管理' },
+      ],
+    },
+    {
+      group: '生产',
+      options: [
+        { value: 'production.view', label: '生产查看' },
+        { value: 'production.order.edit', label: '工单编辑' },
+        { value: 'production.report', label: '生产报工' },
+        { value: 'production.self.view', label: '本机产量' },
+      ],
+    },
+    {
+      group: '成本 / 报表',
+      options: [
+        { value: 'cost.view', label: '成本查看' },
+        { value: 'cost.manage', label: '成本管理' },
+        { value: 'report.view', label: '报表查看' },
+        { value: 'report.sales', label: '销售报表' },
+      ],
+    },
+    {
+      group: '工艺系数',
+      options: [
+        { value: 'coefficient.view', label: '系数查看' },
+        { value: 'coefficient.edit', label: '系数编辑' },
+        { value: 'tech.calc', label: '工艺试算' },
+      ],
+    },
+    {
+      group: '用户 / 角色',
+      options: [
+        { value: 'user.view', label: '用户查看' },
+        { value: 'user.manage', label: '用户管理' },
+        { value: 'role.view', label: '角色查看' },
+        { value: 'role.manage', label: '角色管理' },
+      ],
+    },
+    {
+      group: '审计 / AI',
+      options: [
+        { value: 'audit.view', label: '审计查看' },
+        { value: 'ai.use', label: 'AI 使用' },
+      ],
+    },
+  ]
 
 /** decimal 字符串 → number，null/空按 0 处理 */
 export function dec(v: string | number | null | undefined): number {
@@ -766,7 +787,10 @@ export function dec(v: string | number | null | undefined): number {
 
 /** 数字格式化：固定小数位，千分位逗号 */
 export function fmt(v: string | number | null | undefined, scale = 2): string {
-  return dec(v).toLocaleString('zh-CN', { minimumFractionDigits: scale, maximumFractionDigits: scale })
+  return dec(v).toLocaleString('zh-CN', {
+    minimumFractionDigits: scale,
+    maximumFractionDigits: scale,
+  })
 }
 
 /** 金额格式化（人民币） */
@@ -784,7 +808,10 @@ export function fmtPct(v: string | number | null | undefined, scale = 2): string
 // 标签映射（shared 未覆盖的部分）
 // ---------------------------------------------------------------------------
 
-export const DOC_TYPE_LABEL: Record<InventoryDocType, { text: string; color: string; unitHint: string }> = {
+export const DOC_TYPE_LABEL: Record<
+  InventoryDocType,
+  { text: string; color: string; unitHint: string }
+> = {
   purchase_inbound: { text: '采购入库', color: 'green', unitHint: '按重量录入（kg / g / t）' },
   production_issue: { text: '生产领用', color: 'blue', unitHint: '按长度录入（m / yd）' },
   sales_outbound: { text: '销售出库', color: 'purple', unitHint: '按面积录入（m² / ft²）' },
@@ -867,11 +894,12 @@ export interface StocktakeItemView {
   diffQuantityM: number | null
 }
 
-export const STOCKTAKE_STATUS_LABEL: Record<StocktakeStatusValue, { text: string; color: string }> = {
-  draft: { text: '盘点中', color: 'processing' },
-  completed: { text: '已完成', color: 'green' },
-  cancelled: { text: '已取消', color: 'default' },
-}
+export const STOCKTAKE_STATUS_LABEL: Record<StocktakeStatusValue, { text: string; color: string }> =
+  {
+    draft: { text: '盘点中', color: 'processing' },
+    completed: { text: '已完成', color: 'green' },
+    cancelled: { text: '已取消', color: 'default' },
+  }
 
 // ---------------------------------------------------------------------------
 // 全链路追溯
@@ -892,7 +920,14 @@ export type BatchOrigin =
   | {
       kind: 'production'
       report: { id: string; reportDate: string; outputM: string; stopReason: string | null }
-      workOrder: { id: string; orderNo: string; status: string; plannedQuantityM: string; producedQuantityM: string; dueDate: string | null }
+      workOrder: {
+        id: string
+        orderNo: string
+        status: string
+        plannedQuantityM: string
+        producedQuantityM: string
+        dueDate: string | null
+      }
       machine: { id: string; code: string; name: string; model: string | null } | null
     }
   | {
@@ -942,7 +977,13 @@ export interface BatchTrace {
   }
   spec: SpecBrief | null
   origin: BatchOrigin | null
-  consumedBy: Array<{ docNo: string; docType: string; outM: number; partnerName: string | null; date: string }>
+  consumedBy: Array<{
+    docNo: string
+    docType: string
+    outM: number
+    partnerName: string | null
+    date: string
+  }>
 }
 
 /**
@@ -1025,10 +1066,12 @@ export const PARTNER_TYPE_LABEL: Record<PartnerTypeValue, string> = {
   both: '供应商兼客户',
 }
 
-export const PARTNER_TYPE_OPTIONS = (Object.keys(PARTNER_TYPE_LABEL) as PartnerTypeValue[]).map((k) => ({
-  value: k,
-  label: PARTNER_TYPE_LABEL[k],
-}))
+export const PARTNER_TYPE_OPTIONS = (Object.keys(PARTNER_TYPE_LABEL) as PartnerTypeValue[]).map(
+  (k) => ({
+    value: k,
+    label: PARTNER_TYPE_LABEL[k],
+  }),
+)
 
 export const PARTNER_STATUS_LABEL: Record<PartnerStatusValue, { text: string; color: string }> = {
   active: { text: '启用', color: 'green' },
@@ -1165,7 +1208,10 @@ export interface GradePriceWire {
   value: string
 }
 
-export const INSPECTION_STATUS_LABEL: Record<InspectionStatusValue, { text: string; color: string }> = {
+export const INSPECTION_STATUS_LABEL: Record<
+  InspectionStatusValue,
+  { text: string; color: string }
+> = {
   draft: { text: '录入中', color: 'processing' },
   done: { text: '已定等', color: 'success' },
   void: { text: '已作废', color: 'default' },

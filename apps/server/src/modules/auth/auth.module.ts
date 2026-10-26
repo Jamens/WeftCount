@@ -36,7 +36,7 @@ import { TenantEntity } from '../tenant/entities/tenant.entity'
           throw new Error(
             'JWT_SECRET 未设置或仍是开发默认值。生产环境必须配置强随机密钥，' +
               '否则任何人都能用公开的默认值伪造令牌。' +
-              '生成方式：node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"',
+              "生成方式：node -e \"console.log(require('crypto').randomBytes(48).toString('hex'))\"",
           )
         }
         return {

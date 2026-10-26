@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Badge, Button, Card, Col, Empty, Row, Skeleton, Space, Statistic, Table, Tag, Typography } from 'antd'
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Skeleton,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from 'antd'
 import {
   AlertOutlined,
   ArrowRightOutlined,
@@ -31,7 +45,12 @@ function OutputSpark({ data }: { data: { date: string; meters: number }[] }) {
   const label = { fontSize: 10, fill: '#8C8C8C' } as const
 
   return (
-    <svg viewBox={`0 0 ${W} ${H + PAD_B}`} style={{ width: '100%', display: 'block' }} role="img" aria-label="近7日日产量">
+    <svg
+      viewBox={`0 0 ${W} ${H + PAD_B}`}
+      style={{ width: '100%', display: 'block' }}
+      role="img"
+      aria-label="近7日日产量"
+    >
       {data.map((d, i) => {
         const h = (d.meters / max) * H
         const x = i * bw + bw * 0.2
@@ -109,12 +128,19 @@ export default function DashboardPage() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
         <div>
-          <Text strong style={{ fontSize: 16 }}>工作台</Text>
+          <Text strong style={{ fontSize: 16 }}>
+            工作台
+          </Text>
           <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
             {monthLabel}经营概览 · 数字均来自数据库聚合，与各业务页一致
           </Text>
         </div>
-        <Button size="small" icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          onClick={() => void load()}
+          loading={loading}
+        >
           刷新
         </Button>
       </Space>
@@ -130,8 +156,8 @@ export default function DashboardPage() {
             <Space direction="vertical" size={4}>
               <Text>{loadError}</Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                常见原因：当前账号没有任何业务查看权限（inventory.view / production.view / report.view 等），
-                或后端服务未启动。
+                常见原因：当前账号没有任何业务查看权限（inventory.view / production.view /
+                report.view 等）， 或后端服务未启动。
               </Text>
             </Space>
           }
@@ -145,9 +171,15 @@ export default function DashboardPage() {
       {!loading && health && !healthError && (
         <Card size="small" styles={{ body: { padding: '8px 12px' } }}>
           <Space size="middle" wrap>
-            <Tag color="green" style={{ marginInlineEnd: 0 }}>服务在线</Tag>
-            <Text type="secondary" style={{ fontSize: 12 }}>{health.service} v{health.version}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>已授权 {permissions.length} 项权限</Text>
+            <Tag color="green" style={{ marginInlineEnd: 0 }}>
+              服务在线
+            </Tag>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {health.service} v{health.version}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              已授权 {permissions.length} 项权限
+            </Text>
           </Space>
         </Card>
       )}
@@ -156,7 +188,15 @@ export default function DashboardPage() {
         <>
           {/* 待办优先：MES 首页第一屏该是"今天要处理什么"，不是漂亮图表 */}
           {hasTodo && (
-            <Card size="small" title={<Space><AlertOutlined />待办事项</Space>}>
+            <Card
+              size="small"
+              title={
+                <Space>
+                  <AlertOutlined />
+                  待办事项
+                </Space>
+              }
+            >
               <Space size="middle" wrap>
                 <Badge count={t!.overdueOrders} offset={[8, 0]}>
                   <Button
@@ -169,7 +209,11 @@ export default function DashboardPage() {
                   </Button>
                 </Badge>
                 <Badge count={t!.dueSoonOrders} offset={[8, 0]} color="#FA8C16">
-                  <Button size="small" icon={<ClockCircleOutlined />} onClick={() => nav('/orders')}>
+                  <Button
+                    size="small"
+                    icon={<ClockCircleOutlined />}
+                    onClick={() => nav('/orders')}
+                  >
                     7天内交期
                   </Button>
                 </Badge>
@@ -214,13 +258,26 @@ export default function DashboardPage() {
               <>
                 <Col xs={12} sm={12} md={6}>
                   <Card size="small" loading={loading}>
-                    <Statistic title={`${monthLabel}销售额`} value={data.sales.amount} precision={0} prefix="¥" valueStyle={{ color: '#185FA5' }} />
-                    <Text type="secondary" style={{ fontSize: 12 }}>{data.sales.orders} 单出库</Text>
+                    <Statistic
+                      title={`${monthLabel}销售额`}
+                      value={data.sales.amount}
+                      precision={0}
+                      prefix="¥"
+                      valueStyle={{ color: '#185FA5' }}
+                    />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {data.sales.orders} 单出库
+                    </Text>
                   </Card>
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                   <Card size="small" loading={loading}>
-                    <Statistic title="在库货值" value={data.inventory.stockValue} precision={0} prefix="¥" />
+                    <Statistic
+                      title="在库货值"
+                      value={data.inventory.stockValue}
+                      precision={0}
+                      prefix="¥"
+                    />
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       采购 {fmt(String(data.purchase.amount), 0)} 元
                     </Text>
@@ -230,7 +287,12 @@ export default function DashboardPage() {
             ) : (
               <Col xs={24} sm={24} md={12}>
                 <Card size="small" loading={loading}>
-                  <Statistic title="在库重量" value={data.inventory.remainingKg} precision={0} suffix="kg" />
+                  <Statistic
+                    title="在库重量"
+                    value={data.inventory.remainingKg}
+                    precision={0}
+                    suffix="kg"
+                  />
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     机台 {data.production.machineRunning}/{data.production.machineTotal} 在产
                   </Text>
@@ -241,7 +303,15 @@ export default function DashboardPage() {
 
           <Row gutter={[12, 12]}>
             <Col xs={24} lg={14}>
-              <Card size="small" title="近 7 日日产量" extra={<Text type="secondary" style={{ fontSize: 12 }}>报工产出（批次口径）</Text>}>
+              <Card
+                size="small"
+                title="近 7 日日产量"
+                extra={
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    报工产出（批次口径）
+                  </Text>
+                }
+              >
                 {data.recentOutput.some((d) => d.meters > 0) ? (
                   <OutputSpark data={data.recentOutput} />
                 ) : (
@@ -265,13 +335,21 @@ export default function DashboardPage() {
                   showHeader={false}
                   rowKey="k"
                   dataSource={[
-                    { k: '机台状态', v: `${data.production.machineRunning} / ${data.production.machineTotal} 在产` },
+                    {
+                      k: '机台状态',
+                      v: `${data.production.machineRunning} / ${data.production.machineTotal} 在产`,
+                    },
                     { k: '在产工单', v: `${data.production.inProgressOrders} 单` },
                     { k: '待排产', v: `${data.production.draftOrders} 单` },
                     { k: `${monthLabel}报工`, v: `${data.production.reportCount} 次` },
                     { k: '在库匹数', v: `${data.inventory.rollsInStock} 匹` },
                     ...(canSeeMoney
-                      ? [{ k: `${monthLabel}采购`, v: `${fmt(String(data.purchase.amount), 0)} 元 / ${data.purchase.orders} 单` }]
+                      ? [
+                          {
+                            k: `${monthLabel}采购`,
+                            v: `${fmt(String(data.purchase.amount), 0)} 元 / ${data.purchase.orders} 单`,
+                          },
+                        ]
                       : []),
                   ]}
                   columns={[
@@ -304,7 +382,17 @@ export default function DashboardPage() {
       {/* 系统能力说明：保留原来的分层展示（这是产品说明，不是业务数据） */}
       <Card size="small" title="系统能力分层">
         <Space size={[8, 8]} wrap>
-          {['多单位体系', '支数换算', '经纬用量公式', '克重反算', '三算对账', '件卡追溯', 'AI 核价', '损耗归因', '排产建议'].map((x) => (
+          {[
+            '多单位体系',
+            '支数换算',
+            '经纬用量公式',
+            '克重反算',
+            '三算对账',
+            '件卡追溯',
+            'AI 核价',
+            '损耗归因',
+            '排产建议',
+          ].map((x) => (
             <Tag key={x}>{x}</Tag>
           ))}
         </Space>

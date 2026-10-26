@@ -37,7 +37,21 @@ import { RollEntity } from '../inventory/entities/roll.entity'
     AuthModule,
   ],
   controllers: [AiController],
-  providers: [LlmClient, PricingService, LossService, CoefficientService, PredictionService, SchedulingService],
-  exports: [LlmClient, PricingService, LossService, CoefficientService, PredictionService, SchedulingService],
+  providers: [
+    LlmClient,
+    PricingService,
+    LossService,
+    CoefficientService,
+    PredictionService,
+    SchedulingService,
+  ],
+  exports: [
+    LlmClient,
+    PricingService,
+    LossService,
+    CoefficientService,
+    PredictionService,
+    SchedulingService,
+  ],
 })
 export class AiModule {}

@@ -103,11 +103,19 @@ export class SchedulingService {
     private readonly dataSource: DataSource,
   ) {}
 
-  private async orderDays(tenantId: string, companyId: string, o: ProductionOrderEntity): Promise<{ days: number; daily: number; specName: string }> {
+  private async orderDays(
+    tenantId: string,
+    companyId: string,
+    o: ProductionOrderEntity,
+  ): Promise<{ days: number; daily: number; specName: string }> {
     try {
       const spec = await this.materials.findSpec(tenantId, companyId, o.specId)
       const daily = Number(this.materials.getSnapshot(spec).dailyOutputM) || 0
-      return { days: daily > 0 ? Number(o.plannedQuantityM) / daily : 0, daily, specName: spec.name }
+      return {
+        days: daily > 0 ? Number(o.plannedQuantityM) / daily : 0,
+        daily,
+        specName: spec.name,
+      }
     } catch {
       return { days: 0, daily: 0, specName: '-' }
     }
@@ -116,8 +124,12 @@ export class SchedulingService {
   /** 确定性排产：EDD 贪心分配 */
   async schedule(tenantId: string, companyId: string): Promise<ScheduleData> {
     const today = dayjs().startOf('day')
-    const machines = await this.machines.find({ where: { companyId, status: In(['idle', 'running']) } })
-    const pending = await this.prodOrders.find({ where: { companyId, status: In(['draft', 'scheduled', 'in_progress']) } })
+    const machines = await this.machines.find({
+      where: { companyId, status: In(['idle', 'running']) },
+    })
+    const pending = await this.prodOrders.find({
+      where: { companyId, status: In(['draft', 'scheduled', 'in_progress']) },
+    })
 
     // 机台初始负载：在产工单剩余天数 + 已排(scheduled)工单天数
     const load = new Map<string, number>()
@@ -134,18 +146,31 @@ export class SchedulingService {
         const start = load.get(o.machineId) ?? 0
         load.set(o.machineId, start + span)
         bars.push({
-          orderId: o.id, orderNo: o.orderNo, specName, machineId: o.machineId,
-          startDay: r1(start), endDay: r1(start + span), days: r1(span),
-          plannedMeters: Number(o.plannedQuantityM), status: 'in_progress',
-          dueInDays: dueIn(o.dueDate, today), meetsDue: null,
+          orderId: o.id,
+          orderNo: o.orderNo,
+          specName,
+          machineId: o.machineId,
+          startDay: r1(start),
+          endDay: r1(start + span),
+          days: r1(span),
+          plannedMeters: Number(o.plannedQuantityM),
+          status: 'in_progress',
+          dueInDays: dueIn(o.dueDate, today),
+          meetsDue: null,
         })
       } else if (o.status === 'scheduled') {
         const start = load.get(o.machineId) ?? 0
         load.set(o.machineId, start + days)
         bars.push({
-          orderId: o.id, orderNo: o.orderNo, specName, machineId: o.machineId,
-          startDay: r1(start), endDay: r1(start + days), days: r1(days),
-          plannedMeters: Number(o.plannedQuantityM), status: 'scheduled',
+          orderId: o.id,
+          orderNo: o.orderNo,
+          specName,
+          machineId: o.machineId,
+          startDay: r1(start),
+          endDay: r1(start + days),
+          days: r1(days),
+          plannedMeters: Number(o.plannedQuantityM),
+          status: 'scheduled',
           dueInDays: dueIn(o.dueDate, today),
           meetsDue: o.dueDate ? start + days <= dueIn(o.dueDate, today)! : null,
         })
@@ -183,7 +208,9 @@ export class SchedulingService {
       }
       const dueInDays = dueIn(o.dueDate, today)
       rows.push({
-        orderId: o.id, orderNo: o.orderNo, specName,
+        orderId: o.id,
+        orderNo: o.orderNo,
+        specName,
         plannedMeters: Number(o.plannedQuantityM),
         machineId,
         machineName: machineId ? (machines.find((m) => m.id === machineId)?.name ?? null) : null,
@@ -196,10 +223,17 @@ export class SchedulingService {
       })
       // 甘特条：建议（未落库），与 rows 同源
       bars.push({
-        orderId: o.id, orderNo: o.orderNo, specName, machineId,
-        startDay: r1(start), endDay: r1(end), days: r1(days),
-        plannedMeters: Number(o.plannedQuantityM), status: 'draft',
-        dueInDays, meetsDue: dueInDays == null ? null : end <= dueInDays,
+        orderId: o.id,
+        orderNo: o.orderNo,
+        specName,
+        machineId,
+        startDay: r1(start),
+        endDay: r1(end),
+        days: r1(days),
+        plannedMeters: Number(o.plannedQuantityM),
+        status: 'draft',
+        dueInDays,
+        meetsDue: dueInDays == null ? null : end <= dueInDays,
       })
     }
 
@@ -216,8 +250,12 @@ export class SchedulingService {
    */
   async gantt(tenantId: string, companyId: string): Promise<GanttData> {
     const today = dayjs().startOf('day')
-    const machines = await this.machines.find({ where: { companyId, status: In(['idle', 'running']) } })
-    const pending = await this.prodOrders.find({ where: { companyId, status: In(['draft', 'scheduled', 'in_progress']) } })
+    const machines = await this.machines.find({
+      where: { companyId, status: In(['idle', 'running']) },
+    })
+    const pending = await this.prodOrders.find({
+      where: { companyId, status: In(['draft', 'scheduled', 'in_progress']) },
+    })
 
     const load = new Map<string, number>()
     for (const m of machines) load.set(m.id, 0)
@@ -233,17 +271,30 @@ export class SchedulingService {
         const span = daily > 0 ? remain / daily : 0
         load.set(o.machineId, start + span)
         bars.push({
-          orderId: o.id, orderNo: o.orderNo, specName, machineId: o.machineId,
-          startDay: r1(start), endDay: r1(start + span), days: r1(span),
-          plannedMeters: Number(o.plannedQuantityM), status: 'in_progress',
-          dueInDays: dueIn(o.dueDate, today), meetsDue: null,
+          orderId: o.id,
+          orderNo: o.orderNo,
+          specName,
+          machineId: o.machineId,
+          startDay: r1(start),
+          endDay: r1(start + span),
+          days: r1(span),
+          plannedMeters: Number(o.plannedQuantityM),
+          status: 'in_progress',
+          dueInDays: dueIn(o.dueDate, today),
+          meetsDue: null,
         })
       } else if (o.status === 'scheduled') {
         load.set(o.machineId, start + days)
         bars.push({
-          orderId: o.id, orderNo: o.orderNo, specName, machineId: o.machineId,
-          startDay: r1(start), endDay: r1(start + days), days: r1(days),
-          plannedMeters: Number(o.plannedQuantityM), status: 'scheduled',
+          orderId: o.id,
+          orderNo: o.orderNo,
+          specName,
+          machineId: o.machineId,
+          startDay: r1(start),
+          endDay: r1(start + days),
+          days: r1(days),
+          plannedMeters: Number(o.plannedQuantityM),
+          status: 'scheduled',
           dueInDays: dueIn(o.dueDate, today),
           meetsDue: o.dueDate ? start + days <= dueIn(o.dueDate, today)! : null,
         })
@@ -278,10 +329,17 @@ export class SchedulingService {
       }
       const dueInDays = dueIn(o.dueDate, today)
       bars.push({
-        orderId: o.id, orderNo: o.orderNo, specName, machineId,
-        startDay: r1(start), endDay: r1(end), days: r1(days),
-        plannedMeters: Number(o.plannedQuantityM), status: 'draft',
-        dueInDays, meetsDue: dueInDays == null ? null : end <= dueInDays,
+        orderId: o.id,
+        orderNo: o.orderNo,
+        specName,
+        machineId,
+        startDay: r1(start),
+        endDay: r1(end),
+        days: r1(days),
+        plannedMeters: Number(o.plannedQuantityM),
+        status: 'draft',
+        dueInDays,
+        meetsDue: dueInDays == null ? null : end <= dueInDays,
       })
     }
 
@@ -350,7 +408,10 @@ export class SchedulingService {
         }
         const m = await machineRepo.findOne({ where: { id: it.machineId, companyId } })
         if (!m) {
-          throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `机台不存在：${it.machineId}` })
+          throw new BadRequestException({
+            code: ErrorCode.VALIDATION_FAILED,
+            message: `机台不存在：${it.machineId}`,
+          })
         }
         o.machineId = it.machineId
         // 相对天 → 绝对日期：plannedStartDate 是 date 列，只取年月日
@@ -378,11 +439,12 @@ export class SchedulingService {
       source: 'rule',
       confidence: 0.5,
       derivation,
-      reasoning: data.atRiskCount > 0
-        ? `有 ${data.atRiskCount} 个工单按当前产能/机台数无法按期完成，建议加急(插单/加班)或与客户改交期。`
-        : data.orderCount > 0
-          ? `按交期优先排产，${data.orderCount} 个工单均可按期完成。`
-          : '暂无待排(draft)工单。',
+      reasoning:
+        data.atRiskCount > 0
+          ? `有 ${data.atRiskCount} 个工单按当前产能/机台数无法按期完成，建议加急(插单/加班)或与客户改交期。`
+          : data.orderCount > 0
+            ? `按交期优先排产，${data.orderCount} 个工单均可按期完成。`
+            : '暂无待排(draft)工单。',
       data,
     }
     if (!this.llm.enabled || data.orderCount === 0) return fallback
@@ -392,7 +454,10 @@ export class SchedulingService {
       `排产建议结果（可用机台 ${data.machineCount} 台）：\n` +
       data.rows
         .slice(0, 10)
-        .map((r) => `- ${r.orderNo} ${r.specName} ${r.plannedMeters}m → ${r.machineName ?? '无机台'}，第${r.startDay}~${r.endDay}天(占${r.days}天)，${r.dueInDays != null ? `交期还有${r.dueInDays}天` : '无交期'}，${r.meetsDue === false ? '逾期风险' : r.meetsDue ? '可按期' : ''}`)
+        .map(
+          (r) =>
+            `- ${r.orderNo} ${r.specName} ${r.plannedMeters}m → ${r.machineName ?? '无机台'}，第${r.startDay}~${r.endDay}天(占${r.days}天)，${r.dueInDays != null ? `交期还有${r.dueInDays}天` : '无交期'}，${r.meetsDue === false ? '逾期风险' : r.meetsDue ? '可按期' : ''}`,
+        )
         .join('\n') +
       `\n请解读排产合理性、指出逾期风险并给调整建议。`
     const res = await this.llm.chat([
@@ -401,7 +466,10 @@ export class SchedulingService {
     ])
     if (!res.ok) return fallback
     try {
-      const parsed = JSON.parse(extractJson(res.content)) as { reasoning?: string; confidence?: number }
+      const parsed = JSON.parse(extractJson(res.content)) as {
+        reasoning?: string
+        confidence?: number
+      }
       return {
         source: 'llm',
         confidence: Math.min(Math.max(Number(parsed.confidence ?? 0.7), 0), 1),

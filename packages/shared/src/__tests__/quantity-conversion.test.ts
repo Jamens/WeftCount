@@ -172,7 +172,13 @@ describe('6. 三算一致性校验', () => {
     const kgPerM = (gsm * widthM) / 1000
     const productionM = 500
     const purchaseKg = productionM * kgPerM * 1.02 // 采购多 2%
-    const r = checkTripleLedger({ purchaseKg, productionM, salesM2: productionM * widthM, widthM, gsm })
+    const r = checkTripleLedger({
+      purchaseKg,
+      productionM,
+      salesM2: productionM * widthM,
+      widthM,
+      gsm,
+    })
     expect(r.productionDiffRate).toBeCloseTo(0.0196, 3)
     expect(r.withinTolerance).toBe(true)
   })
@@ -183,7 +189,13 @@ describe('6. 三算一致性校验', () => {
     const kgPerM = (gsm * widthM) / 1000
     const productionM = 500
     const purchaseKg = productionM * kgPerM * 1.5 // 采购多 50%
-    const r = checkTripleLedger({ purchaseKg, productionM, salesM2: productionM * widthM, widthM, gsm })
+    const r = checkTripleLedger({
+      purchaseKg,
+      productionM,
+      salesM2: productionM * widthM,
+      widthM,
+      gsm,
+    })
     expect(r.withinTolerance).toBe(false)
     expect(r.warnings.length).toBeGreaterThan(0)
     // 提示要指向可能原因，而非只报数字
@@ -229,7 +241,13 @@ describe('6. 三算一致性校验', () => {
   })
 
   it('零采购不产生除零错误', () => {
-    const r = checkTripleLedger({ purchaseKg: 0, productionM: 100, salesM2: 150, widthM: 1.5, gsm: 111.6 })
+    const r = checkTripleLedger({
+      purchaseKg: 0,
+      productionM: 100,
+      salesM2: 150,
+      widthM: 1.5,
+      gsm: 111.6,
+    })
     expect(r.productionDiffRate).toBe(0)
     expect(Number.isFinite(r.productionDiff)).toBe(true)
   })

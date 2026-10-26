@@ -50,16 +50,20 @@ export class UpdateReadingDto {
 }
 
 export class ReadingFilterDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   machineId?: string
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   meterNo?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   from?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   to?: string
 }
 

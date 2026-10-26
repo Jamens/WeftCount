@@ -98,20 +98,25 @@ export class UpdatePlanDto {
 }
 
 export class PlanFilterDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   machineId?: string
 
-  @IsOptional() @IsEnum(['active', 'paused'])
+  @IsOptional()
+  @IsEnum(['active', 'paused'])
   status?: 'active' | 'paused'
 
   /** 只看即将到期（next_due_date 在 today+dueSoonDays 内且未完成） */
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   dueSoon?: number
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   page?: number = 1
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   pageSize?: number = 20
 }
 
@@ -191,22 +196,28 @@ export class CreateRecordDto {
 }
 
 export class RecordFilterDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   machineId?: string
 
-  @IsOptional() @IsEnum(['planned', 'breakdown'])
+  @IsOptional()
+  @IsEnum(['planned', 'breakdown'])
   type?: 'planned' | 'breakdown'
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   from?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   to?: string
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   page?: number = 1
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   pageSize?: number = 20
 }
 
@@ -292,12 +303,15 @@ export class UpdateSparePartDto {
 
 export class SparePartFilterDto {
   /** 只看低于安全库存的备件 */
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   lowStock?: number
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   page?: number = 1
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   pageSize?: number = 50
 }

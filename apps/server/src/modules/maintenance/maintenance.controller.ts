@@ -46,7 +46,11 @@ export class MaintenanceController {
   @Audit({ action: 'update', module: 'machine', targetIdParam: 'id' })
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
   @ApiOperation({ summary: '修改保养计划' })
-  updatePlan(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdatePlanDto) {
+  updatePlan(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: UpdatePlanDto,
+  ) {
     return this.service.updatePlan(ctx, id, dto)
   }
 
@@ -102,7 +106,11 @@ export class MaintenanceController {
   @Audit({ action: 'update', module: 'machine', targetIdParam: 'id' })
   @RequirePermission(Permission.PRODUCTION_ORDER_EDIT)
   @ApiOperation({ summary: '修改备件（含调整库存/安全库存）' })
-  updateSparePart(@CurrentUser() ctx: RequestContext, @Param('id') id: string, @Body() dto: UpdateSparePartDto) {
+  updateSparePart(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateSparePartDto,
+  ) {
     return this.service.updateSparePart(ctx, id, dto)
   }
 

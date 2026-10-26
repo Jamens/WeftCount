@@ -14,7 +14,13 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { LIST_TABLE_SCROLL_Y, PERM, WAREHOUSE_TYPE_LABEL, type WarehouseTypeValue, type WarehouseWire } from '../lib/erp'
+import {
+  LIST_TABLE_SCROLL_Y,
+  PERM,
+  WAREHOUSE_TYPE_LABEL,
+  type WarehouseTypeValue,
+  type WarehouseWire,
+} from '../lib/erp'
 import { useAuthStore } from '../stores/auth.store'
 
 const { Title, Text } = Typography
@@ -97,7 +103,10 @@ export default function WarehousePage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             仓库管理
@@ -138,15 +147,31 @@ export default function WarehousePage() {
                 return m ? <Tag color={m.color}>{m.text}</Tag> : v
               },
             },
-            { title: '地址', dataIndex: 'address', ellipsis: true, render: (v: string | null) => v ?? '-' },
-            { title: '仓管员', dataIndex: 'keeper', width: 90, render: (v: string | null) => v ?? '-' },
+            {
+              title: '地址',
+              dataIndex: 'address',
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
+            {
+              title: '仓管员',
+              dataIndex: 'keeper',
+              width: 90,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '状态',
               dataIndex: 'status',
               width: 80,
-              render: (v: string) => (v === 'active' ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
+              render: (v: string) =>
+                v === 'active' ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>,
             },
-            { title: '备注', dataIndex: 'remark', ellipsis: true, render: (v: string | null) => v ?? '-' },
+            {
+              title: '备注',
+              dataIndex: 'remark',
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '操作',
               width: 80,
@@ -181,7 +206,11 @@ export default function WarehousePage() {
         }
       >
         <Form<WarehouseForm> form={form} layout="vertical">
-          <Form.Item name="name" label="仓库名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="name"
+            label="仓库名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input placeholder="如 坯布库" maxLength={64} />
           </Form.Item>
           <Form.Item name="type" label="类型" rules={[{ required: true }]}>

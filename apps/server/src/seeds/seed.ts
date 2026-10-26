@@ -23,7 +23,12 @@ import { InventoryService } from '../modules/inventory/inventory.service'
  * 幂等：按 code 判断是否已存在，重复执行不会重复插入
  * 运行：pnpm --filter @weftcount/server seed
  */
-export async function seed(ds: DataSource, materialService: MaterialService, inventoryService: InventoryService, seedUserId: string): Promise<void> {
+export async function seed(
+  ds: DataSource,
+  materialService: MaterialService,
+  inventoryService: InventoryService,
+  seedUserId: string,
+): Promise<void> {
   const tenants = ds.getRepository(TenantEntity)
   const companies = ds.getRepository(CompanyEntity)
   const roles = ds.getRepository(RoleEntity)
@@ -207,8 +212,12 @@ export async function seed(ds: DataSource, materialService: MaterialService, inv
  * 否则成本/单耗/对账全算不出数。
  */
 async function seedMasterData(
-  tenantId: string, companyId: string, ds: DataSource,
-  materialService: MaterialService, inventoryService: InventoryService, seedUserId: string,
+  tenantId: string,
+  companyId: string,
+  ds: DataSource,
+  materialService: MaterialService,
+  inventoryService: InventoryService,
+  seedUserId: string,
 ): Promise<void> {
   const warehouseRepo = ds.getRepository(WarehouseEntity)
   const machineRepo = ds.getRepository(MachineEntity)
@@ -216,14 +225,21 @@ async function seedMasterData(
 
   // —— 物料：40S 棉纱 + 全棉坯布 ——
   const cotton40s = await ensureMaterial(ds, tenantId, companyId, {
-    code: 'Y-COTTON-40S', name: '棉纱 40S', category: 'yarn', specification: '40S（NeS）',
+    code: 'Y-COTTON-40S',
+    name: '棉纱 40S',
+    category: 'yarn',
+    specification: '40S（NeS）',
   })
   await ensureMaterial(ds, tenantId, companyId, {
-    code: 'G-COTTON-PLAIN', name: '全棉坯布', category: 'greige', specification: '本色',
+    code: 'G-COTTON-PLAIN',
+    name: '全棉坯布',
+    category: 'greige',
+    specification: '本色',
     // **必须设安全库存与采购提前期**：否则 `safetyStock == null` 会被直接跳过，
     // 补货预警/补货建议在演示数据上永远触发不出来（功能做了但看不到）。
     // 300m 演示库存 + 日均消耗 → 补货点= 20×(7+7) + 200 = 480 > 300，会触发建议。
-    safetyStock: 200, leadTimeDays: 7,
+    safetyStock: 200,
+    leadTimeDays: 7,
   })
   console.log('[seed] 演示物料就绪（棉纱40S / 全棉坯布，含安全库存与采购提前期）')
 
@@ -236,7 +252,14 @@ async function seedMasterData(
     const exists = await warehouseRepo.findOne({ where: { companyId, code: w.code } })
     if (exists) continue
     await warehouseRepo.save(
-      warehouseRepo.create({ id: randomUUID(), tenantId, companyId, ...w, address: null, status: 'active' }),
+      warehouseRepo.create({
+        id: randomUUID(),
+        tenantId,
+        companyId,
+        ...w,
+        address: null,
+        status: 'active',
+      }),
     )
   }
   console.log(`[seed] 演示仓库就绪（${warehouses.length} 个）`)
@@ -251,7 +274,14 @@ async function seedMasterData(
     const exists = await machineRepo.findOne({ where: { companyId, code: m.code } })
     if (exists) continue
     await machineRepo.save(
-      machineRepo.create({ id: randomUUID(), tenantId, companyId, ...m, status: 'idle', remark: null }),
+      machineRepo.create({
+        id: randomUUID(),
+        tenantId,
+        companyId,
+        ...m,
+        status: 'idle',
+        remark: null,
+      }),
     )
   }
   console.log(`[seed] 演示机台就绪（${machines.length} 台）`)
@@ -259,7 +289,18 @@ async function seedMasterData(
   // —— 坯布规格：经纬密单位为「根/英寸」——
   // 全棉府绸 120×72 根/英寸 40S 幅宽150cm → 克重 111.6 g/m²（shared 单测基准）
   const specs = [
-    { code: 'FUC-120-72', name: '全棉府绸 120×72', finishedWidth: 150, warpDensity: 120, weftDensity: 72, weaveType: 'plain' as const, warpCount: { value: 40, system: 'NeS' as const }, weftCount: { value: 40, system: 'NeS' as const }, warpMaterialId: cotton40s.id, weftMaterialId: cotton40s.id },
+    {
+      code: 'FUC-120-72',
+      name: '全棉府绸 120×72',
+      finishedWidth: 150,
+      warpDensity: 120,
+      weftDensity: 72,
+      weaveType: 'plain' as const,
+      warpCount: { value: 40, system: 'NeS' as const },
+      weftCount: { value: 40, system: 'NeS' as const },
+      warpMaterialId: cotton40s.id,
+      weftMaterialId: cotton40s.id,
+    },
   ]
   let created = 0
   for (const s of specs) {
@@ -270,7 +311,15 @@ async function seedMasterData(
   }
   console.log(`[seed] 演示坯布规格就绪（新增 ${created} 个）`)
 
-  await seedDemoRolls(tenantId, companyId, ds, inventoryService, seedUserId, cotton40s.id, specs[0].code)
+  await seedDemoRolls(
+    tenantId,
+    companyId,
+    ds,
+    inventoryService,
+    seedUserId,
+    cotton40s.id,
+    specs[0].code,
+  )
 }
 
 /**
@@ -281,9 +330,13 @@ async function seedMasterData(
  * 故固化 3 匹 100m 的全棉府绸坯布。
  */
 async function seedDemoRolls(
-  tenantId: string, companyId: string, ds: DataSource,
-  inventoryService: InventoryService, userId: string,
-  yarnMaterialId: string, _specCode: string,
+  tenantId: string,
+  companyId: string,
+  ds: DataSource,
+  inventoryService: InventoryService,
+  userId: string,
+  yarnMaterialId: string,
+  _specCode: string,
 ): Promise<void> {
   const docRepo = ds.getRepository(InventoryDocumentEntity)
   const has = await docRepo
@@ -297,8 +350,12 @@ async function seedDemoRolls(
   }
   const specRepo = ds.getRepository(GreigeSpecEntity)
   const spec = await specRepo.findOne({ where: { companyId, code: 'FUC-120-72' } })
-  const greige = await ds.getRepository(MaterialEntity).findOne({ where: { companyId, code: 'G-COTTON-PLAIN' } })
-  const supplier = await ds.getRepository(PartnerEntity).findOne({ where: { companyId, type: 'supplier' } })
+  const greige = await ds
+    .getRepository(MaterialEntity)
+    .findOne({ where: { companyId, code: 'G-COTTON-PLAIN' } })
+  const supplier = await ds
+    .getRepository(PartnerEntity)
+    .findOne({ where: { companyId, type: 'supplier' } })
   if (!spec || !greige || !supplier) {
     console.log('[seed] 跳过演示件卡（规格/物料/供应商缺失）')
     return
@@ -307,21 +364,20 @@ async function seedDemoRolls(
   // 不用另起一套「PC-DEMO-xxx」，否则演示数据看起来像外来的、与真实流程对不上。
   // 批次号入库后才确定，故先用临时名建匹，再统一改名为「批次号-序号」。
   const rollsMeta = [1, 2, 3].map((i) => ({ meters: 100, rollNo: `__SEED_ROLL_${i}__` }))
-  const doc = await inventoryService.createPurchaseInbound(
-    { tenantId, companyId, userId },
-    {
-      materialId: greige.id,
-      specId: spec.id,
-      enteredUnit: 'm',
-      enteredValue: 300,
-      unitPrice: 8.5,
-      partnerId: supplier.id,
-      remark: '演示件卡（逐匹入库）',
-      rolls: rollsMeta,
-    } as never,
-  )
+  const doc = await inventoryService.createPurchaseInbound({ tenantId, companyId, userId }, {
+    materialId: greige.id,
+    specId: spec.id,
+    enteredUnit: 'm',
+    enteredValue: 300,
+    unitPrice: 8.5,
+    partnerId: supplier.id,
+    remark: '演示件卡（逐匹入库）',
+    rolls: rollsMeta,
+  } as never)
   // 由入库单反查批次号，再把件卡改成「批次号-序号」
-  const batch = await ds.getRepository(InventoryBatchEntity).findOne({ where: { sourceDocId: doc.id } })
+  const batch = await ds
+    .getRepository(InventoryBatchEntity)
+    .findOne({ where: { sourceDocId: doc.id } })
   const rollRepo = ds.getRepository(RollEntity)
   const created: string[] = []
   for (let i = 0; i < rollsMeta.length; i++) {
@@ -337,7 +393,9 @@ async function seedDemoRolls(
 
 /** 幂等建物料 */
 async function ensureMaterial(
-  ds: DataSource, tenantId: string, companyId: string,
+  ds: DataSource,
+  tenantId: string,
+  companyId: string,
   m: {
     code: string
     name: string
@@ -368,8 +426,13 @@ async function ensureMaterial(
   }
   return repo.save(
     repo.create({
-      id: randomUUID(), tenantId, companyId,
-      code: m.code, name: m.name, category: m.category, specification: m.specification,
+      id: randomUUID(),
+      tenantId,
+      companyId,
+      code: m.code,
+      name: m.name,
+      category: m.category,
+      specification: m.specification,
       safetyStock: m.safetyStock != null ? String(m.safetyStock) : null,
       leadTimeDays: m.leadTimeDays != null ? String(m.leadTimeDays) : null,
       measureMode: m.category === 'yarn' ? 'weight' : 'length',

@@ -64,7 +64,10 @@ export default function AiQuotePage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             <RobotOutlined /> 智能核价
@@ -78,17 +81,52 @@ export default function AiQuotePage() {
       <Row gutter={[12, 12]}>
         <Col span={8}>
           <Card size="small" title="报价条件">
-            <Form<QuoteForm> form={form} layout="vertical" initialValues={{ targetMarginRate: 0.15 }}>
-              <Form.Item name="specId" label="规格" rules={[{ required: true, message: '请选择规格' }]}>
-                <Select showSearch optionFilterProp="label" placeholder="选择坯布规格" options={specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` }))} />
+            <Form<QuoteForm>
+              form={form}
+              layout="vertical"
+              initialValues={{ targetMarginRate: 0.15 }}
+            >
+              <Form.Item
+                name="specId"
+                label="规格"
+                rules={[{ required: true, message: '请选择规格' }]}
+              >
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="选择坯布规格"
+                  options={specs.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` }))}
+                />
               </Form.Item>
-              <Form.Item name="quantityM" label="数量（米）" rules={[{ required: true, message: '请输入数量' }]}>
-                <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="如 5000" />
+              <Form.Item
+                name="quantityM"
+                label="数量（米）"
+                rules={[{ required: true, message: '请输入数量' }]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={1}
+                  precision={0}
+                  placeholder="如 5000"
+                />
               </Form.Item>
               <Form.Item name="targetMarginRate" label="目标毛利率">
-                <InputNumber style={{ width: '100%' }} min={0} max={0.9} step={0.05} precision={2} addonAfter="(0~1)" />
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  max={0.9}
+                  step={0.05}
+                  precision={2}
+                  addonAfter="(0~1)"
+                />
               </Form.Item>
-              <Button type="primary" block icon={<ThunderboltOutlined />} loading={loading} onClick={() => void onQuote()}>
+              <Button
+                type="primary"
+                block
+                icon={<ThunderboltOutlined />}
+                loading={loading}
+                onClick={() => void onQuote()}
+              >
                 生成报价建议
               </Button>
             </Form>
@@ -98,15 +136,31 @@ export default function AiQuotePage() {
         <Col span={16}>
           {!insight || !d ? (
             <Card size="small">
-              <Alert type="info" showIcon message="等待报价" description="选择规格与数量后生成建议报价。成本来自纱线价与加工费（确定性计算），价带来自历史成交。" />
+              <Alert
+                type="info"
+                showIcon
+                message="等待报价"
+                description="选择规格与数量后生成建议报价。成本来自纱线价与加工费（确定性计算），价带来自历史成交。"
+              />
             </Card>
           ) : (
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Card size="small">
                 <Row gutter={12}>
-                  <Col span={8}><Statistic title="建议报价(元/米)" value={d.suggestedPrice} precision={2} valueStyle={{ color: '#BA7517' }} /></Col>
-                  <Col span={8}><Statistic title="单米成本(元/米)" value={d.costPerM} precision={3} /></Col>
-                  <Col span={8}><Statistic title="毛利率" value={(d.marginRate * 100).toFixed(1)} suffix="%" /></Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="建议报价(元/米)"
+                      value={d.suggestedPrice}
+                      precision={2}
+                      valueStyle={{ color: '#BA7517' }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic title="单米成本(元/米)" value={d.costPerM} precision={3} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic title="毛利率" value={(d.marginRate * 100).toFixed(1)} suffix="%" />
+                  </Col>
                 </Row>
                 <Divider style={{ margin: '12px 0' }} />
                 <Space wrap>
@@ -114,14 +168,19 @@ export default function AiQuotePage() {
                     {insight.source === 'llm' ? 'AI 生成' : '规则兜底'}
                   </Tag>
                   <Tag color={confPct >= 60 ? 'green' : 'orange'}>置信度 {confPct}%</Tag>
-                  <Text type="secondary">毛利 {fmtMoney(String(d.grossProfitPerM))}/米 · 数量 {fmt(String(d.quantityM), 0)} 米</Text>
+                  <Text type="secondary">
+                    毛利 {fmtMoney(String(d.grossProfitPerM))}/米 · 数量{' '}
+                    {fmt(String(d.quantityM), 0)} 米
+                  </Text>
                 </Space>
               </Card>
 
               <Card size="small" title="推导依据（确定性事实）">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {insight.derivation.map((x, i) => (
-                    <li key={i}><Text>{x}</Text></li>
+                    <li key={i}>
+                      <Text>{x}</Text>
+                    </li>
                   ))}
                 </ul>
                 <Divider style={{ margin: '10px 0' }} />
@@ -131,12 +190,20 @@ export default function AiQuotePage() {
 
               <Card size="small" title="成本与价带明细">
                 <Descriptions column={2} size="small" bordered>
-                  <Descriptions.Item label="材料成本">{fmt(String(d.materialCostPerM), 4)} 元/米</Descriptions.Item>
-                  <Descriptions.Item label="加工费">{fmt(String(d.overheadPerM), 4)} 元/米</Descriptions.Item>
-                  <Descriptions.Item label="历史成交价带">
-                    {d.priceBand ? `${d.priceBand.min.toFixed(2)} ~ ${d.priceBand.max.toFixed(2)}（${d.priceBand.count} 笔，均价 ${d.priceBand.avg.toFixed(2)}）` : '暂无'}
+                  <Descriptions.Item label="材料成本">
+                    {fmt(String(d.materialCostPerM), 4)} 元/米
                   </Descriptions.Item>
-                  <Descriptions.Item label="目标毛利率">{(d.targetMarginRate * 100).toFixed(0)}%</Descriptions.Item>
+                  <Descriptions.Item label="加工费">
+                    {fmt(String(d.overheadPerM), 4)} 元/米
+                  </Descriptions.Item>
+                  <Descriptions.Item label="历史成交价带">
+                    {d.priceBand
+                      ? `${d.priceBand.min.toFixed(2)} ~ ${d.priceBand.max.toFixed(2)}（${d.priceBand.count} 笔，均价 ${d.priceBand.avg.toFixed(2)}）`
+                      : '暂无'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="目标毛利率">
+                    {(d.targetMarginRate * 100).toFixed(0)}%
+                  </Descriptions.Item>
                 </Descriptions>
               </Card>
             </Space>

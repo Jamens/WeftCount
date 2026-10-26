@@ -1,7 +1,16 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator'
+import {
+  ArrayMinSize,
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator'
 import { LlmClient } from './llm.client'
 import { PricingService } from './pricing.service'
 import { LossService } from './loss.service'
@@ -15,7 +24,8 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { Audit } from '../audit/audit.interceptor'
 
 class QuoteDto {
-  @IsString() @IsNotEmpty({ message: '请选择规格' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择规格' })
   specId!: string
 
   @IsNumber({}, { message: '数量必须为数字' })
@@ -23,21 +33,25 @@ class QuoteDto {
   quantityM!: number
 
   /** 目标毛利率（0~1），不传用默认 15% */
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   targetMarginRate?: number
 }
 
 class ApplyCoefficientDto {
-  @IsString() @IsNotEmpty({ message: '请选择规格' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择规格' })
   specId!: string
 
   /** 校准系数 [1, 1.6] */
-  @IsNumber() @Min(1)
+  @IsNumber()
+  @Min(1)
   factor!: number
 }
 
 class PredictionDto {
-  @IsString() @IsNotEmpty({ message: '请选择规格' })
+  @IsString()
+  @IsNotEmpty({ message: '请选择规格' })
   specId!: string
 
   /** 计划产量（米） */
@@ -47,20 +61,25 @@ class PredictionDto {
 }
 
 class ScheduleApplyItemDto {
-  @IsString() @IsNotEmpty({ message: '缺少工单' })
+  @IsString()
+  @IsNotEmpty({ message: '缺少工单' })
   orderId!: string
 
-  @IsString() @IsNotEmpty({ message: '缺少机台' })
+  @IsString()
+  @IsNotEmpty({ message: '缺少机台' })
   machineId!: string
 
   /** 相对今天的起排天（第 0 天=今天），来自甘特图 */
-  @IsNumber() @Min(0, { message: '起排天不能为负' })
+  @IsNumber()
+  @Min(0, { message: '起排天不能为负' })
   startDay!: number
 }
 
 class ScheduleApplyDto {
-  @IsArray() @ArrayMinSize(1, { message: '请选择要确认的工单' })
-  @ValidateNested({ each: true }) @Type(() => ScheduleApplyItemDto)
+  @IsArray()
+  @ArrayMinSize(1, { message: '请选择要确认的工单' })
+  @ValidateNested({ each: true })
+  @Type(() => ScheduleApplyItemDto)
   items!: ScheduleApplyItemDto[]
 }
 
@@ -109,7 +128,10 @@ export class AiController {
 
   @Get('loss/hotspots')
   @RequirePermission(Permission.COST_VIEW)
-  @ApiOperation({ summary: '损耗归因到匹：按生产工单归集超额损耗 + 列出该次织造产出的件卡(定位哪次织造损多了、损出哪几匹)' })
+  @ApiOperation({
+    summary:
+      '损耗归因到匹：按生产工单归集超额损耗 + 列出该次织造产出的件卡(定位哪次织造损多了、损出哪几匹)',
+  })
   lossHotspots(@CurrentUser() ctx: RequestContext) {
     return this.loss.hotspots(ctx.tenantId, ctx.companyId)
   }
@@ -132,7 +154,9 @@ export class AiController {
 
   @Post('prediction')
   @RequirePermission(Permission.PRODUCTION_VIEW)
-  @ApiOperation({ summary: '用料预测：按规格工艺单耗算经/纬纱需求，对比库存给采购缺口 + AI 备料建议' })
+  @ApiOperation({
+    summary: '用料预测：按规格工艺单耗算经/纬纱需求，对比库存给采购缺口 + AI 备料建议',
+  })
   materialPrediction(@CurrentUser() ctx: RequestContext, @Body() dto: PredictionDto) {
     return this.prediction.advise(ctx.tenantId, ctx.companyId, dto.specId, dto.plannedMeters)
   }

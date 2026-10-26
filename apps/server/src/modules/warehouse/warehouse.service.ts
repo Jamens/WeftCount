@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
@@ -38,15 +43,26 @@ export class WarehouseService {
     })
     const nextNum = last ? Number(last.code.slice(1)) + 1 : 1
     if (!Number.isFinite(nextNum) || nextNum > 9999) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '仓库编码 W9999 已用尽' })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '仓库编码 W9999 已用尽',
+      })
     }
     return `${CODE_PREFIX}${String(nextNum).padStart(4, '0')}`
   }
 
-  async create(tenantId: string, companyId: string, input: CreateWarehouseInput): Promise<WarehouseEntity> {
+  async create(
+    tenantId: string,
+    companyId: string,
+    input: CreateWarehouseInput,
+  ): Promise<WarehouseEntity> {
     const code = input.code ?? (await this.nextCode(companyId))
     const dup = await this.warehouses.findOne({ where: { companyId, code } })
-    if (dup) throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `仓库编码 ${code} 已存在` })
+    if (dup)
+      throw new ConflictException({
+        code: ErrorCode.DUPLICATE_CODE,
+        message: `仓库编码 ${code} 已存在`,
+      })
     return this.warehouses.save(
       this.warehouses.create({
         tenantId,
@@ -62,7 +78,11 @@ export class WarehouseService {
     )
   }
 
-  async findAll(tenantId: string, companyId: string, status?: 'active' | 'disabled'): Promise<WarehouseEntity[]> {
+  async findAll(
+    tenantId: string,
+    companyId: string,
+    status?: 'active' | 'disabled',
+  ): Promise<WarehouseEntity[]> {
     const qb = this.warehouses
       .createQueryBuilder('w')
       .where('w.tenant_id = :tenantId', { tenantId })
@@ -82,12 +102,20 @@ export class WarehouseService {
   async requireActive(tenantId: string, companyId: string, id: string): Promise<WarehouseEntity> {
     const w = await this.findOne(tenantId, companyId, id)
     if (w.status !== 'active') {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `仓库「${w.name}」已停用` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `仓库「${w.name}」已停用`,
+      })
     }
     return w
   }
 
-  async update(tenantId: string, companyId: string, id: string, input: UpdateWarehouseInput): Promise<WarehouseEntity> {
+  async update(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    input: UpdateWarehouseInput,
+  ): Promise<WarehouseEntity> {
     const w = await this.findOne(tenantId, companyId, id)
     if (input.name !== undefined) w.name = input.name
     if (input.type !== undefined) w.type = input.type

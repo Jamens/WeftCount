@@ -17,7 +17,10 @@ import { CompanyEntity } from '../../tenant/entities/company.entity'
 import { TenantEntity } from '../../tenant/entities/tenant.entity'
 import { extractContext, type RequestContext } from '../auth-context'
 import { expandPermissions, hasPermission } from '../permissions'
-import { PERMISSION_KEY, type PermissionRequirement } from '../decorators/require-permission.decorator'
+import {
+  PERMISSION_KEY,
+  type PermissionRequirement,
+} from '../decorators/require-permission.decorator'
 import type { AuthUserPayload } from '../types'
 
 /**
@@ -49,7 +52,9 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(host: ExecutionContext): Promise<boolean> {
-    const req = host.switchToHttp().getRequest<Request & { user?: AuthUserPayload; ctx?: RequestContext }>()
+    const req = host
+      .switchToHttp()
+      .getRequest<Request & { user?: AuthUserPayload; ctx?: RequestContext }>()
     const token = this.extractToken(req)
     if (!token) {
       throw new UnauthorizedException({ code: ErrorCode.LOGIN_FAILED, message: '未提供访问令牌' })
@@ -80,7 +85,10 @@ export class AuthGuard implements CanActivate {
 
     const tenant = await this.tenants.findOne({ where: { id: user.tenantId } })
     if (!tenant) {
-      throw new UnauthorizedException({ code: ErrorCode.TENANT_NOT_FOUND, message: '所属租户不存在' })
+      throw new UnauthorizedException({
+        code: ErrorCode.TENANT_NOT_FOUND,
+        message: '所属租户不存在',
+      })
     }
     if (tenant.status !== 'active') {
       throw new UnauthorizedException({

@@ -13,7 +13,15 @@ import { AuthModule } from '../auth/auth.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AlertEntity, MaterialEntity, ProductionOrderEntity, InventoryBatchEntity, InventoryTransactionEntity, TradeOrderEntity, CompanyEntity]),
+    TypeOrmModule.forFeature([
+      AlertEntity,
+      MaterialEntity,
+      ProductionOrderEntity,
+      InventoryBatchEntity,
+      InventoryTransactionEntity,
+      TradeOrderEntity,
+      CompanyEntity,
+    ]),
     AuthModule,
   ],
   controllers: [AlertController],

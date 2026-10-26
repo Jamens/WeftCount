@@ -85,13 +85,19 @@ export default function DocPage() {
     if (!creating || creating === 'production_issue') return []
     const wantSupplier = creating === 'purchase_inbound'
     return partners
-      .filter((p) => (wantSupplier ? p.type === 'supplier' || p.type === 'both' : p.type === 'customer' || p.type === 'both'))
+      .filter((p) =>
+        wantSupplier
+          ? p.type === 'supplier' || p.type === 'both'
+          : p.type === 'customer' || p.type === 'both',
+      )
       .map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))
   }, [partners, creating])
 
   // 已确认订单下拉（用于把本单挂到订单上累计履约）：采购单挂采购订单、销售单挂销售订单
   const [orders, setOrders] = useState<OrderWire[]>([])
-  const [orderLines, setOrderLines] = useState<{ id: string; specId: string; materialId: string; quantityM: string; remainingM: number }[]>([])
+  const [orderLines, setOrderLines] = useState<
+    { id: string; specId: string; materialId: string; quantityM: string; remainingM: number }[]
+  >([])
   useEffect(() => {
     api
       .get<OrderWire[]>('/orders?status=confirmed')
@@ -104,7 +110,10 @@ export default function DocPage() {
     const want = creating === 'purchase_inbound' ? 'purchase' : 'sales'
     return orders
       .filter((o) => o.orderType === want)
-      .map((o) => ({ value: o.id, label: `${o.orderNo} ${o.partnerName}（${fmt(o.totalQuantityM, 0)}m）` }))
+      .map((o) => ({
+        value: o.id,
+        label: `${o.orderNo} ${o.partnerName}（${fmt(o.totalQuantityM, 0)}m）`,
+      }))
   }, [orders, creating])
 
   // 选中订单自动带出往来单位并加载其明细行；物料/规格可由「履约明细行」带出
@@ -116,12 +125,21 @@ export default function DocPage() {
     if (!o) return
     form.setFieldValue('partnerId', o.partnerId)
     try {
-      const d = await api.get<{ items: OrderItemWire[]; perItem: { itemId: string; fulfilledM: number; orderedM: number }[] }>(`/orders/${o.id}`)
+      const d = await api.get<{
+        items: OrderItemWire[]
+        perItem: { itemId: string; fulfilledM: number; orderedM: number }[]
+      }>(`/orders/${o.id}`)
       setOrderLines(
         d.data.data.items.map((i) => {
           const pi = d.data.data.perItem.find((x) => x.itemId === i.id)
           const ordered = pi?.orderedM ?? Number(i.quantityM)
-          return { id: i.id, specId: i.specId, materialId: i.materialId, quantityM: i.quantityM, remainingM: Math.max(ordered - (pi?.fulfilledM ?? 0), 0) }
+          return {
+            id: i.id,
+            specId: i.specId,
+            materialId: i.materialId,
+            quantityM: i.quantityM,
+            remainingM: Math.max(ordered - (pi?.fulfilledM ?? 0), 0),
+          }
         }),
       )
     } catch {
@@ -159,7 +177,9 @@ export default function DocPage() {
 
   const openDetail = async (id: string) => {
     try {
-      const res = await api.get<{ doc: DocWire; transactions: TxnWire[] }>(`/inventory/documents/${id}`)
+      const res = await api.get<{ doc: DocWire; transactions: TxnWire[] }>(
+        `/inventory/documents/${id}`,
+      )
       setDetail(res.data.data)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '加载详情失败')
@@ -207,7 +227,10 @@ export default function DocPage() {
 
   return (
     <div>
-      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space
+        align="center"
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             三算单据
@@ -262,7 +285,11 @@ export default function DocPage() {
           dataSource={data}
           onRow={(r) => ({ onClick: () => void openDetail(r.id), style: { cursor: 'pointer' } })}
           scroll={{ x: 1300, y: LIST_TABLE_SCROLL_Y }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: false, defaultPageSize: 20 }}
+          pagination={{
+            showTotal: (t) => `共 ${t} 条`,
+            showSizeChanger: false,
+            defaultPageSize: 20,
+          }}
           columns={[
             { title: '单据号', dataIndex: 'docNo', width: 140, fixed: 'left' },
             {
@@ -274,16 +301,39 @@ export default function DocPage() {
               ),
             },
             { title: '规格', dataIndex: 'specId', width: 170, render: (v: string) => specName(v) },
-            { title: '物料', dataIndex: 'materialId', width: 130, render: (v: string) => materialName(v) },
+            {
+              title: '物料',
+              dataIndex: 'materialId',
+              width: 130,
+              render: (v: string) => materialName(v),
+            },
             {
               title: '录入',
               width: 110,
               align: 'right',
               render: (_, r) => `${fmt(r.enteredValue, 2)} ${r.enteredUnit}`,
             },
-            { title: '折算米数', dataIndex: 'quantityM', width: 100, align: 'right', render: (v: string) => `${fmt(v, 2)} m` },
-            { title: '折算重量', dataIndex: 'weightKg', width: 100, align: 'right', render: (v: string) => `${fmt(v, 2)} kg` },
-            { title: '折算面积', dataIndex: 'areaM2', width: 110, align: 'right', render: (v: string) => `${fmt(v, 2)} m²` },
+            {
+              title: '折算米数',
+              dataIndex: 'quantityM',
+              width: 100,
+              align: 'right',
+              render: (v: string) => `${fmt(v, 2)} m`,
+            },
+            {
+              title: '折算重量',
+              dataIndex: 'weightKg',
+              width: 100,
+              align: 'right',
+              render: (v: string) => `${fmt(v, 2)} kg`,
+            },
+            {
+              title: '折算面积',
+              dataIndex: 'areaM2',
+              width: 110,
+              align: 'right',
+              render: (v: string) => `${fmt(v, 2)} m²`,
+            },
             {
               title: '金额',
               dataIndex: 'totalAmount',
@@ -291,7 +341,13 @@ export default function DocPage() {
               align: 'right',
               render: (v: string | null) => (v == null ? '-' : fmtMoney(v)),
             },
-            { title: '往来单位', dataIndex: 'partnerName', width: 120, ellipsis: true, render: (v: string | null) => v ?? '-' },
+            {
+              title: '往来单位',
+              dataIndex: 'partnerName',
+              width: 120,
+              ellipsis: true,
+              render: (v: string | null) => v ?? '-',
+            },
             {
               title: '时间',
               dataIndex: 'createdAt',
@@ -314,13 +370,21 @@ export default function DocPage() {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="规格">{specName(detail.doc.specId)}</Descriptions.Item>
-              <Descriptions.Item label="物料">{materialName(detail.doc.materialId)}</Descriptions.Item>
+              <Descriptions.Item label="物料">
+                {materialName(detail.doc.materialId)}
+              </Descriptions.Item>
               <Descriptions.Item label="录入">
                 {fmt(detail.doc.enteredValue, 2)} {detail.doc.enteredUnit}
               </Descriptions.Item>
-              <Descriptions.Item label="规格版本">v{detail.doc.specSnapshot.specVersion}</Descriptions.Item>
-              <Descriptions.Item label="折算米数">{fmt(detail.doc.quantityM, 2)} m</Descriptions.Item>
-              <Descriptions.Item label="折算重量">{fmt(detail.doc.weightKg, 2)} kg</Descriptions.Item>
+              <Descriptions.Item label="规格版本">
+                v{detail.doc.specSnapshot.specVersion}
+              </Descriptions.Item>
+              <Descriptions.Item label="折算米数">
+                {fmt(detail.doc.quantityM, 2)} m
+              </Descriptions.Item>
+              <Descriptions.Item label="折算重量">
+                {fmt(detail.doc.weightKg, 2)} kg
+              </Descriptions.Item>
               <Descriptions.Item label="折算面积">{fmt(detail.doc.areaM2, 2)} m²</Descriptions.Item>
               <Descriptions.Item label="金额">
                 {detail.doc.totalAmount == null ? '-' : fmtMoney(detail.doc.totalAmount)}
@@ -331,7 +395,8 @@ export default function DocPage() {
                     ? '不分等计价（该规格/合同未配分等价目）'
                     : GRADE_PRICE_SCOPE_LABEL[detail.doc.priceSnapshot.source]}
                   <Text type="secondary" style={{ marginLeft: 8 }}>
-                    基准价 {fmt(detail.doc.priceSnapshot.basePrice, 4)} → 加权 {fmt(detail.doc.priceSnapshot.weightedPrice, 4)} 元/米
+                    基准价 {fmt(detail.doc.priceSnapshot.basePrice, 4)} → 加权{' '}
+                    {fmt(detail.doc.priceSnapshot.weightedPrice, 4)} 元/米
                   </Text>
                 </Descriptions.Item>
               )}
@@ -359,7 +424,9 @@ export default function DocPage() {
                         v == null ? (
                           <Tag>未检验</Tag>
                         ) : (
-                          <Tag color={GRADE_COLOR[v as GreigeGrade]}>{GRADE_LABELS[v as GreigeGrade]}</Tag>
+                          <Tag color={GRADE_COLOR[v as GreigeGrade]}>
+                            {GRADE_LABELS[v as GreigeGrade]}
+                          </Tag>
                         ),
                     },
                     {
@@ -461,14 +528,22 @@ export default function DocPage() {
               layout="vertical"
               initialValues={{ enteredUnit: SUGGESTED_UNITS[creating][0] }}
             >
-              <Form.Item name="materialId" label="物料" rules={[{ required: true, message: '请选择物料' }]}>
+              <Form.Item
+                name="materialId"
+                label="物料"
+                rules={[{ required: true, message: '请选择物料' }]}
+              >
                 <Select
                   showSearch
                   optionFilterProp="label"
                   options={materials.map((m) => ({ value: m.id, label: `${m.code} ${m.name}` }))}
                 />
               </Form.Item>
-              <Form.Item name="specId" label="坯布规格" rules={[{ required: true, message: '请选择规格' }]}>
+              <Form.Item
+                name="specId"
+                label="坯布规格"
+                rules={[{ required: true, message: '请选择规格' }]}
+              >
                 <Select
                   showSearch
                   optionFilterProp="label"
@@ -482,7 +557,10 @@ export default function DocPage() {
                   rules={[{ required: true }]}
                   style={{ flex: 1 }}
                 >
-                  <Select onChange={onUnitChange} options={SUGGESTED_UNITS[creating].map((u) => ({ value: u, label: u }))} />
+                  <Select
+                    onChange={onUnitChange}
+                    options={SUGGESTED_UNITS[creating].map((u) => ({ value: u, label: u }))}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="enteredValue"
@@ -490,7 +568,12 @@ export default function DocPage() {
                   rules={[{ required: true, message: '请输入数量' }]}
                   style={{ flex: 2 }}
                 >
-                  <InputNumber style={{ width: '100%' }} min={0.0001} precision={3} placeholder="按上述单位录入" />
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={0.0001}
+                    precision={3}
+                    placeholder="按上述单位录入"
+                  />
                 </Form.Item>
               </Space>
               <Form.Item
@@ -533,7 +616,12 @@ export default function DocPage() {
                 <Form.Item
                   name="partnerId"
                   label={creating === 'purchase_inbound' ? '供应商' : '客户'}
-                  rules={[{ required: true, message: `请选择${creating === 'purchase_inbound' ? '供应商' : '客户'}` }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: `请选择${creating === 'purchase_inbound' ? '供应商' : '客户'}`,
+                    },
+                  ]}
                 >
                   <Select
                     showSearch

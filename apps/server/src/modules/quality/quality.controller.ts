@@ -1,10 +1,26 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator'
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator'
 import { GREIGE_GRADES, type GreigeGrade, type GradePriceMode } from '@weftcount/shared'
 import { QualityService } from './quality.service'
-import { DefectTypeEntity, type DefectCategory, type DefectPenaltyMode } from './entities/defect-type.entity'
+import {
+  DefectTypeEntity,
+  type DefectCategory,
+  type DefectPenaltyMode,
+} from './entities/defect-type.entity'
 import { InspectionEntity, type InspectionMode } from './entities/inspection.entity'
 import { InspectionRollEntity } from './entities/inspection-roll.entity'
 import { GradePriceEntity, type GradePriceScope } from './entities/grade-price.entity'
@@ -15,67 +31,91 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { Audit } from '../audit/audit.interceptor'
 
 class CreateDefectTypeDto {
-  @IsString() @MaxLength(32)
+  @IsString()
+  @MaxLength(32)
   code!: string
 
-  @IsString() @MaxLength(64)
+  @IsString()
+  @MaxLength(64)
   name!: string
 
-  @IsOptional() @IsIn(['warp', 'weft', 'stain', 'broken', 'other'])
+  @IsOptional()
+  @IsIn(['warp', 'weft', 'stain', 'broken', 'other'])
   category?: DefectCategory
 
-  @IsOptional() @IsIn(['by_length', 'fixed'])
+  @IsOptional()
+  @IsIn(['by_length', 'fixed'])
   penaltyMode?: DefectPenaltyMode
 
-  @IsOptional() @IsInt() @Min(0)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
   fixedPenalty?: number
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   sortOrder?: number
 }
 
 class UpdateDefectTypeDto {
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   name?: string
 
-  @IsOptional() @IsIn(['warp', 'weft', 'stain', 'broken', 'other'])
+  @IsOptional()
+  @IsIn(['warp', 'weft', 'stain', 'broken', 'other'])
   category?: DefectCategory
 
-  @IsOptional() @IsIn(['by_length', 'fixed'])
+  @IsOptional()
+  @IsIn(['by_length', 'fixed'])
   penaltyMode?: DefectPenaltyMode
 
-  @IsOptional() @IsInt() @Min(0)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
   fixedPenalty?: number
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   sortOrder?: number
 
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   enabled?: boolean
 }
 
 class CreateInspectionDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   batchId?: string | null
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   warehouseId?: string | null
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   inspectedAt?: string | null
 
-  @IsOptional() @IsIn(['full', 'sampling'])
+  @IsOptional()
+  @IsIn(['full', 'sampling'])
   mode?: InspectionMode | null
 
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   sampleRate?: number | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
 class AddRollsDto {
-  @IsArray() @IsString({ each: true })
+  @IsArray()
+  @IsString({ each: true })
   rollIds!: string[]
 }
 
@@ -84,29 +124,42 @@ class DefectItemDto {
   defectTypeId!: string
 
   /** 距匹头米数（裁剪排料要避开） */
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   positionM?: number | null
 
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   lengthInch?: number | null
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
 class RecordDefectsDto {
-  @ValidateNested({ each: true }) @Type(() => DefectItemDto)
+  @ValidateNested({ each: true })
+  @Type(() => DefectItemDto)
   items!: DefectItemDto[]
 }
 
 class UpdateRollMeasureDto {
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   meters?: number
 
-  @IsOptional() @IsNumber() @Min(0)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   widthInch?: number
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
   remark?: string | null
 }
 
@@ -128,7 +181,8 @@ class UpsertGradePricesDto {
   @IsString()
   refId!: string
 
-  @ValidateNested({ each: true }) @Type(() => GradePriceRuleDto)
+  @ValidateNested({ each: true })
+  @Type(() => GradePriceRuleDto)
   rules!: GradePriceRuleDto[]
 }
 
@@ -154,7 +208,10 @@ export class QualityController {
   @Post('defect-types')
   @RequirePermission(Permission.QUALITY_REVIEW)
   @ApiOperation({ summary: '新增疵点类型' })
-  createDefectType(@CurrentUser() ctx: RequestContext, @Body() dto: CreateDefectTypeDto): Promise<DefectTypeEntity> {
+  createDefectType(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateDefectTypeDto,
+  ): Promise<DefectTypeEntity> {
     return this.svc.createDefectType(ctx, dto)
   }
 
@@ -188,7 +245,10 @@ export class QualityController {
   @RequirePermission(Permission.QUALITY_INSPECT)
   @Audit({ action: 'create', module: 'quality.inspection', targetType: 'inspection' })
   @ApiOperation({ summary: '建检验单' })
-  createInspection(@CurrentUser() ctx: RequestContext, @Body() dto: CreateInspectionDto): Promise<InspectionEntity> {
+  createInspection(
+    @CurrentUser() ctx: RequestContext,
+    @Body() dto: CreateInspectionDto,
+  ): Promise<InspectionEntity> {
     return this.svc.createInspection(ctx, dto)
   }
 
@@ -257,7 +317,10 @@ export class QualityController {
   @RequirePermission(Permission.QUALITY_REVIEW)
   @Audit({ action: 'update', module: 'quality.inspection', targetType: 'inspection' })
   @ApiOperation({ summary: '作废：回退件卡等级到上一版或置为未检验' })
-  voidInspection(@CurrentUser() ctx: RequestContext, @Param('id') id: string): Promise<InspectionEntity> {
+  voidInspection(
+    @CurrentUser() ctx: RequestContext,
+    @Param('id') id: string,
+  ): Promise<InspectionEntity> {
     return this.svc.voidInspection(ctx, id)
   }
 

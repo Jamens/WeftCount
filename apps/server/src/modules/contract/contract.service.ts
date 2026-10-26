@@ -1,11 +1,21 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { withUniqueNo } from '../../common/util/unique-no'
 import { ContractEntity, type ContractStatus } from './entities/contract.entity'
 import { ContractItemEntity } from './entities/contract-item.entity'
-import type { ContractFilterDto, ContractItemInput, CreateContractDto, UpdateContractDto } from './contract.dto'
+import type {
+  ContractFilterDto,
+  ContractItemInput,
+  CreateContractDto,
+  UpdateContractDto,
+} from './contract.dto'
 import { PartnerService } from '../partner/partner.service'
 import { MaterialService } from '../material/material.service'
 
@@ -50,17 +60,29 @@ export class ContractService {
   }
 
   /** 校验往来单位：采购合同=供应商，销售合同=客户（both 通用），须启用 */
-  private async resolvePartner(tenantId: string, companyId: string, partnerId: string, contractType: 'purchase' | 'sales') {
+  private async resolvePartner(
+    tenantId: string,
+    companyId: string,
+    partnerId: string,
+    contractType: 'purchase' | 'sales',
+  ) {
     const p = await this.partners.findOne(tenantId, companyId, partnerId)
     if (p.status !== 'active') {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `往来单位「${p.name}」已停用` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `往来单位「${p.name}」已停用`,
+      })
     }
     const wantSupplier = contractType === 'purchase'
-    const ok = wantSupplier ? p.type === 'supplier' || p.type === 'both' : p.type === 'customer' || p.type === 'both'
+    const ok = wantSupplier
+      ? p.type === 'supplier' || p.type === 'both'
+      : p.type === 'customer' || p.type === 'both'
     if (!ok) {
       throw new BadRequestException({
         code: ErrorCode.VALIDATION_FAILED,
-        message: wantSupplier ? `「${p.name}」不是供应商，不能作为采购合同相对方` : `「${p.name}」不是客户，不能作为销售合同相对方`,
+        message: wantSupplier
+          ? `「${p.name}」不是供应商，不能作为采购合同相对方`
+          : `「${p.name}」不是客户，不能作为销售合同相对方`,
       })
     }
     return p
@@ -68,7 +90,14 @@ export class ContractService {
 
   /** 校验每行明细的规格存在，并算出行金额；返回汇总 */
   private async buildItems(tenantId: string, companyId: string, items: ContractItemInput[]) {
-    const rows: Array<{ materialId: string; specId: string; agreedPrice: string; agreedQuantityM: string; amount: string; remark: string | null }> = []
+    const rows: Array<{
+      materialId: string
+      specId: string
+      agreedPrice: string
+      agreedQuantityM: string
+      amount: string
+      remark: string | null
+    }> = []
     let totalQty = 0
     let totalAmt = 0
     for (const it of items) {
@@ -89,44 +118,65 @@ export class ContractService {
     return { rows, totalQuantityM: num(totalQty, 3), totalAmount: num(totalAmt, 2) }
   }
 
-  async create(tenantId: string, companyId: string, dto: CreateContractDto): Promise<ContractEntity> {
+  async create(
+    tenantId: string,
+    companyId: string,
+    dto: CreateContractDto,
+  ): Promise<ContractEntity> {
     const partner = await this.resolvePartner(tenantId, companyId, dto.partnerId, dto.contractType)
-    const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
+    const { rows, totalQuantityM, totalAmount } = await this.buildItems(
+      tenantId,
+      companyId,
+      dto.items,
+    )
     // 撞号重试：生成号 + 落库整体重试
     return withUniqueNo(async () => {
       const contractNo = await this.nextNo(companyId)
       return this.dataSource.transaction(async (manager) => {
         const ct = await manager.save(
           manager.create(ContractEntity, {
-            tenantId, companyId, contractNo,
+            tenantId,
+            companyId,
+            contractNo,
             contractType: dto.contractType,
             partnerId: partner.id,
             partnerName: partner.name,
             status: 'draft',
-            totalQuantityM, totalAmount,
+            totalQuantityM,
+            totalAmount,
             startDate: dto.startDate ?? null,
             endDate: dto.endDate ?? null,
             remark: dto.remark ?? null,
           }),
         )
         await manager.save(
-          rows.map((r) => manager.create(ContractItemEntity, { tenantId, companyId, contractId: ct.id, ...r })),
+          rows.map((r) =>
+            manager.create(ContractItemEntity, { tenantId, companyId, contractId: ct.id, ...r }),
+          ),
         )
         return ct
       })
     })
   }
 
-  async findAll(tenantId: string, companyId: string, filter?: ContractFilterDto): Promise<ContractEntity[]> {
+  async findAll(
+    tenantId: string,
+    companyId: string,
+    filter?: ContractFilterDto,
+  ): Promise<ContractEntity[]> {
     const qb = this.contracts
       .createQueryBuilder('c')
       .where('c.tenant_id = :tenantId', { tenantId })
       .andWhere('c.company_id = :companyId', { companyId })
       .orderBy('c.contract_no', 'DESC')
-    if (filter?.contractType) qb.andWhere('c.contract_type = :contractType', { contractType: filter.contractType })
+    if (filter?.contractType)
+      qb.andWhere('c.contract_type = :contractType', { contractType: filter.contractType })
     if (filter?.status) qb.andWhere('c.status = :status', { status: filter.status })
     if (filter?.partnerId) qb.andWhere('c.partner_id = :partnerId', { partnerId: filter.partnerId })
-    if (filter?.keyword) qb.andWhere('(c.contract_no LIKE :kw OR c.partner_name LIKE :kw)', { kw: `%${filter.keyword}%` })
+    if (filter?.keyword)
+      qb.andWhere('(c.contract_no LIKE :kw OR c.partner_name LIKE :kw)', {
+        kw: `%${filter.keyword}%`,
+      })
     return qb.getMany()
   }
 
@@ -138,21 +188,40 @@ export class ContractService {
 
   async getDetail(tenantId: string, companyId: string, id: string) {
     const contract = await this.findOne(tenantId, companyId, id)
-    const items = await this.items.find({ where: { contractId: id, tenantId, companyId }, order: { createdAt: 'ASC' } })
+    const items = await this.items.find({
+      where: { contractId: id, tenantId, companyId },
+      order: { createdAt: 'ASC' },
+    })
     return { contract, items }
   }
 
   /** 更新草稿合同：整体替换明细行并重算汇总 */
-  async update(tenantId: string, companyId: string, id: string, dto: UpdateContractDto): Promise<ContractEntity> {
+  async update(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    dto: UpdateContractDto,
+  ): Promise<ContractEntity> {
     const c = await this.findOne(tenantId, companyId, id)
     if (c.status !== 'draft') {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `合同当前为「${c.status}」，仅草稿可编辑` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `合同当前为「${c.status}」，仅草稿可编辑`,
+      })
     }
     return this.dataSource.transaction(async (manager) => {
       if (dto.items) {
-        const { rows, totalQuantityM, totalAmount } = await this.buildItems(tenantId, companyId, dto.items)
+        const { rows, totalQuantityM, totalAmount } = await this.buildItems(
+          tenantId,
+          companyId,
+          dto.items,
+        )
         await manager.delete(ContractItemEntity, { contractId: id, tenantId, companyId })
-        await manager.save(rows.map((r) => manager.create(ContractItemEntity, { tenantId, companyId, contractId: id, ...r })))
+        await manager.save(
+          rows.map((r) =>
+            manager.create(ContractItemEntity, { tenantId, companyId, contractId: id, ...r }),
+          ),
+        )
         c.totalQuantityM = totalQuantityM
         c.totalAmount = totalAmount
       }
@@ -164,15 +233,27 @@ export class ContractService {
   }
 
   /** 状态流转：draft→active→completed，任一可 cancel */
-  async transition(tenantId: string, companyId: string, id: string, to: ContractStatus): Promise<ContractEntity> {
+  async transition(
+    tenantId: string,
+    companyId: string,
+    id: string,
+    to: ContractStatus,
+  ): Promise<ContractEntity> {
     const c = await this.findOne(tenantId, companyId, id)
     if (!TRANSITIONS[c.status].includes(to)) {
-      throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: `合同当前为「${c.status}」，不能变更为「${to}」` })
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: `合同当前为「${c.status}」，不能变更为「${to}」`,
+      })
     }
     // 生效前必须至少一条明细行
     if (to === 'active') {
       const n = await this.items.count({ where: { contractId: id, tenantId, companyId } })
-      if (n === 0) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '合同无明细行，不能生效' })
+      if (n === 0)
+        throw new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: '合同无明细行，不能生效',
+        })
     }
     c.status = to
     return this.contracts.save(c)
@@ -182,7 +263,12 @@ export class ContractService {
    * 查协议价：给定往来单位+规格，返回生效合同中的协议单价(元/米)。
    * 供订单建单时按合同取价（无生效合同返回 null，由调用方决定是否回落到手填价）。
    */
-  async findAgreedPrice(tenantId: string, companyId: string, partnerId: string, specId: string): Promise<number | null> {
+  async findAgreedPrice(
+    tenantId: string,
+    companyId: string,
+    partnerId: string,
+    specId: string,
+  ): Promise<number | null> {
     const row = await this.items
       .createQueryBuilder('i')
       .innerJoin(ContractEntity, 'c', 'c.id = i.contract_id')

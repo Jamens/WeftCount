@@ -1,4 +1,15 @@
-import { IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateNested } from 'class-validator'
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator'
 import type { ReceiptMethod } from './entities/receipt.entity'
 
 export class ReceiptApplicationDto {
@@ -43,29 +54,36 @@ export class CreateReceiptDto {
 }
 
 export class ReceiptFilterDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   partnerId?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   from?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   to?: string
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   page?: number = 1
 
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   pageSize?: number = 20
 }
 
 export class LedgerQueryDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   partnerId?: string
 }
 
 export class AgingQueryDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   partnerId?: string
 }
 
@@ -74,9 +92,11 @@ export class StatementQueryDto {
   @IsString()
   partnerId!: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   from?: string
 
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @IsDateString()
   to?: string
 }

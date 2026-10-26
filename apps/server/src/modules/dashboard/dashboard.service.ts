@@ -78,12 +78,16 @@ export class DashboardService {
   private readonly log = new Logger(DashboardService.name)
 
   constructor(
-    @InjectRepository(InventoryBatchEntity) private readonly batches: Repository<InventoryBatchEntity>,
-    @InjectRepository(InventoryDocumentEntity) private readonly docs: Repository<InventoryDocumentEntity>,
+    @InjectRepository(InventoryBatchEntity)
+    private readonly batches: Repository<InventoryBatchEntity>,
+    @InjectRepository(InventoryDocumentEntity)
+    private readonly docs: Repository<InventoryDocumentEntity>,
     @InjectRepository(RollEntity) private readonly rolls: Repository<RollEntity>,
     @InjectRepository(TradeOrderEntity) private readonly orders: Repository<TradeOrderEntity>,
-    @InjectRepository(ProductionOrderEntity) private readonly prodOrders: Repository<ProductionOrderEntity>,
-    @InjectRepository(ProductionReportEntity) private readonly reports: Repository<ProductionReportEntity>,
+    @InjectRepository(ProductionOrderEntity)
+    private readonly prodOrders: Repository<ProductionOrderEntity>,
+    @InjectRepository(ProductionReportEntity)
+    private readonly reports: Repository<ProductionReportEntity>,
     @InjectRepository(MachineEntity) private readonly machines: Repository<MachineEntity>,
     private readonly alerts: AlertService,
   ) {}
@@ -96,9 +100,20 @@ export class DashboardService {
 
     // 一次并发拉齐所有聚合所需数据，避免串行等待
     const [
-      batchAgg, rollAgg, depleted, purchaseAgg, salesAgg,
-      outputAgg, inProgress, draftOrders, reportCount,
-      machines, activeMats, openAlerts, dueSoon, overdue,
+      batchAgg,
+      rollAgg,
+      depleted,
+      purchaseAgg,
+      salesAgg,
+      outputAgg,
+      inProgress,
+      draftOrders,
+      reportCount,
+      machines,
+      activeMats,
+      openAlerts,
+      dueSoon,
+      overdue,
       weekOutput,
     ] = await Promise.all([
       // 在库：按剩余量聚合，并算货值（剩余米 × 单位成本）
@@ -258,7 +273,9 @@ export class DashboardService {
       },
       recentOutput,
     }
-    this.log.log(`概览：产出 ${data.production.outputMeters}m，预警 ${data.todo.openAlerts}，逾期订单 ${data.todo.overdueOrders}`)
+    this.log.log(
+      `概览：产出 ${data.production.outputMeters}m，预警 ${data.todo.openAlerts}，逾期订单 ${data.todo.overdueOrders}`,
+    )
     return data
   }
 }

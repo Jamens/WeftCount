@@ -18,6 +18,8 @@ export class LinkOrdersToDocs1730700000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('ALTER TABLE `inventory_documents` DROP KEY `idx_docs_order`, DROP COLUMN `order_id`')
+    await queryRunner.query(
+      'ALTER TABLE `inventory_documents` DROP KEY `idx_docs_order`, DROP COLUMN `order_id`',
+    )
   }
 }

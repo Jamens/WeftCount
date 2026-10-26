@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
@@ -23,7 +28,10 @@ export class PartnerService {
   // 供应商条码映射（扫码入库用）
   // -------------------------------------------------------------------------
 
-  async listCodeMappings(companyId: string, supplierId?: string): Promise<SupplierCodeMappingEntity[]> {
+  async listCodeMappings(
+    companyId: string,
+    supplierId?: string,
+  ): Promise<SupplierCodeMappingEntity[]> {
     return this.codeMappings.find({
       where: supplierId ? { companyId, supplierId } : { companyId },
       order: { createdAt: 'DESC' },
@@ -33,17 +41,33 @@ export class PartnerService {
   async createCodeMapping(
     tenantId: string,
     companyId: string,
-    input: { supplierId: string; supplierCode: string; materialId: string; specId: string; remark?: string | null },
+    input: {
+      supplierId: string
+      supplierCode: string
+      materialId: string
+      specId: string
+      remark?: string | null
+    },
   ): Promise<SupplierCodeMappingEntity> {
     const code = input.supplierCode.trim()
-    if (!code) throw new BadRequestException({ code: ErrorCode.VALIDATION_FAILED, message: '供应商条码不能为空' })
-    const exists = await this.codeMappings.findOne({ where: { companyId, supplierId: input.supplierId, supplierCode: code } })
+    if (!code)
+      throw new BadRequestException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '供应商条码不能为空',
+      })
+    const exists = await this.codeMappings.findOne({
+      where: { companyId, supplierId: input.supplierId, supplierCode: code },
+    })
     if (exists) {
-      throw new ConflictException({ code: ErrorCode.VALIDATION_FAILED, message: '该供应商下此条码已存在映射' })
+      throw new ConflictException({
+        code: ErrorCode.VALIDATION_FAILED,
+        message: '该供应商下此条码已存在映射',
+      })
     }
     return this.codeMappings.save(
       this.codeMappings.create({
-        tenantId, companyId,
+        tenantId,
+        companyId,
         supplierId: input.supplierId,
         supplierCode: code,
         materialId: input.materialId,
@@ -66,17 +90,33 @@ export class PartnerService {
     supplierCode: string,
     supplierId?: string,
   ): Promise<
-    | { ambiguous: false; supplierId: string; materialId: string; specId: string; supplierCode: string }
+    | {
+        ambiguous: false
+        supplierId: string
+        materialId: string
+        specId: string
+        supplierCode: string
+      }
     | { ambiguous: true }
     | null
   > {
     const code = supplierCode.trim()
     if (!code) return null
-    const rows = await this.codeMappings.find({ where: supplierId ? { companyId, supplierId, supplierCode: code } : { companyId, supplierCode: code } })
+    const rows = await this.codeMappings.find({
+      where: supplierId
+        ? { companyId, supplierId, supplierCode: code }
+        : { companyId, supplierCode: code },
+    })
     if (rows.length === 0) return null
     if (rows.length > 1) return { ambiguous: true }
     const m = rows[0]
-    return { ambiguous: false, supplierId: m.supplierId, materialId: m.materialId, specId: m.specId, supplierCode: m.supplierCode }
+    return {
+      ambiguous: false,
+      supplierId: m.supplierId,
+      materialId: m.materialId,
+      specId: m.specId,
+      supplierCode: m.supplierCode,
+    }
   }
 
   /**
@@ -100,14 +140,21 @@ export class PartnerService {
     return `P${String(nextNum).padStart(4, '0')}`
   }
 
-  async create(tenantId: string, companyId: string, input: CreatePartnerInput): Promise<PartnerEntity> {
+  async create(
+    tenantId: string,
+    companyId: string,
+    input: CreatePartnerInput,
+  ): Promise<PartnerEntity> {
     // 撞号重试：并发下「查最后号+1」可能撞唯一键，重取号再来
     return withUniqueNo(async () => {
       const code = input.code ?? (await this.nextCode(companyId))
       if (input.code) {
         const exists = await this.partners.findOne({ where: { companyId, code } })
         if (exists) {
-          throw new ConflictException({ code: ErrorCode.DUPLICATE_CODE, message: `往来单位编码 ${code} 已存在` })
+          throw new ConflictException({
+            code: ErrorCode.DUPLICATE_CODE,
+            message: `往来单位编码 ${code} 已存在`,
+          })
         }
       }
       return this.partners.save(
