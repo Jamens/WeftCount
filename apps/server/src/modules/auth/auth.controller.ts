@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator'
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator'
 import { AuthService } from './auth.service'
 import { AuthGuard } from './guards/auth.guard'
 import { CurrentUser, type RequestContext } from './auth-context'

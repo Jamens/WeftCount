@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, type EntityManager, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
-import { PartnerEntity, type PartnerType } from '../partner/entities/partner.entity'
+import { PartnerEntity } from '../partner/entities/partner.entity'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
 import { ReceiptEntity, type ReceiptMethod } from './entities/receipt.entity'
 import { ReceiptApplicationEntity } from './entities/receipt-application.entity'

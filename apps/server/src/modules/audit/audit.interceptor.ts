@@ -9,7 +9,7 @@ import { Reflector } from '@nestjs/core'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import { Observable, from, of, switchMap, tap } from 'rxjs'
-import type { Request, Response } from 'express'
+import type { Request } from 'express'
 import type { AuditActionType, AuditTargetType } from '@weftcount/shared'
 import { AuditService, type AuditInput } from './audit.service'
 import { buildEntitySnapshot, buildSnapshot } from './audit-sanitizer'
@@ -74,7 +74,6 @@ export class AuditInterceptor implements NestInterceptor {
     if (context.getType() !== 'http') return next.handle()
 
     const req = context.switchToHttp().getRequest<Request & { ctx?: RequestContext }>()
-    const res = context.switchToHttp().getResponse<Response>()
     const method = req.method.toUpperCase()
 
     // 显式跳过

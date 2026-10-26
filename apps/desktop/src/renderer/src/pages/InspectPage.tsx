@@ -102,7 +102,6 @@ export default function InspectPage() {
   const [lengthInch, setLengthInch] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const current = inspections.find((i) => i.id === currentId) ?? null
   const activeRoll = rolls.find((r) => r.rollId === activeRollId) ?? null
 
   const loadInspections = useCallback(async () => {

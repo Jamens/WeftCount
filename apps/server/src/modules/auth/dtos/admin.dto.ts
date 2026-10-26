@@ -1,7 +1,6 @@
 import {
   ArrayNotEmpty,
   IsArray,
-  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,

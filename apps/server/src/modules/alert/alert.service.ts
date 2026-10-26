@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { In, IsNull, Not, Repository } from 'typeorm'
+import { IsNull, Not, Repository } from 'typeorm'
 import dayjs from 'dayjs'
 import { ErrorCode } from '@weftcount/shared'
 import {

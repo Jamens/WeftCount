@@ -22,7 +22,7 @@ import dayjs from 'dayjs'
 import { api, newReqId, postOrQueue } from '../lib/api'
 import { fmt, num, type ReportableOrder } from '../lib/types'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 /**
  * 织机报工（挡车工）

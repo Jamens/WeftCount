@@ -25,7 +25,7 @@ import {
   type WarehouseWire,
 } from '../lib/types'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 /** 布匹标签打印（仓管员，离线打印：条码与版式均在本地生成） */
 export default function LabelPage() {

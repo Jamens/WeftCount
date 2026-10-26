@@ -32,4 +32,7 @@ export class MaintenanceSparePartEntity {
   /** 耗用金额（元），decimal 字符串 */
   @Column({ type: 'decimal', precision: 12, scale: 2, default: '0.00' })
   cost!: string
+
+  @CreateDateColumn()
+  createdAt!: Date
 }

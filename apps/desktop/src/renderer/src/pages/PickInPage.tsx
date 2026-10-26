@@ -18,8 +18,6 @@ import {
 import { BarcodeOutlined, InboxOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import {
-  fmt,
-  num,
   type BatchOrigin,
   type BatchWire,
   type GreigeSpecWire,

@@ -311,7 +311,7 @@ export class SchedulingService {
       })
     const assignedCount = new Map<string, number>()
     for (const o of toSchedule) {
-      const { days, daily, specName } = await this.orderDays(tenantId, companyId, o)
+      const { days, specName } = await this.orderDays(tenantId, companyId, o)
       let best: { machineId: string; start: number; count: number } | null = null
       for (const m of machines) {
         const start = load.get(m.id) ?? 0

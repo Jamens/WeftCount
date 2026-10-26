@@ -396,7 +396,6 @@ export class StocktakeService {
     })
     if (!roll) return
     const book = Number(it.bookQuantityM)
-    const counted = Number(it.countedQuantityM)
     const remain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
     // 目标剩余 = 该匹账面(建单时) + 实测差异
     const target = Math.max(book + diff, 0)

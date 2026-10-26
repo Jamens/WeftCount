@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@ne
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ContractService } from './contract.service'
 import { CreateContractDto, ContractFilterDto, UpdateContractDto } from './contract.dto'
-import { ContractEntity, type ContractStatus } from './entities/contract.entity'
+import { ContractEntity } from './entities/contract.entity'
 import { AuthGuard } from '../auth/guards/auth.guard'
 import { CurrentUser, type RequestContext } from '../auth/auth-context'
 import { Permission } from '../auth/permissions'

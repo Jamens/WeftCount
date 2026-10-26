@@ -227,7 +227,6 @@ export class ImportExportService {
         })
     }
     const g = (r: string[], n: string) => (col(n) >= 0 ? (r[col(n)] ?? '').trim() : '')
-    const numOr = (s: string, d: number) => (s === '' ? d : Number(s))
 
     const result: ImportResult = { total: rows.length - 1, succeeded: 0, failed: 0, errors: [] }
     for (let i = 1; i < rows.length; i++) {

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { DataSource, type EntityManager, Like, Repository } from 'typeorm'
+import { DataSource, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { MachineEntity } from '../production/entities/machine.entity'
 import {

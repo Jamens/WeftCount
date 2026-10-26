@@ -39,7 +39,7 @@ export default function BoardPage() {
   const [orders, setOrders] = useState<ProductionOrderWire[]>([])
   const [machines, setMachines] = useState<MachineWire[]>([])
   const [specs, setSpecs] = useState<GreigeSpecWire[]>([])
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   /** 最后成功刷新的时间——让看板人员知道数据新鲜度 */
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
 

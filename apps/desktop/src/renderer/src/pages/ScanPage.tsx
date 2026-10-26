@@ -19,7 +19,6 @@ import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import {
   fmt,
-  num,
   type BatchOrigin,
   type BatchTrace,
   type BatchWire,

@@ -11,7 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
 import { randomUUID } from 'node:crypto'
 import * as bcrypt from 'bcryptjs'
-import { ErrorCode, PLAN_LIMITS, type UserStatus } from '@weftcount/shared'
+import { ErrorCode, PLAN_LIMITS } from '@weftcount/shared'
 import {
   type CompanyOption,
   type CreateRoleDto,

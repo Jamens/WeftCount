@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Not, Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 import { MaterialService } from '../material/material.service'
 import { GreigeSpecEntity } from '../material/entities/greige-spec.entity'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
