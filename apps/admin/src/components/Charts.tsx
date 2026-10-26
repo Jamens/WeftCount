@@ -74,7 +74,7 @@ export function LineChart({
     const gridY = [0, maxV / 2, maxV].map((v) => ({ v, y: yAt(v) }))
     const ticks = data.map((p, i) => ({ label: p.label, x: xAt(i) }))
     return { maxV, paths, areaPaths, xAt, gridY, ticks }
-  }, [data, seriesNames, ih, iw])
+  }, [data, seriesNames, ih, iw, area])
 
   if (!data.length) {
     return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>

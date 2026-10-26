@@ -93,7 +93,7 @@ export default function App() {
       clearInterval(timer)
       window.removeEventListener('online', onOnline)
     }
-  }, [authed])
+  }, [authed, messageApi])
 
   useEffect(() => {
     if (!authed) return

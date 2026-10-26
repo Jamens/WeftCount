@@ -70,7 +70,10 @@ export default function ContractPage() {
   const [form] = Form.useForm<ContractForm>()
 
   const contractType = Form.useWatch('contractType', form) ?? 'purchase'
-  const items = Form.useWatch('items', form) ?? []
+  // useWatch 返回 undefined 时若直接 `?? []`，会每次渲染生成新数组，
+  // 使下游以 items 为依赖的 useMemo 恒失效；故用 useMemo 稳定引用。
+  const watchedItems = Form.useWatch('items', form)
+  const items = useMemo(() => watchedItems ?? [], [watchedItems])
 
   const load = useCallback(async () => {
     setLoading(true)
