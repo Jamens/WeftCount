@@ -17,10 +17,7 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": false,
-    "esModuleInterop": true,
-    "paths": {
-      "@weftcount/shared": ["../../packages/shared/dist/index.d.ts"]
-    }
+    "esModuleInterop": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
