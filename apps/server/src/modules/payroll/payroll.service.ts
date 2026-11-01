@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { Between, DataSource, Like, Repository, type EntityManager } from 'typeorm'
+import { Between, DataSource, In, Like, Repository, type EntityManager } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { withUniqueNo } from '../../common/util/unique-no'
 import { UserEntity } from '../auth/entities/user.entity'
@@ -337,11 +337,12 @@ export class PayrollService {
       where.periodStart = Between(filter.periodStart, filter.periodEnd ?? '9999-12-31')
     else if (filter.periodEnd) where.periodStart = Between('0000-01-01', filter.periodEnd)
     const rows = await this.slips.find({ where, order: { periodStart: 'DESC', createdAt: 'DESC' } })
-    const views = await Promise.all(
-      rows.map(async (r) =>
-        this.toSlipView(r, await this.loadItems(this.slips.manager, r.id, ctx)),
-      ),
+    const itemsBySlip = await this.loadItemsBatch(
+      this.slips.manager,
+      rows.map((r) => r.id),
+      ctx,
     )
+    const views = rows.map((r) => this.toSlipView(r, itemsBySlip.get(r.id) ?? []))
     return views
   }
 
@@ -621,20 +622,23 @@ export class PayrollService {
       }),
     )
 
-    for (const row of itemRows) {
+    // 明细批量落库（原先逐条 save = N 次 INSERT）
+    if (itemRows.length) {
       await manager.save(
-        manager.create(WageSlipItemEntity, {
-          tenantId: ctx.tenantId,
-          companyId: ctx.companyId,
-          slipId: saved.id,
-          orderId: row.orderId,
-          orderNo: row.orderNo,
-          machineId: row.machineId,
-          machineName: row.machineName,
-          outputM: num(row.outputM, 3),
-          reportCount: row.reportCount,
-          amount: num(row.amount, 2),
-        }),
+        itemRows.map((row) =>
+          manager.create(WageSlipItemEntity, {
+            tenantId: ctx.tenantId,
+            companyId: ctx.companyId,
+            slipId: saved.id,
+            orderId: row.orderId,
+            orderNo: row.orderNo,
+            machineId: row.machineId,
+            machineName: row.machineName,
+            outputM: num(row.outputM, 3),
+            reportCount: row.reportCount,
+            amount: num(row.amount, 2),
+          }),
+        ),
       )
     }
     const items = await this.loadItems(manager, saved.id, ctx)
@@ -661,6 +665,50 @@ export class PayrollService {
       reportCount: i.reportCount,
       amount: toNum(i.amount),
     }))
+  }
+
+  /**
+   * 批量加载多张工资单的明细（列表页用）
+   *
+   * 逐张调用 loadItems 会发出 N+1 条 SQL（N 张工资单 → N 次明细查询），
+   * 这里改为一次查询取回全部明细，再按 slipId 建 Map 分组。
+   *
+   * @returns slipId → 明细视图列表
+   */
+  private async loadItemsBatch(
+    manager: EntityManager | Repository<WageSlipItemEntity>,
+    slipIds: string[],
+    ctx: RequestContext,
+  ): Promise<Map<string, SlipItemView[]>> {
+    const result = new Map<string, SlipItemView[]>()
+    if (slipIds.length === 0) return result
+    const repo = manager instanceof Repository ? manager : manager.getRepository(WageSlipItemEntity)
+    const list = await repo.find({
+      where: {
+        slipId: In(slipIds),
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+      },
+      order: { createdAt: 'ASC' },
+    })
+    const bySlip = new Map<string, SlipItemView[]>()
+    for (const i of list) {
+      const view: SlipItemView = {
+        id: i.id,
+        orderId: i.orderId,
+        orderNo: i.orderNo,
+        machineId: i.machineId,
+        machineName: i.machineName,
+        outputM: toNum(i.outputM),
+        reportCount: i.reportCount,
+        amount: toNum(i.amount),
+      }
+      const arr = bySlip.get(i.slipId)
+      if (arr) arr.push(view)
+      else bySlip.set(i.slipId, [view])
+    }
+    for (const id of slipIds) result.set(id, bySlip.get(id) ?? [])
+    return result
   }
 
   private toProfileView(p: WageProfileEntity, username: string): WageProfileView {

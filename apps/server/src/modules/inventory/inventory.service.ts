@@ -875,10 +875,18 @@ export class InventoryService {
     let totalM = 0
     let totalKg = 0
     let totalM2 = 0
-    for (const pick of input.pickedItems ?? []) {
-      const batch = await manager.findOne(InventoryBatchEntity, {
-        where: { id: pick.batchId, companyId: ctx.companyId },
-      })
+    const picks = input.pickedItems ?? []
+    // 扫码批次一次性取回（原先逐条 findOne，N 条明细 = N 次查询）。
+    // 循环内只读不写，故批量预取与逐条查询等价；报错顺序与文案保持不变。
+    const pickBatchIds = [...new Set(picks.map((p) => p.batchId))]
+    const pickedBatches = pickBatchIds.length
+      ? await manager.find(InventoryBatchEntity, {
+          where: { id: In(pickBatchIds), companyId: ctx.companyId },
+        })
+      : []
+    const pickedBatchMap = new Map(pickedBatches.map((b) => [b.id, b]))
+    for (const pick of picks) {
+      const batch = pickedBatchMap.get(pick.batchId)
       if (!batch)
         throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '扫码批次不存在' })
       if (batch.status !== 'normal') {
@@ -947,7 +955,22 @@ export class InventoryService {
     let totalM = 0
     let totalKg = 0
     let totalM2 = 0
-    for (const pick of input.pickedRolls ?? []) {
+    const rollPicks = input.pickedRolls ?? []
+    // 件卡与所属批次一次性取回（原先每件卡 2 次 findOne，N 件 = 2N 次查询）。
+    // rollNo 公司内唯一，批次按 id 取（与原查询口径一致，不额外加 companyId 过滤）。
+    const pickRollNos = [...new Set(rollPicks.map((p) => String(p.rollNo).trim()).filter(Boolean))]
+    const pickedRolls = pickRollNos.length
+      ? await manager.find(RollEntity, {
+          where: { rollNo: In(pickRollNos), companyId: ctx.companyId },
+        })
+      : []
+    const pickedRollMap = new Map(pickedRolls.map((r) => [r.rollNo, r]))
+    const rollBatchIds = [...new Set(pickedRolls.map((r) => r.batchId))]
+    const rollBatches = rollBatchIds.length
+      ? await manager.find(InventoryBatchEntity, { where: { id: In(rollBatchIds) } })
+      : []
+    const rollBatchMap = new Map(rollBatches.map((b) => [b.id, b]))
+    for (const pick of rollPicks) {
       const rollNo = String(pick.rollNo).trim()
       if (!rollNo)
         throw new BadRequestException({
@@ -961,9 +984,7 @@ export class InventoryService {
         })
       }
       seen.add(rollNo)
-      const roll = await manager.findOne(RollEntity, {
-        where: { rollNo, companyId: ctx.companyId },
-      })
+      const roll = pickedRollMap.get(rollNo)
       if (!roll)
         throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: `件卡 ${rollNo} 不存在` })
       if (roll.status !== 'in_stock') {
@@ -972,7 +993,7 @@ export class InventoryService {
           message: `件卡 ${rollNo} 不可用（已出库/已耗）`,
         })
       }
-      const batch = await manager.findOne(InventoryBatchEntity, { where: { id: roll.batchId } })
+      const batch = rollBatchMap.get(roll.batchId)
       if (!batch)
         throw new NotFoundException({
           code: ErrorCode.NOT_FOUND,
@@ -1038,8 +1059,22 @@ export class InventoryService {
     input: CreateDocInput,
     plan: ConsumptionPlan,
   ): Promise<void> {
+    // 批次与件卡一次性取回（原先每个 portion / rollTake 一次 findOne）。
+    // 按 id 取，与原查询口径一致（不加 companyId 过滤）。
+    // 同一批次可能被多个 portion 命中：Map 持有的是同一个已被就地修改的实体，
+    // 其 remainingQuantity 已被本轮扣减，等价于原先「改完再查一次」的结果。
+    const portionBatchIds = [...new Set(plan.portions.map((p) => p.batchId))]
+    const portionBatches = portionBatchIds.length
+      ? await manager.find(InventoryBatchEntity, { where: { id: In(portionBatchIds) } })
+      : []
+    const portionBatchMap = new Map(portionBatches.map((b) => [b.id, b]))
+    const takeRollIds = [...new Set((plan.rollTakes ?? []).map((rt) => rt.rollId))]
+    const takeRolls = takeRollIds.length
+      ? await manager.find(RollEntity, { where: { id: In(takeRollIds) } })
+      : []
+    const takeRollMap = new Map(takeRolls.map((r) => [r.id, r]))
     for (const p of plan.portions) {
-      const batch = await manager.findOne(InventoryBatchEntity, { where: { id: p.batchId } })
+      const batch = portionBatchMap.get(p.batchId)
       if (!batch) continue
       const newRem = Number(batch.remainingQuantity) - p.take
       batch.remainingQuantity = num(newRem, 3)
@@ -1079,8 +1114,10 @@ export class InventoryService {
     // 件卡发货（整匹或拆匹）：扣减 remaining_m/remaining_kg + 记 roll_outbounds 关联行。
     // remaining 归零才置 sold/consumed——残匹留在库继续可用。
     if (plan.rollTakes && plan.rollTakes.length > 0) {
+      // 出库流水先攒着，最后一次性批量落库（原先逐匹 save = N 条 INSERT）
+      const outboundRows: RollOutboundEntity[] = []
       for (const rt of plan.rollTakes) {
-        const roll = await manager.findOne(RollEntity, { where: { id: rt.rollId } })
+        const roll = takeRollMap.get(rt.rollId)
         if (!roll) continue
         const remain = roll.remainingM == null ? Number(roll.meters) : Number(roll.remainingM)
         const remainKg =
@@ -1097,9 +1134,20 @@ export class InventoryService {
           roll.status = txnType === 'sales_out' ? 'sold' : 'consumed'
         }
         roll.outboundDocId = docId // 保留：记最后一次出库单（完整去向见 roll_outbounds）
-        await manager.save(roll)
+        // update 而非 save：save 每匹多打一条存在性 SELECT；该实体没有
+        // @UpdateDateColumn，两者写出的列一致。
+        await manager.update(
+          RollEntity,
+          { id: roll.id },
+          {
+            remainingM: roll.remainingM,
+            remainingKg: roll.remainingKg,
+            status: roll.status,
+            outboundDocId: roll.outboundDocId,
+          },
+        )
 
-        await manager.save(
+        outboundRows.push(
           manager.create(RollOutboundEntity, {
             tenantId: ctx.tenantId,
             companyId: ctx.companyId,
@@ -1111,6 +1159,7 @@ export class InventoryService {
           }),
         )
       }
+      if (outboundRows.length > 0) await manager.save(outboundRows)
     }
   }
 

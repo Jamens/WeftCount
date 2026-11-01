@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { DataSource, type EntityManager, Like, Repository } from 'typeorm'
+import { DataSource, type EntityManager, In, Like, Repository } from 'typeorm'
 import { ErrorCode } from '@weftcount/shared'
 import { PartnerEntity } from '../partner/entities/partner.entity'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
@@ -177,15 +177,19 @@ export class ReceivableService {
         })
         const saved = await manager.save(receipt)
 
+        // 涉及的出库单一次性取回（原先逐条 findOne，N 张单 = N 次查询）。
+        // byDoc 以 docId 为键，同一张单只出现一次，故批量预取与逐条查询等价；
+        // docType 校验保留在循环内，报错文案与原先完全一致。
+        const docIds = [...byDoc.keys()]
+        const docs = docIds.length
+          ? await manager.find(InventoryDocumentEntity, {
+              where: { id: In(docIds), tenantId: ctx.tenantId, companyId: ctx.companyId },
+            })
+          : []
+        const docMap = new Map(docs.map((d) => [d.id, d]))
+        const applications: ReceiptApplicationEntity[] = []
         for (const [docId, applied] of byDoc) {
-          const doc = await manager.findOne(InventoryDocumentEntity, {
-            where: {
-              id: docId,
-              tenantId: ctx.tenantId,
-              companyId: ctx.companyId,
-              docType: 'sales_outbound',
-            },
-          })
+          const doc = docMap.get(docId)
           if (!doc || doc.docType !== 'sales_outbound') {
             throw new BadRequestException({
               code: ErrorCode.VALIDATION_FAILED,
@@ -200,7 +204,7 @@ export class ReceivableService {
               message: `出库单 ${doc.docNo} 核销超额：已收 ${num(toNum(doc.settledAmount), 2)} + 本次 ${num(applied, 2)} > 应收 ${num(total, 2)}`,
             })
           }
-          await manager.save(
+          applications.push(
             manager.create(ReceiptApplicationEntity, {
               tenantId: ctx.tenantId,
               companyId: ctx.companyId,
@@ -212,6 +216,7 @@ export class ReceivableService {
           doc.settledAmount = num(newSettled, 2)
           await manager.save(doc)
         }
+        if (applications.length) await manager.save(applications)
         return this.toReceiptView(saved, await this.loadApps(manager, saved.id, ctx))
       })
     })
@@ -230,14 +235,30 @@ export class ReceivableService {
       const list = await manager.find(ReceiptApplicationEntity, {
         where: { receiptId: receipt.id, tenantId: ctx.tenantId, companyId: ctx.companyId },
       })
+      // 涉及的出库单一次性取回（原先逐条 findOne，N 条核销 = N 次查询）。
+      // 核销明细按 docId 唯一（核销时已按 docId 归并），故每张单只回退一次，
+      // 批量预取与逐条查询等价。
+      const docIds = [...new Set(list.map((a) => a.docId))]
+      const docs = docIds.length
+        ? await manager.find(InventoryDocumentEntity, {
+            where: { id: In(docIds), tenantId: ctx.tenantId, companyId: ctx.companyId },
+          })
+        : []
+      const docMap = new Map(docs.map((d) => [d.id, d]))
       for (const app of list) {
-        const doc = await manager.findOne(InventoryDocumentEntity, {
-          where: { id: app.docId, tenantId: ctx.tenantId, companyId: ctx.companyId },
-        })
+        const doc = docMap.get(app.docId)
         if (doc) {
           const back = Math.max(0, toNum(doc.settledAmount) - toNum(app.appliedAmount))
           doc.settledAmount = num(back, 2)
-          await manager.save(doc)
+          // update 而非 save：save 每行多打一条存在性 SELECT；该实体的
+          // updatedAt 是 @UpdateDateColumn，update 同样会自动维护。
+          await manager.update(
+            InventoryDocumentEntity,
+            { id: doc.id },
+            {
+              settledAmount: doc.settledAmount,
+            },
+          )
         }
       }
       await manager.delete(ReceiptApplicationEntity, { receiptId: receipt.id })
@@ -272,11 +293,12 @@ export class ReceivableService {
       skip: (page - 1) * pageSize,
       take: pageSize,
     })
-    const views = await Promise.all(
-      rows.map(async (r) =>
-        this.toReceiptView(r, await this.loadApps(this.receipts.manager, r.id, ctx)),
-      ),
+    const appsByReceipt = await this.loadAppsBatch(
+      this.receipts.manager,
+      rows.map((r) => r.id),
+      ctx,
     )
+    const views = rows.map((r) => this.toReceiptView(r, appsByReceipt.get(r.id) ?? []))
     return { records: views, total, page, pageSize }
   }
 
@@ -506,6 +528,56 @@ export class ReceivableService {
         docSettled: d ? toNum(d.settledAmount) : 0,
       }
     })
+  }
+
+  /**
+   * 批量加载多张收款的核销明细（列表页用）
+   *
+   * 逐张调用 loadApps 会发出 2N+1 条 SQL（N 张收款 → N 次核销行 + N 次出库单），
+   * 这里改为两次查询取回全部核销行与出库单，再按 receiptId / docId 建 Map 分组。
+   *
+   * @returns receiptId → 核销明细视图列表
+   */
+  private async loadAppsBatch(
+    manager: EntityManager | Repository<ReceiptApplicationEntity>,
+    receiptIds: string[],
+    ctx: RequestContext,
+  ): Promise<Map<string, ReceiptApplicationView[]>> {
+    const result = new Map<string, ReceiptApplicationView[]>()
+    if (receiptIds.length === 0) return result
+    const repo =
+      manager instanceof Repository ? manager : manager.getRepository(ReceiptApplicationEntity)
+    const list = await repo.find({
+      where: {
+        receiptId: In(receiptIds),
+        tenantId: ctx.tenantId,
+        companyId: ctx.companyId,
+      },
+    })
+    const docIds = [...new Set(list.map((a) => a.docId))]
+    const docs = docIds.length
+      ? await this.docs.find({
+          where: docIds.map((id) => ({ id, tenantId: ctx.tenantId, companyId: ctx.companyId })),
+        })
+      : []
+    const docMap = new Map(docs.map((d) => [d.id, d]))
+    const byReceipt = new Map<string, ReceiptApplicationView[]>()
+    for (const a of list) {
+      const d = docMap.get(a.docId)
+      const view: ReceiptApplicationView = {
+        id: a.id,
+        docId: a.docId,
+        docNo: d?.docNo ?? '',
+        appliedAmount: toNum(a.appliedAmount),
+        docTotal: d ? toNum(d.totalAmount) : 0,
+        docSettled: d ? toNum(d.settledAmount) : 0,
+      }
+      const arr = byReceipt.get(a.receiptId)
+      if (arr) arr.push(view)
+      else byReceipt.set(a.receiptId, [view])
+    }
+    for (const id of receiptIds) result.set(id, byReceipt.get(id) ?? [])
+    return result
   }
 
   private toReceiptView(r: ReceiptEntity, applications: ReceiptApplicationView[]): ReceiptView {
