@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { Between, DataSource, In, Like, Repository, type EntityManager } from 'typeorm'
-import { ErrorCode } from '@weftcount/shared'
+import { ErrorCode, dateToISO, isoToDate } from '@weftcount/shared'
 import { withUniqueNo } from '../../common/util/unique-no'
 import { UserEntity } from '../auth/entities/user.entity'
 import { MachineEntity } from '../production/entities/machine.entity'
@@ -21,18 +21,6 @@ function num(n: number, scale: number): string {
 function toNum(s: string | null | undefined): number {
   const v = Number(s ?? '0')
   return Number.isFinite(v) ? v : 0
-}
-/**
- * date 列转 YYYY-MM-DD
- *
- * 实体列标注 string，但 mysql 驱动运行时回的可能是 Date 对象——
- * `instanceof` 在 string 类型上 TS 直接报错，先 as unknown 再判。
- */
-function dateToISO(v: string | null): string {
-  if (!v) return ''
-  return (v as unknown) instanceof Date
-    ? (v as unknown as Date).toISOString().slice(0, 10)
-    : String(v)
 }
 /** 当日 0 点的日期差（天）：a - b */
 function dayDiff(a: Date, b: Date): number {
@@ -269,7 +257,7 @@ export class PayrollService {
         message: '结算周期起不得晚于止',
       })
     }
-    const spanDays = dayDiff(new Date(periodEnd), new Date(periodStart))
+    const spanDays = dayDiff(isoToDate(periodEnd), isoToDate(periodStart))
     if (spanDays > 62) {
       throw new BadRequestException({
         code: ErrorCode.VALIDATION_FAILED,

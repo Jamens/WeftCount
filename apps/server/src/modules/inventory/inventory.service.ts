@@ -4,8 +4,10 @@ import { DataSource, EntityManager, In, Like, Repository } from 'typeorm'
 import {
   contextFromSnapshot,
   convertQuantity,
+  dateToISO,
   DEFAULT_TOLERANCE_RATE,
   ErrorCode,
+  isoToDate,
   type ContextParams,
   type ConversionError,
   type SpecCalculationSnapshot,
@@ -1197,7 +1199,7 @@ export class InventoryService {
       const dueDate =
         docType === 'sales_outbound'
           ? input.dueDate
-            ? new Date(input.dueDate)
+            ? isoToDate(input.dueDate)
             : this.computeDueDate(partner.creditDays)
           : null
       const doc = manager.create(InventoryDocumentEntity, {
@@ -1456,7 +1458,7 @@ export class InventoryService {
             partnerName: null,
             orderId: report.orderId,
             date: report.reportDate
-              ? new Date(report.reportDate)
+              ? isoToDate(dateToISO(report.reportDate))
               : (report.createdAt ?? new Date()),
             machineName,
           }

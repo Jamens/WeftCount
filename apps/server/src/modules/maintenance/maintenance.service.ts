@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Like, Repository } from 'typeorm'
-import { ErrorCode } from '@weftcount/shared'
+import { ErrorCode, dateToISO, isoToDate } from '@weftcount/shared'
 import { MachineEntity } from '../production/entities/machine.entity'
 import {
   MaintenancePlanEntity,
@@ -30,7 +30,7 @@ function toNum(s: string | number | null | undefined): number {
 }
 /** 'YYYY-MM-DD' 的本地 0 点 */
 function atMidnight(d: string | Date): Date {
-  const x = new Date(d)
+  const x = d instanceof Date ? new Date(d.getTime()) : isoToDate(d)
   x.setHours(0, 0, 0, 0)
   return x
 }
@@ -666,7 +666,9 @@ export class MaintenanceService {
       if (list.length >= 2) {
         let sum = 0
         for (let i = 1; i < list.length; i++) {
-          sum += Math.abs(dayDiff(new Date(list[i].date), new Date(list[i - 1].date)))
+          sum += Math.abs(
+            dayDiff(isoToDate(dateToISO(list[i].date)), isoToDate(dateToISO(list[i - 1].date))),
+          )
         }
         mtbfDays = Math.round((sum / (list.length - 1)) * 100) / 100
       }
@@ -697,7 +699,7 @@ export class MaintenanceService {
     if (cycleType === 'run_hour') return null
     const base = lastDone ? atMidnight(lastDone) : atMidnight(new Date())
     base.setDate(base.getDate() + cycleValue)
-    return base.toISOString().slice(0, 10)
+    return dateToISO(base)
   }
 
   private async loadMachineNames(
@@ -791,10 +793,7 @@ export class MaintenanceService {
       planName,
       type: r.type,
       category: r.category,
-      date:
-        (r.date as unknown) instanceof Date
-          ? (r.date as unknown as Date).toISOString().slice(0, 10)
-          : String(r.date),
+      date: dateToISO(r.date),
       operatorId: r.operatorId,
       operatorName: r.operatorName,
       durationMin: r.durationMin,

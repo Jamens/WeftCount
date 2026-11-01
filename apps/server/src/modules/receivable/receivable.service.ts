@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, type EntityManager, In, Like, Repository } from 'typeorm'
-import { ErrorCode } from '@weftcount/shared'
+import { ErrorCode, dateToISO, isoToDate } from '@weftcount/shared'
 import { PartnerEntity } from '../partner/entities/partner.entity'
 import { InventoryDocumentEntity } from '../inventory/entities/inventory-document.entity'
 import { ReceiptEntity, type ReceiptMethod } from './entities/receipt.entity'
@@ -169,7 +169,7 @@ export class ReceivableService {
           receiptNo,
           partnerId: partner.id,
           partnerName: partner.name,
-          receiptDate: new Date(dto.receiptDate),
+          receiptDate: isoToDate(dto.receiptDate),
           amount: num(dto.amount, 2),
           method: dto.method ?? 'bank',
           remark: dto.remark ?? null,
@@ -330,7 +330,7 @@ export class ReceivableService {
       })
       .filter((x) => x.uncollected > 0.005)
       .map(({ d, total, settled, uncollected }) => {
-        const due = d.dueDate ? new Date(d.dueDate) : null
+        const due = d.dueDate ? isoToDate(dateToISO(d.dueDate)) : null
         const agingDays = due ? dayDiff(today, due) : null
         return {
           docId: d.id,
@@ -340,7 +340,7 @@ export class ReceivableService {
           totalAmount: total,
           settledAmount: settled,
           uncollected,
-          dueDate: due ? due.toISOString().slice(0, 10) : null,
+          dueDate: due ? dateToISO(due) : null,
           agingDays,
           overdue: due ? dayDiff(today, due) > 0 : false,
         } as LedgerRow
@@ -419,22 +419,23 @@ export class ReceivableService {
     }
     const receipts = await this.receipts.find({ where: rcptWhere, order: { receiptDate: 'ASC' } })
 
-    type Raw = { date: Date; docNo: string; kind: 'invoice' | 'receipt'; amount: number }
+    type Raw = { date: string; docNo: string; kind: 'invoice' | 'receipt'; amount: number }
     const raw: Raw[] = [
       ...docs.map((d) => ({
-        date: d.createdAt,
+        date: dateToISO(d.createdAt),
         docNo: d.docNo,
         kind: 'invoice' as const,
         amount: toNum(d.totalAmount),
       })),
       ...receipts.map((r) => ({
-        date: r.receiptDate,
+        date: dateToISO(r.receiptDate),
         docNo: r.receiptNo,
         kind: 'receipt' as const,
         amount: toNum(r.amount),
       })),
     ]
-    raw.sort((a, b) => a.date.getTime() - b.date.getTime() || (a.kind === 'receipt' ? 1 : -1))
+    // 按日历日排序；同日则收款排在发货之后（同日同刻时以 kind 稳定排序）
+    raw.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === 'receipt' ? 1 : -1))
 
     let balance = 0
     const lines: StatementLine[] = raw.map((r) => {
@@ -442,7 +443,7 @@ export class ReceivableService {
       const credit = r.kind === 'receipt' ? r.amount : 0
       balance += debit - credit
       return {
-        date: r.date.toISOString().slice(0, 10),
+        date: r.date,
         docNo: r.docNo,
         kind: r.kind,
         debit,
@@ -482,7 +483,7 @@ export class ReceivableService {
       totalCollected += settled
       const uncollected = Math.max(0, total - settled)
       totalReceivable += uncollected
-      if (d.dueDate && uncollected > 0.005 && dayDiff(today, new Date(d.dueDate)) > 0) {
+      if (d.dueDate && uncollected > 0.005 && dayDiff(today, isoToDate(dateToISO(d.dueDate))) > 0) {
         overdueAmount += uncollected
       }
     }
@@ -586,10 +587,7 @@ export class ReceivableService {
       receiptNo: r.receiptNo,
       partnerId: r.partnerId,
       partnerName: r.partnerName,
-      receiptDate:
-        r.receiptDate instanceof Date
-          ? r.receiptDate.toISOString().slice(0, 10)
-          : String(r.receiptDate),
+      receiptDate: dateToISO(r.receiptDate),
       amount: toNum(r.amount),
       method: r.method,
       remark: r.remark,

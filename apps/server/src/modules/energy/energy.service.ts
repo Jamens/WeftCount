@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Between, Repository } from 'typeorm'
-import { ErrorCode } from '@weftcount/shared'
+import { ErrorCode, dateToISO, dayDiffISO, dayShift } from '@weftcount/shared'
 import { EnergyReadingEntity } from './entities/energy-reading.entity'
 import { MachineEntity } from '../production/entities/machine.entity'
 import { ProductionReportEntity } from '../production/entities/production-report.entity'
@@ -17,13 +17,6 @@ function round2(n: number): number {
 }
 function round3(n: number): number {
   return Math.round((n + Number.EPSILON) * 1000) / 1000
-}
-/** date 列转 YYYY-MM-DD（实体列标 string，驱动运行时可能回 Date） */
-function dateToISO(v: string | null): string {
-  if (!v) return ''
-  return (v as unknown) instanceof Date
-    ? (v as unknown as Date).toISOString().slice(0, 10)
-    : String(v)
 }
 
 /** 一条抄表记录 + 派生用量 */
@@ -332,7 +325,7 @@ export class EnergyService {
     periodEnd: string,
   ): Promise<EnergyCompare> {
     this.assertPeriod(periodStart, periodEnd)
-    const len = dayDiff(new Date(periodEnd), new Date(periodStart))
+    const len = dayDiffISO(periodEnd, periodStart)
     const prevEnd = dayShift(periodStart, -1)
     const prevStart = dayShift(periodStart, -(len + 1))
 
@@ -425,8 +418,10 @@ export class EnergyService {
       const key = `${r.machineId}|${r.meterNo}`
       if (key !== prevKey) {
         prevKey = key
-        prevInMeter = null
-        continue // 该表首条 = 基线，不出量
+        // 首条是**基线**：它自己不出量，但要作为第 2 条的「上期读数」，
+        // 否则第 2 条（真正的第一条可算差值）会因为 prevInMeter 为 null 而漏算用量。
+        prevInMeter = r
+        continue
       }
       if (prevInMeter) {
         out.set(r.id, Math.max(0, toNum(r.reading) - toNum(prevInMeter.reading)))
@@ -503,16 +498,4 @@ export class EnergyService {
     const rows = await this.readings.find({ where: ids.map((id) => ({ id })) })
     return this.toViews(ctx, rows)
   }
-}
-
-function dayDiff(a: Date, b: Date): number {
-  const ms = 24 * 60 * 60 * 1000
-  return Math.floor((a.setHours(0, 0, 0, 0) - b.setHours(0, 0, 0, 0)) / ms)
-}
-
-/** 日期平移（天），返回 YYYY-MM-DD */
-function dayShift(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00`)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
 }
