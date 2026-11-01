@@ -342,10 +342,20 @@ export class MaintenanceService {
         // 备件耗用：扣减库存
         const usageViews: SpareUsageView[] = []
         if (dto.spareParts && dto.spareParts.length) {
+          // 备件一次性取回（原先逐条 findOne = N 次查询）
+          const partIds = [...new Set(dto.spareParts.map((u) => u.partId))]
+          const parts = await manager.find(SparePartEntity, {
+            where: partIds.map((id) => ({
+              id,
+              tenantId: ctx.tenantId,
+              companyId: ctx.companyId,
+            })),
+          })
+          const partMap = new Map(parts.map((p) => [p.id, p]))
+          // 耗用流水攒起来最后批量落库（原先逐条 save = N 条 INSERT）
+          const usageRows: MaintenanceSparePartEntity[] = []
           for (const u of dto.spareParts) {
-            const part = await manager.findOne(SparePartEntity, {
-              where: { id: u.partId, tenantId: ctx.tenantId, companyId: ctx.companyId },
-            })
+            const part = partMap.get(u.partId)
             if (!part)
               throw new BadRequestException({
                 code: ErrorCode.VALIDATION_FAILED,
@@ -359,8 +369,10 @@ export class MaintenanceService {
               })
             }
             part.stock = num(newStock, 2)
-            await manager.save(part)
-            const urow = await manager.save(
+            // update 而非 save：save 每条多打一条存在性 SELECT；
+            // 该实体有 @UpdateDateColumn，update 同样会自动维护。
+            await manager.update(SparePartEntity, { id: part.id }, { stock: part.stock })
+            usageRows.push(
               manager.create(MaintenanceSparePartEntity, {
                 tenantId: ctx.tenantId,
                 companyId: ctx.companyId,
@@ -371,12 +383,16 @@ export class MaintenanceService {
               }),
             )
             usageViews.push({
-              id: urow.id,
+              id: '',
               partId: part.id,
               partName: part.name,
               qty: u.qty,
               cost: u.cost,
             })
+          }
+          const savedUsage = await manager.save(usageRows)
+          for (let i = 0; i < usageViews.length; i++) {
+            usageViews[i].id = savedUsage[i].id
           }
         }
 
