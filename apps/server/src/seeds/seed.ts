@@ -265,10 +265,13 @@ async function seedMasterData(
   console.log(`[seed] 演示仓库就绪（${warehouses.length} 个）`)
 
   // —— 机台（车间大屏/报工需要） ——
+  // 至少 4 台：能耗冒烟需要 4 台机台分别覆盖「有产量有抄表 / 有产量无抄表 /
+  // 只抄表无产量 / 上期基线」四种场景，少一台整套能耗用例就跑不起来。
   const machines = [
     { code: 'LOOM-01', name: '1 号织机', model: '剑杆织机' },
     { code: 'LOOM-02', name: '2 号织机', model: '剑杆织机' },
     { code: 'LOOM-03', name: '3 号织机', model: '喷气织机' },
+    { code: 'LOOM-04', name: '4 号织机', model: '喷气织机' },
   ]
   for (const m of machines) {
     const exists = await machineRepo.findOne({ where: { companyId, code: m.code } })
