@@ -456,6 +456,65 @@ export class QualityService {
   /** 重算单匹：扣分合计 → 密度 → 定等 */
   private async recalcRoll(manager: EntityManager, ir: InspectionRollEntity): Promise<void> {
     const rows = await manager.find(InspectionDefectEntity, { where: { inspectionRollId: ir.id } })
+    this.applyRollScore(ir, rows)
+    await this.persistRollScores(manager, [ir])
+  }
+
+  /**
+   * 落库匹明细的算分结果
+   *
+   * 用 update 而非 save：save 会对每行先打一条存在性 SELECT，整单 N 匹就多打 N 条；
+   * update 直接发 UPDATE。该实体没有 @UpdateDateColumn（只有 createdAt，不随更新变），
+   * 两者写出的列完全一致。
+   */
+  private async persistRollScores(
+    manager: EntityManager,
+    irs: InspectionRollEntity[],
+  ): Promise<void> {
+    for (const ir of irs) {
+      await manager.update(
+        InspectionRollEntity,
+        { id: ir.id },
+        {
+          totalPoints: ir.totalPoints,
+          sqYards: ir.sqYards,
+          penaltyDensity: ir.penaltyDensity,
+          overReceivingLimit: ir.overReceivingLimit,
+          grade: ir.grade,
+        },
+      )
+    }
+  }
+
+  /**
+   * 批量重算多匹：一次取回全部疵点，逐匹算分后各自落库
+   *
+   * 定等（finalize）要重算整单每一匹，原先每匹单独查一次疵点（N 次查询）。
+   * 这里把该单所有匹的疵点一次查回并按 inspectionRollId 分组，
+   * 算分逻辑与单匹重算完全一致（复用 applyRollScore）。
+   *
+   * @param irs 待重算的匹明细
+   */
+  private async recalcRolls(manager: EntityManager, irs: InspectionRollEntity[]): Promise<void> {
+    if (irs.length === 0) return
+    const rollIds = irs.map((ir) => ir.id)
+    const allRows = await manager.find(InspectionDefectEntity, {
+      where: { inspectionRollId: In(rollIds) },
+    })
+    const rowsByRoll = new Map<string, InspectionDefectEntity[]>()
+    for (const row of allRows) {
+      const arr = rowsByRoll.get(row.inspectionRollId)
+      if (arr) arr.push(row)
+      else rowsByRoll.set(row.inspectionRollId, [row])
+    }
+    for (const ir of irs) {
+      this.applyRollScore(ir, rowsByRoll.get(ir.id) ?? [])
+    }
+    await this.persistRollScores(manager, irs)
+  }
+
+  /** 按疵点行算分并写回单匹（纯计算，不落库） */
+  private applyRollScore(ir: InspectionRollEntity, rows: InspectionDefectEntity[]): void {
     const totalPoints = rows.reduce((s, r) => s + r.penalty, 0)
     const meters = toNum(ir.meters)
     const widthInch = toNum(ir.widthInch)
@@ -469,25 +528,41 @@ export class QualityService {
     ir.penaltyDensity = num(penaltyDensity, 4)
     ir.overReceivingLimit = overReceivingLimit
     ir.grade = gradeByDensity(penaltyDensity)
-    await manager.save(ir)
   }
 
-  /** 重算整单汇总：加权平均密度（不是各匹密度的算术平均） */
-  private async recalcInspection(manager: EntityManager, inspectionId: string): Promise<void> {
-    const rolls = await manager.find(InspectionRollEntity, { where: { inspectionId } })
+  /**
+   * 计算整单汇总：加权平均密度（不是各匹密度的算术平均）
+   *
+   * 纯计算，不落库——由调用方决定写不写、怎么写。
+   * 原先 recalcInspection 内部会 findOne 检验单 + save 一次，
+   * 而定等路径上紧接着还要再 save 一次（带 status），同一行等于写两遍。
+   */
+  private computeInspectionSummary(rolls: InspectionRollEntity[]): {
+    rollCount: number
+    totalPoints: number
+    totalSqYd: string
+    avgPenaltyDensity: string
+    passRate: string | null
+  } {
     const totalPoints = rolls.reduce((s, r) => s + r.totalPoints, 0)
     const totalSqYd = rolls.reduce((s, r) => s + toNum(r.sqYards), 0)
-    const insp = await manager.findOne(InspectionEntity, { where: { id: inspectionId } })
-    if (!insp) return
-    insp.rollCount = rolls.length
-    insp.totalPoints = totalPoints
-    insp.totalSqYd = num(totalSqYd, 4)
-    insp.avgPenaltyDensity = num(totalSqYd > 0 ? (totalPoints * 100) / totalSqYd : 0, 4)
-    insp.passRate =
-      rolls.length > 0
-        ? num((rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) * 100, 2)
-        : null
-    await manager.save(insp)
+    return {
+      rollCount: rolls.length,
+      totalPoints,
+      totalSqYd: num(totalSqYd, 4),
+      avgPenaltyDensity: num(totalSqYd > 0 ? (totalPoints * 100) / totalSqYd : 0, 4),
+      passRate:
+        rolls.length > 0
+          ? num((rolls.filter((r) => !r.overReceivingLimit).length / rolls.length) * 100, 2)
+          : null,
+    }
+  }
+
+  /** 重算整单汇总并落库（改疵点 / 改实测值后调用） */
+  private async recalcInspection(manager: EntityManager, inspectionId: string): Promise<void> {
+    const rolls = await manager.find(InspectionRollEntity, { where: { inspectionId } })
+    const summary = this.computeInspectionSummary(rolls)
+    await manager.update(InspectionEntity, { id: inspectionId }, summary)
   }
 
   /** 修改实测匹长 / 门幅（会触发重算，因为分母变了） */
@@ -531,19 +606,36 @@ export class QualityService {
       const rolls = await manager.find(InspectionRollEntity, { where: { inspectionId: id } })
       if (rolls.length === 0) throw new BadRequestException('检验单还没加入任何匹')
 
+      // 整单一次性重算（原先逐匹查一次疵点 = N 次查询）
+      await this.recalcRolls(manager, rolls)
+      // 等级回写件卡：等级只有 A/B/C/D 四种取值，按等级分组后每组一次 UPDATE，
+      // 把原先的 N 次 UPDATE 降到最多 5 次。
+      const rollIdsByGrade = new Map<GreigeGrade | null, string[]>()
       for (const ir of rolls) {
-        await this.recalcRoll(manager, ir)
+        const key = ir.grade ?? null
+        const arr = rollIdsByGrade.get(key)
+        if (arr) arr.push(ir.rollId)
+        else rollIdsByGrade.set(key, [ir.rollId])
+      }
+      const inspectedAt = new Date()
+      for (const [grade, rollIds] of rollIdsByGrade) {
         await manager.update(
           RollEntity,
-          { id: ir.rollId, companyId: ctx.companyId },
+          { id: In(rollIds), companyId: ctx.companyId },
           {
-            grade: ir.grade,
-            inspectedAt: new Date(),
+            grade,
+            inspectedAt,
             lastInspectionId: id,
           },
         )
       }
-      await this.recalcInspection(manager, id)
+      // 汇总与状态一次性落库（原先 recalcInspection 先写一遍、这里再写一遍）
+      const summary = this.computeInspectionSummary(rolls)
+      insp.rollCount = summary.rollCount
+      insp.totalPoints = summary.totalPoints
+      insp.totalSqYd = summary.totalSqYd
+      insp.avgPenaltyDensity = summary.avgPenaltyDensity
+      insp.passRate = summary.passRate
       insp.status = 'done'
       return manager.save(insp)
     })
@@ -567,31 +659,77 @@ export class QualityService {
       if (insp.status === 'void') return insp
 
       const rolls = await manager.find(InspectionRollEntity, { where: { inspectionId: id } })
+      if (rolls.length === 0) {
+        insp.status = 'void'
+        return manager.save(insp)
+      }
+      // 批量取回本单涉及的全部件卡与历史检验行（原先每匹 3 次查询 = 3N 次）。
+      // 「上一版」口径与原先完全一致：按 createdAt DESC 取该匹最近的一条检验行，
+      // 再判断其是否来自本单——这里用整批 DESC 结果取每匹首条，等价于逐匹查询。
+      const rollIds = [...new Set(rolls.map((ir) => ir.rollId))]
+      const rollEntities = await manager.find(RollEntity, {
+        where: { id: In(rollIds), companyId: ctx.companyId },
+      })
+      const rollMap = new Map(rollEntities.map((r) => [r.id, r]))
+      const historyRows = await manager.find(InspectionRollEntity, {
+        where: { rollId: In(rollIds), companyId: ctx.companyId },
+        order: { createdAt: 'DESC' },
+      })
+      const latestByRoll = new Map<string, InspectionRollEntity>()
+      for (const row of historyRows) {
+        if (!latestByRoll.has(row.rollId)) latestByRoll.set(row.rollId, row)
+      }
+      // 上一版所属检验单需为 done 才作数（draft/void 不算）
+      const prevInspectionIds = [
+        ...new Set(
+          [...latestByRoll.values()]
+            .filter((r) => r.inspectionId !== id)
+            .map((r) => r.inspectionId),
+        ),
+      ]
+      const doneInspections = prevInspectionIds.length
+        ? await manager.find(InspectionEntity, {
+            where: { id: In(prevInspectionIds), status: 'done' },
+          })
+        : []
+      const doneSet = new Set(doneInspections.map((i) => i.id))
+
+      // 回退目标值按 (等级, 检验时间, 上一版检验单) 三元组分组：
+      // 同一张历史检验单里的匹回退到的值完全一致，一组一次 UPDATE，
+      // 把原先的 N 次 UPDATE 降到「组数」次（通常 1~几组）。
+      const fallbackGroups = new Map<
+        string,
+        {
+          ids: string[]
+          grade: GreigeGrade | null
+          inspectedAt: Date | null
+          lastId: string | null
+        }
+      >()
       for (const ir of rolls) {
-        const roll = await manager.findOne(RollEntity, {
-          where: { id: ir.rollId, companyId: ctx.companyId },
-        })
+        const roll = rollMap.get(ir.rollId)
         if (!roll || roll.lastInspectionId !== id) continue
 
-        const prev = await manager.findOne(InspectionRollEntity, {
-          where: { rollId: ir.rollId, companyId: ctx.companyId },
-          order: { createdAt: 'DESC' },
-        })
+        const prev = latestByRoll.get(ir.rollId)
         const prevValid = prev && prev.inspectionId !== id ? prev : null
-        // 上一版必须来自一张 done 的单，draft/void 的不能算
-        const fallback = prevValid
-          ? await manager.findOne(InspectionEntity, {
-              where: { id: prevValid.inspectionId, status: 'done' },
-            })
-          : null
+        const fallback = prevValid && doneSet.has(prevValid.inspectionId) ? prevValid : null
 
+        const grade = fallback ? fallback.grade : null
+        const inspectedAt = fallback ? roll.inspectedAt : null
+        const lastId = fallback ? fallback.inspectionId : null
+        const key = `${grade ?? '-'}|${inspectedAt ? inspectedAt.getTime() : '-'}|${lastId ?? '-'}`
+        const group = fallbackGroups.get(key)
+        if (group) group.ids.push(ir.rollId)
+        else fallbackGroups.set(key, { ids: [ir.rollId], grade, inspectedAt, lastId })
+      }
+      for (const group of fallbackGroups.values()) {
         await manager.update(
           RollEntity,
-          { id: ir.rollId },
+          { id: In(group.ids) },
           {
-            grade: fallback ? prevValid!.grade : null,
-            inspectedAt: fallback ? roll.inspectedAt : null,
-            lastInspectionId: fallback ? prevValid!.inspectionId : null,
+            grade: group.grade,
+            inspectedAt: group.inspectedAt,
+            lastInspectionId: group.lastId,
           },
         )
       }
