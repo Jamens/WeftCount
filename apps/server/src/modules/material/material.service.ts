@@ -497,6 +497,27 @@ export class MaterialService {
   }
 
   /**
+   * 批量查询规格（合同明细等多行校验用）
+   *
+   * 逐行 findSpec 会发出 N 条 SQL；这里一次取回全部，
+   * 由调用方按需判断哪些 specId 不存在（保持原有的报错顺序与文案）。
+   *
+   * @returns specId → 规格实体
+   */
+  async findSpecsByIds(
+    tenantId: string,
+    companyId: string,
+    ids: string[],
+  ): Promise<Map<string, GreigeSpecEntity>> {
+    const unique = [...new Set(ids)]
+    if (unique.length === 0) return new Map()
+    const list = await this.specs.find({
+      where: unique.map((id) => ({ id, tenantId, companyId })),
+    })
+    return new Map(list.map((s) => [s.id, s]))
+  }
+
+  /**
    * 更新规格
    * 任何影响计算的字段变更都会重算克重，并让 specVersion 自增
    */

@@ -95,9 +95,17 @@ export class ContractService {
     }> = []
     let totalQty = 0
     let totalAmt = 0
+    // 规格必须存在（用 findSpec 校验，越权取不到）
+    // 批量取回后按行序校验，报错顺序与逐行 findSpec 完全一致
+    const specMap = await this.materials.findSpecsByIds(
+      tenantId,
+      companyId,
+      items.map((it) => it.specId),
+    )
     for (const it of items) {
-      // 规格必须存在（用 findSpec 校验，越权取不到）
-      await this.materials.findSpec(tenantId, companyId, it.specId)
+      if (!specMap.has(it.specId)) {
+        throw new NotFoundException({ code: ErrorCode.NOT_FOUND, message: '坯布规格不存在' })
+      }
       const amount = it.agreedPrice * it.agreedQuantityM
       rows.push({
         materialId: it.materialId,
