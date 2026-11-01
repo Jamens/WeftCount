@@ -12,6 +12,13 @@ const P_END = '2027-02-28'
 const PREV_START = '2027-01-22' // 等长 18 天 → 上期 [2027-01-22, 2027-02-09]
 const TARIFF = 0.65
 
+/**
+ * 服务端对单耗/用量统一保留 2 位小数（round2，见 energy.service.ts）。
+ * 期望值必须按同一口径取整后再比：1900/300 = 6.3333… 无法用 2 位小数精确表示，
+ * 直接拿精确值比会因 0.05% 的舍入差被判失败。
+ */
+const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
+
 let c
 let mA, mB, mC, mD
 
@@ -24,7 +31,12 @@ async function reportOutput(machineId, outputM, reportDate) {
   })
   await post(c, `/production-orders/${order.id}/schedule`)
   await post(c, `/production-orders/${order.id}/reports`, {
-    outputM, reportDate, clientRequestId: `en-${machineId}-${reportDate}-${Date.now()}${Math.random().toString(36).slice(2, 7)}`,
+    // clientRequestId 上限 64（DTO @MaxLength + DB varchar(64)）：
+    // 完整 UUID(36) + 日期 + 时间戳 + 随机数会到 69 字符，必须截短。
+    // 取 UUID 前 8 位足以区分机台，后缀保证同机台多次报工不撞幂等键。
+    outputM,
+    reportDate,
+    clientRequestId: `en-${machineId.slice(0, 8)}-${reportDate}-${Date.now()}${Math.random().toString(36).slice(2, 7)}`,
   })
   return order
 }
@@ -124,7 +136,7 @@ test('合计按总量算：反证「不是各机台单耗的平均」', async ()
   // A 700 kWh/25000 m + B 1000 kWh/5000 m + C 200 kWh/0 m = 1900 kWh / 30000 m
   assertNear(st.totals.totalKwh, 1900, 0.01, '总用量 = 700 + 1000 + 200')
   assertNear(st.totals.outputM, 30000, 0.01, '总产量')
-  assertNear(st.totals.kwhPer100m, 1900 / 300, 0.01, '合计单耗 = 1900 ÷ 300')
+  assertNear(st.totals.kwhPer100m, r2(1900 / 300), 0.01, '合计单耗 = 1900 ÷ 300')
   assertNear(st.totals.totalCost, 1900 * TARIFF, 0.01, '总电费 = 总用量 × 电价')
 
   // 反证：若实现退化成「各机台单耗取平均」，值会完全不同
@@ -141,7 +153,7 @@ test('环比：与上一个等长期间比单耗变化', async () => {
   assert.equal(cmp.prevStart, PREV_START, '上期起 = 本期起前推等长天数')
   // 上期：仅 A 的 2/5 那次抄表出量 100 kWh，产量 25000 m → 0.4
   assertNear(cmp.prev.kwhPer100m, 100 / 250, 0.01, '上期单耗 = 100 ÷ 250 = 0.4')
-  assertNear(cmp.kwhPer100mDelta, 1900 / 300 - 0.4, 0.01, '单耗环比差值')
+  assertNear(cmp.kwhPer100mDelta, r2(1900 / 300 - 0.4), 0.01, '单耗环比差值')
   assertNear(cmp.kwhPer100mDeltaPct, ((1900 / 300 - 0.4) / 0.4) * 100, 0.1, '单耗环比百分比')
 })
 

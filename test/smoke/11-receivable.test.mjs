@@ -7,10 +7,11 @@ import assert from 'node:assert/strict'
 import { login, get, post, expectReject, activeSpec, activeGreigeMaterial, supplierOf, customerOf, firstWarehouse, num } from './helpers.mjs'
 
 // 确保指定规格有库存（销售出库要消耗），再开一张显式单价的销售出库单
-async function sellOut(c, { meters = 50, unitPrice = 10 } = {}) {
+// customerId 可指定客户；不传则用种子客户（该客户会被其他用例复用）
+async function sellOut(c, { meters = 50, unitPrice = 10, customerId } = {}) {
   const spec = await activeSpec(c)
   const mat = await activeGreigeMaterial(c)
-  const cus = await customerOf(c)
+  const cus = customerId ? { id: customerId } : await customerOf(c)
   const sup = await supplierOf(c)
   await post(c, '/inventory/purchase-inbound', {
     materialId: mat.id, specId: spec.id, enteredUnit: 'm', enteredValue: meters + 20,
@@ -121,7 +122,14 @@ test('作废收款回退已核销额', async () => {
 
 test('对账单返回发货与收款流水', async () => {
   const c = await login('factory')
-  const { doc, cus } = await sellOut(c, { meters: 50, unitPrice: 10 })
+  // 必须用**本次新建的专属客户**：对账单按客户汇总全部历史单据，
+  // 种子客户（customerOf 复用的那个）在整个冒烟过程中已积累多张单，
+  // 拿它断言「借方=本次单据金额」必然不成立。
+  const cus = await post(c, '/partners', {
+    name: `对账单专用客户-${Date.now()}`,
+    type: 'customer',
+  })
+  const { doc } = await sellOut(c, { meters: 50, unitPrice: 10, customerId: cus.id })
   const ledger = await get(c, '/receivables/ledger')
   const row = ledger.find((r) => r.docNo === doc.docNo)
   await post(c, '/receivables/receipts', {

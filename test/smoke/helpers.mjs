@@ -41,7 +41,23 @@ export async function req(client, method, path, body) {
   }
   return b.data
 }
-export const get = (c, p) => req(c, 'GET', p)
+/**
+ * GET；`query` 会被拼成 query string。
+ *
+ * 需要 query 时用 `get(c, '/x', { a: 1 })`——把 query 塞进 path 字符串也行，
+ * 但对象形式更不容易漏掉编码。
+ */
+export const get = (c, p, query) => {
+  const qs = query
+    ? '?' +
+      new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== null)
+          .map(([k, v]) => [k, String(v)]),
+      ).toString()
+    : ''
+  return req(c, 'GET', p + qs)
+}
 export const post = (c, p, b) => req(c, 'POST', p, b)
 export const put = (c, p, b) => req(c, 'PUT', p, b)
 export const patch = (c, p, b) => req(c, 'PATCH', p, b)
