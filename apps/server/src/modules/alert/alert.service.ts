@@ -109,28 +109,49 @@ export class AlertService {
   }
 
   /**
-   * 物料在观察窗口内的**出库总量**（主单位）
+   * 物料当前库存（正常批次的剩余量合计），按物料聚合
+   *
+   * 一次查询覆盖全公司全部物料（GROUP BY material_id），供低库存扫描逐个查表，
+   * 避免逐物料查询造成的 N+1。
+   */
+  private async stockByMaterial(companyId: string): Promise<Map<string, number>> {
+    const rows = await this.batches
+      .createQueryBuilder('b')
+      .select('b.material_id', 'materialId')
+      .addSelect('COALESCE(SUM(b.remaining_quantity), 0)', 'qty')
+      .where('b.company_id = :companyId', { companyId })
+      .andWhere("b.status = 'normal'")
+      .groupBy('b.material_id')
+      .getRawMany<{ materialId: string; qty: string }>()
+    const map = new Map<string, number>()
+    for (const r of rows) map.set(r.materialId, Number(r.qty ?? 0))
+    return map
+  }
+
+  /**
+   * 物料在观察窗口内的**出库总量**（主单位），按物料聚合
    *
    * 数据来源：出库流水（sales_out 销售出库 + material_issue 生产领用）的 change_quantity
    * 绝对值之和——这才是真实消耗。不用常数、不用拍脑袋。
    * 注意只统计 `after` 之后仍有效的批次不限——流水是既成事实，即使批次已耗尽也计。
+   *
+   * 一次查询覆盖全公司全部物料，避免逐物料查询造成的 N+1。
    */
-  private async consumedInWindow(
-    companyId: string,
-    materialId: string,
-    days: number,
-  ): Promise<number> {
+  private async consumedByMaterial(companyId: string, days: number): Promise<Map<string, number>> {
     const since = new Date(Date.now() - days * 86400000)
-    const row = await this.txns
+    const rows = await this.txns
       .createQueryBuilder('t')
-      .select('COALESCE(SUM(ABS(t.change_quantity)), 0)', 'qty')
+      .select('t.material_id', 'materialId')
+      .addSelect('COALESCE(SUM(ABS(t.change_quantity)), 0)', 'qty')
       .where('t.company_id = :companyId', { companyId })
-      .andWhere('t.material_id = :materialId', { materialId })
       .andWhere("t.direction = 'out'")
       .andWhere("t.txn_type IN ('sales_out','material_issue')")
       .andWhere('t.created_at >= :since', { since })
-      .getRawOne<{ qty: string }>()
-    return Number(row?.qty ?? 0)
+      .groupBy('t.material_id')
+      .getRawMany<{ materialId: string; qty: string }>()
+    const map = new Map<string, number>()
+    for (const r of rows) map.set(r.materialId, Number(r.qty ?? 0))
+    return map
   }
 
   /** 扫描并生成预警（去重三条规则见下方 toCreate 处注释） */
@@ -168,22 +189,27 @@ export class AlertService {
     }
 
     // 2) 库存低于安全库存
-    const matsWithSafety = await this.materials.find({ where: { companyId, status: 'active' } })
+    // 未设安全库存的物料在循环里也会 continue，先在库里过滤掉，少拉一批无用数据
+    const matsWithSafety = await this.materials.find({
+      where: { companyId, status: 'active', safetyStock: Not(IsNull()) },
+    })
+    // 批量聚合当前库存与窗口消耗量：原先逐物料各发一条查询（N+1），
+    // 改为两次 GROUP BY 聚合后查表，查询数由 2N+1 降为常量级。
+    const [stockMap, consumedMap]: [Map<string, number>, Map<string, number>] =
+      matsWithSafety.length > 0
+        ? await Promise.all([
+            this.stockByMaterial(companyId),
+            this.consumedByMaterial(companyId, DEFAULT_USAGE_WINDOW_DAYS),
+          ])
+        : [new Map<string, number>(), new Map<string, number>()]
     for (const m of matsWithSafety) {
       if (m.safetyStock == null) continue
       const safety = Number(m.safetyStock)
       if (!Number.isFinite(safety) || safety <= 0) continue
-      const stock = await this.batches
-        .createQueryBuilder('b')
-        .select('COALESCE(SUM(b.remaining_quantity), 0)', 'qty')
-        .where('b.company_id = :companyId', { companyId })
-        .andWhere('b.material_id = :materialId', { materialId: m.id })
-        .andWhere("b.status = 'normal'")
-        .getRawOne<{ qty: string }>()
-      const have = Number(stock?.qty ?? 0)
+      const have = stockMap.get(m.id) ?? 0
       // **补货建议**：日均用量取自真实出库流水，不拍脑袋。
       // 只看安全库存只能报「低了」，采购员真正要的是「补多少、什么时候补」。
-      const consumed = await this.consumedInWindow(companyId, m.id, DEFAULT_USAGE_WINDOW_DAYS)
+      const consumed = consumedMap.get(m.id) ?? 0
       const suggestion = computeReorderSuggestion({
         currentStock: have,
         safetyStock: safety,
