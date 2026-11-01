@@ -83,25 +83,34 @@ export class AuditService {
               ? computeDiff(before, null)
               : null
 
-      await this.repo.insert({
-        tenantId: input.tenantId,
-        companyId: input.companyId,
-        userId: input.userId,
-        username: input.username,
-        realName: input.realName,
-        action: input.action,
-        module: input.module.slice(0, 64),
-        summary: input.summary ? input.summary.slice(0, MAX_SUMMARY) : null,
-        targetType: input.targetType?.slice(0, 64) ?? null,
-        targetId: input.targetId?.slice(0, 64) ?? null,
-        httpMethod: input.httpMethod.slice(0, 8),
-        path: input.path.slice(0, MAX_PATH),
-        ip: input.ip?.slice(0, 64) ?? null,
-        userAgent: input.userAgent?.slice(0, MAX_USER_AGENT) ?? null,
-        // json 列需显式转型：QueryDeepPartial 对 Record 类型过于严格
-        diff: diff as never,
-        durationMs: input.durationMs ?? null,
-      })
+      // 用 query builder 而不是 repo.insert()：
+      // MySQL 不支持 RETURNING，TypeORM 默认会在 INSERT 之后**回读一次**
+      // （SELECT id, created_at）把生成列取回来。审计记录写完就没人再读它，
+      // 这条回读纯属浪费——updateEntity(false) 直接关掉，每个写请求省 1 条 SQL。
+      await this.repo
+        .createQueryBuilder()
+        .insert()
+        .values({
+          tenantId: input.tenantId,
+          companyId: input.companyId,
+          userId: input.userId,
+          username: input.username,
+          realName: input.realName,
+          action: input.action,
+          module: input.module.slice(0, 64),
+          summary: input.summary ? input.summary.slice(0, MAX_SUMMARY) : null,
+          targetType: input.targetType?.slice(0, 64) ?? null,
+          targetId: input.targetId?.slice(0, 64) ?? null,
+          httpMethod: input.httpMethod.slice(0, 8),
+          path: input.path.slice(0, MAX_PATH),
+          ip: input.ip?.slice(0, 64) ?? null,
+          userAgent: input.userAgent?.slice(0, MAX_USER_AGENT) ?? null,
+          // json 列需显式转型：QueryDeepPartial 对 Record 类型过于严格
+          diff: diff as never,
+          durationMs: input.durationMs ?? null,
+        })
+        .updateEntity(false)
+        .execute()
     } catch (e) {
       this.logger.warn(
         `审计写入失败（已忽略，不影响主业务）: ${e instanceof Error ? e.message : String(e)}`,
