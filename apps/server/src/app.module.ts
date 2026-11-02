@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import { WeftNamingStrategy } from './common/naming-strategy'
+import { resolveDbPassword } from './config/security-env'
 import { HealthController } from './health/health.controller'
 import { AuthModule } from './modules/auth/auth.module'
 import { TenantModule } from './modules/tenant/tenant.module'
@@ -43,7 +44,10 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
         host: config.get<string>('DB_HOST', '127.0.0.1'),
         port: Number(config.get<string>('DB_PORT', '3306')),
         username: config.get<string>('DB_USER', 'root'),
-        password: config.get<string>('DB_PASSWORD', '1234560'),
+        password: resolveDbPassword(
+          config.get<string>('DB_PASSWORD'),
+          config.get<string>('NODE_ENV') === 'production',
+        ),
         database: config.get<string>('DB_NAME', 'weft_count'),
         charset: 'utf8mb4',
         namingStrategy: new WeftNamingStrategy(),
