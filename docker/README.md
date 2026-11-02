@@ -3,13 +3,18 @@
 不装 Node、不装 MySQL，一条命令把整套跑起来（MySQL + 后端 + 管理端）。
 
 ```bash
+cp .env.docker.example .env      # 先复制模板并填写 DB_PASSWORD（必填）
 docker compose up -d --build
 ```
+
+> ⚠️ `DB_PASSWORD` **没有默认值**：不设置时 `docker compose` 会直接报错退出，
+> 而不是拿仓库里的公开示例口令把库开起来。生成一个强口令：
+> `node -e "console.log(require('crypto').randomBytes(24).toString('base64'))"`
 
 | 服务 | 地址 | 说明 |
 | --- | --- | --- |
 | 管理端 | http://localhost:5180 | 浏览器打开这个 |
-| 后端 API | http://localhost:3180/api/docs | Swagger 文档 |
+| 后端 API | http://localhost:3180/api/health | 健康检查；API 文档默认关闭（见下） |
 | MySQL | localhost:3306 | 演示账号 `root` / 见 `.env` |
 
 首次启动会**自动**完成：等 MySQL 就绪 → 建库 → 跑迁移 → 写种子数据 → 启动服务。
@@ -43,19 +48,29 @@ pnpm dev:desktop          # 或 pnpm --filter @weftcount/desktop start
 
 ## 配置
 
-改 `.env`（可复制 `.env.example`）：
+改 `.env`（可复制 `.env.docker.example`）：
 
 ```bash
-DB_PASSWORD=your-strong-password   # MySQL root 密码
-DB_NAME=weft_count               # 库名
-ADMIN_PORT=5180                   # 管理端端口
-SERVER_PORT=3180                  # 后端端口
-CORS_ORIGIN=https://your-domain   # 收敛跨域来源
-AI_API_KEY=sk-...                 # 可选：不配则 AI 走确定性规则兜底
-SEED_ON_START=false               # 生产建议关闭（不写演示数据）
+DB_PASSWORD=your-strong-password   # MySQL root 密码（必填，无默认值）
+DB_NAME=weft_count                 # 库名
+ADMIN_PORT=5180                    # 管理端端口
+SERVER_PORT=3180                   # 后端端口
+CORS_ORIGIN=https://your-domain    # 跨域白名单，逗号分隔；留空 = 拒绝一切跨源
+SWAGGER_ENABLED=false              # API 文档开关（生产默认关闭）
+SWAGGER_BASIC_AUTH_USER=docs       # 文档页 Basic Auth 用户名
+SWAGGER_BASIC_AUTH_PASSWORD=...    # 文档页 Basic Auth 口令
+RATE_LIMIT_MAX=1200                # 单 IP 每分钟请求上限
+RATE_LIMIT_LOGIN_MAX=10            # 登录端点每分钟尝试上限
+TRUST_PROXY=1                      # 信任的反代跳数（nginx → server 那一层）
+AI_API_KEY=sk-...                  # 可选：不配则 AI 走确定性规则兜底
+SEED_ON_START=false                # 生产建议关闭（不写演示数据）
 ```
 
 改完 `docker compose up -d` 生效。
+
+> 生产默认关闭 API 文档（`/api/docs` 返回 404）。确实要开就置
+> `SWAGGER_ENABLED=true`，并**同时**配 Basic Auth —— 文档会把全部接口结构
+> （路径、参数、字段）暴露出去。
 
 ## 常用运维
 

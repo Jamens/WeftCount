@@ -54,20 +54,28 @@ WeftCount/
 不装 Node、不装 MySQL，一条命令起全套（MySQL + 后端 + 管理端）：
 
 ```bash
+cp .env.docker.example .env   # 先复制模板并填写 DB_PASSWORD（必填，没有默认值）
 docker compose up -d --build
-# 管理端 http://localhost:5180 · API 文档 http://localhost:3180/api/docs
+# 管理端 http://localhost:5180 · 健康检查 http://localhost:3180/api/health
 ```
 
 首次启动自动完成：等 MySQL 就绪 → 建库 → 跑迁移 → 写演示数据 → 启动服务。
 详见 [`docker/README.md`](./docker/README.md)。桌面端（Electron）需在宿主机另跑。
+
+> ⚠️ `DB_PASSWORD` 不再有默认值：不设置时 `docker compose` 会直接报错退出。
+> ⚠️ 生产默认关闭 API 文档（`/api/docs` 返回 404），需要时置 `SWAGGER_ENABLED=true`。
 
 ### 本地开发
 
 ```bash
 pnpm install
 
+# 准备环境变量（数据库口令不再有默认值，必须自己填）
+cp apps/server/.env.example apps/server/.env
+
 # 建库（方式一：TypeORM 迁移，与开发流程一致）
-mysql -h127.0.0.1 -uroot -p1234560 -e "CREATE DATABASE IF NOT EXISTS weft_count DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# 下面的 <你的口令> 要与 apps/server/.env 里的 DB_PASSWORD 一致
+mysql -h127.0.0.1 -uroot -p<你的口令> -e "CREATE DATABASE IF NOT EXISTS weft_count DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 pnpm --filter @weftcount/server migration:run   # 建表
 pnpm --filter @weftcount/server seed            # 种子数据（演示租户+角色+账号）
@@ -154,6 +162,30 @@ curl -X POST http://127.0.0.1:3180/api/auth/login \
 - 用户名不存在与密码错误返回**同一错误码**，防账号枚举
 - 连续失败 5 次锁定账号，锁定后正确密码也拒绝
 - bcrypt 存储；密码强度要求≥8 位且含字母与数字
+- 登录端点按 IP 限速（默认 10 次/分钟）：账号锁是**按账号**计的，挡不住
+  「一个 IP 撒网试不同账号」，限速补上这一层
+- 全局限速按**真实客户端 IP** 计数，前提是 `TRUST_PROXY` 配对反代跳数
+
+## 安全配置
+
+后端的安全开关全部走环境变量，解析集中在
+[`apps/server/src/config/security-env.ts`](./apps/server/src/config/security-env.ts)（有单测覆盖）。
+
+| 变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `DB_PASSWORD` | 无 | 数据库口令。**不再有明文默认值**：缺失直接启动失败；生产下仍是仓库里的示例值同样拒绝启动 |
+| `CORS_ORIGIN` | 生产空 / 开发本机 5180 | 跨源白名单，逗号分隔。留空 = 拒绝一切跨源；`*` = 放行任意来源（仅内网演示，会打告警） |
+| `SWAGGER_ENABLED` | 开发 true / 生产 false | API 文档开关。关闭时 `/api/docs` 返回 404 |
+| `SWAGGER_BASIC_AUTH_USER` / `_PASSWORD` | 空 | 文档页 Basic Auth，两项都填才生效 |
+| `RATE_LIMIT_ENABLED` | true | 全局限速总开关 |
+| `RATE_LIMIT_MAX` / `RATE_LIMIT_TTL` | 1200 / 60000 | 单 IP 在窗口（毫秒）内的请求上限 |
+| `RATE_LIMIT_LOGIN_MAX` / `_TTL` | 10 / 60000 | 登录端点单独收紧的阈值 |
+| `TRUST_PROXY` | 1 | Express 信任的反代跳数。1 = 「nginx → server」那一层 |
+| `NODE_ENV` | — | 设为 `production` 时启用生产强制校验 |
+
+响应头统一由 helmet 下发（`Content-Security-Policy` / `nosniff` / `frameguard` /
+`referrer-policy` 等）。CSP 已兼容 Swagger UI：脚本保持 `script-src 'self'`
+（Swagger 的 JS 全是外链），只对样式放开 `'unsafe-inline'`（其 HTML 模板有内联 `<style>`）。
 
 ## 审计日志
 

@@ -2,14 +2,17 @@
 # WeftCount · 一键部署（MySQL + 后端 + 管理端）
 # ------------------------------------------------------------
 # 用法：
+#   cp .env.docker.example .env   # 先复制并填写 DB_PASSWORD（必填）
 #   docker compose up -d --build
 #   # 管理端  http://localhost:5180
-#   # 后端API http://localhost:3180/api/docs
+#   # 后端API http://localhost:3180/api/health
 #
 # 桌面端（Electron）需在宿主机运行（容器内无 GUI）：
 #   pnpm i && pnpm --filter @weftcount/desktop build && pnpm dev:desktop
 #   桌面端默认直连 127.0.0.1:3180，与容器映射的端口一致。
 #
+# ⚠️ DB_PASSWORD 不再有默认值，必须显式设置（见 .env.docker.example）：
+#    缺失时 compose 会直接报错退出，而不是用公开示例口令把库开在公网上。
 # ⚠️ 演示账号密码统一 weft2026，**上生产前务必删除并改密**（见 sql/03_seed_reference.sql）。
 # ============================================================
 
@@ -23,7 +26,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-weft_change_me}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?必须显式设置 DB_PASSWORD，参见 .env.docker.example}
       MYSQL_DATABASE: ${DB_NAME:-weft_count}
       TZ: Asia/Shanghai
     ports:
@@ -32,7 +35,7 @@ services:
       - mysql-data:/var/lib/mysql
     healthcheck:
       # 用 mysqladmin 探活，比「端口已监听」可靠（初始化期间端口可能已开）
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-p${DB_PASSWORD:-weft_change_me}']
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-p${DB_PASSWORD:?必须显式设置 DB_PASSWORD，参见 .env.docker.example}']
       interval: 10s
       timeout: 5s
       retries: 12
@@ -53,15 +56,29 @@ services:
       DB_HOST: mysql
       DB_PORT: '3306'
       DB_USER: root
-      DB_PASSWORD: ${DB_PASSWORD:-weft_change_me}
+      DB_PASSWORD: ${DB_PASSWORD:?必须显式设置 DB_PASSWORD，参见 .env.docker.example}
       DB_NAME: ${DB_NAME:-weft_count}
       SEED_ON_START: ${SEED_ON_START:-true}
       # 不设则由 entrypoint 自动生成随机密钥（重启后变化 → 需重新登录）。
       # 生产建议在 .env 里固定：node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
       JWT_SECRET: ${JWT_SECRET:-}
       TZ: Asia/Shanghai
-      # CORS：管理端由 nginx 同源反代，此处主要覆盖直连/桌面端场景
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # CORS 白名单：逗号分隔。留空 = 拒绝一切跨源
+      # （管理端由 nginx 同源反代，本就用不到 CORS）。
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # API 文档：生产默认关闭；置 true 开启，可同时配 Basic Auth。
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      SWAGGER_BASIC_AUTH_USER: ${SWAGGER_BASIC_AUTH_USER:-}
+      SWAGGER_BASIC_AUTH_PASSWORD: ${SWAGGER_BASIC_AUTH_PASSWORD:-}
+      # 限速：单 IP 窗口内请求数 / 窗口长度（毫秒）；登录端点单独收紧。
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-1200}
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60000}
+      RATE_LIMIT_LOGIN_MAX: ${RATE_LIMIT_LOGIN_MAX:-10}
+      RATE_LIMIT_LOGIN_TTL: ${RATE_LIMIT_LOGIN_TTL:-60000}
+      # 反向代理信任跳数：1 = 「nginx → server」那一层，
+      # 限速要按真实客户端 IP 计数就靠它。
+      TRUST_PROXY: ${TRUST_PROXY:-1}
       # 大模型（可选）：不配则 AI 用确定性规则兜底
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com}
