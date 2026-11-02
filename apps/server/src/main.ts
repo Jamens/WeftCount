@@ -9,6 +9,7 @@ import { AppModule } from './app.module'
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { securityEnv } from './config/security-env'
+import { createSwaggerBasicAuth } from './config/swagger-basic-auth'
 
 const PORT = Number(process.env.PORT ?? 3180)
 
@@ -95,18 +96,41 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new AllExceptionsFilter())
   app.useGlobalInterceptors(new ResponseInterceptor())
 
-  const config = new DocumentBuilder()
-    .setTitle('纬数 WeftCount API')
-    .setDescription('纺织行业 AI 进销存系统 · 后端服务')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build()
-  const document = SwaggerModule.createDocument(app, config)
-  SwaggerModule.setup('api/docs', app, document)
+  /**
+   * API 文档。
+   *
+   * 以前是无条件挂载的 —— 公网可达时等于给攻击者一份现成的攻击面地图
+   * （全部路径、参数、字段一览无余）。现在：
+   * - 生产默认**不注册** /api/docs（直接 404）
+   * - SWAGGER_ENABLED=true 可开启
+   * - 开启后若配了 SWAGGER_BASIC_AUTH_USER / _PASSWORD，文档页需 Basic Auth
+   */
+  if (securityEnv.swagger.enabled) {
+    const config = new DocumentBuilder()
+      .setTitle('纬数 WeftCount API')
+      .setDescription('纺织行业 AI 进销存系统 · 后端服务')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build()
+    const document = SwaggerModule.createDocument(app, config)
+
+    const basicAuth = createSwaggerBasicAuth(securityEnv.swagger.user, securityEnv.swagger.password)
+    if (basicAuth) {
+      // 必须先于 SwaggerModule.setup 注册：Express 按注册顺序执行中间件
+      app.use(['/api/docs', '/api/docs-json', '/api/docs-yaml'], basicAuth)
+      logger.log('API 文档已启用 Basic Auth 保护')
+    } else if (securityEnv.isProduction) {
+      logger.warn('生产环境开启了 Swagger 文档但未配置 Basic Auth，文档将对所有可达者开放')
+    }
+
+    SwaggerModule.setup('api/docs', app, document)
+    logger.log(`API 文档: http://127.0.0.1:${PORT}/api/docs`)
+  } else {
+    logger.warn('Swagger 文档已关闭（SWAGGER_ENABLED 未开启），/api/docs 返回 404')
+  }
 
   await app.listen(PORT, '0.0.0.0')
-  new Logger('Bootstrap').log(`纬数服务已启动: http://127.0.0.1:${PORT}/api`)
-  new Logger('Bootstrap').log(`API 文档: http://127.0.0.1:${PORT}/api/docs`)
+  logger.log(`纬数服务已启动: http://127.0.0.1:${PORT}/api`)
 }
 
 void bootstrap()
