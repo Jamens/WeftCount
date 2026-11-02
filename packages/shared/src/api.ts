@@ -36,6 +36,8 @@ export const ErrorCode = {
   CONFLICT: 1009,
   FORBIDDEN: 1003,
   UNAUTHORIZED: 1001,
+  /** 触发限速（HTTP 429） */
+  RATE_LIMITED: 1005,
 
   // 认证 2xxx
   LOGIN_FAILED: 2001,

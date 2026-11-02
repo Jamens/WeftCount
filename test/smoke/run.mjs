@@ -68,7 +68,10 @@ async function main() {
   // 关键：DB_NAME 指向测试库，开发库 weft_count 完全不受影响
   const child = spawn(process.execPath, [distMain], {
     cwd: join(ROOT, 'apps', 'server'),
-    env: { ...process.env, PORT, DB_NAME: TEST_DB },
+    // RATE_LIMIT_LOGIN_MAX：冒烟每个用例文件都要登录换令牌，累计几十次，
+    // 默认阈值（10 次/分钟）是给真实用户防爆破用的，会把冒烟自己掐断。
+    // 这里只放宽登录端点，其余限速逻辑照常生效。
+    env: { ...process.env, PORT, DB_NAME: TEST_DB, RATE_LIMIT_LOGIN_MAX: '1000' },
     stdio: 'ignore',
   })
   if (!(await waitUp())) {

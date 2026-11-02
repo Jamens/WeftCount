@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common'
+import { Throttle } from '@nestjs/throttler'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator'
 import { AuthService } from './auth.service'
@@ -7,6 +8,7 @@ import { CurrentUser, type RequestContext } from './auth-context'
 import { Permission } from './permissions'
 import { RequirePermission } from './decorators/require-permission.decorator'
 import { Audit, NoAudit } from '../audit/audit.interceptor'
+import { securityEnv } from '../../config/security-env'
 import type { ChangePasswordDto, LoginResult } from './types'
 
 class LoginDto {
@@ -34,6 +36,18 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  /**
+   * 登录端点单独收紧限速阈值（账号锁之外的第二道防线）。
+   *
+   * 账号锁是**按账号**计的，挡不住「一个账号一个 IP 地撒网」；
+   * 这里按 **IP** 计，挡住同一个来源反复尝试不同账号。
+   */
+  @Throttle({
+    default: {
+      limit: securityEnv.rateLimit.loginLimit,
+      ttl: securityEnv.rateLimit.loginTtl,
+    },
+  })
   @Audit({ action: 'login', module: 'auth' })
   @ApiOperation({ summary: '账号密码登录' })
   login(@Body() dto: LoginDto): Promise<LoginResult> {

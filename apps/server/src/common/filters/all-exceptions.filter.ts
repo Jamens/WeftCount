@@ -98,6 +98,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         return ErrorCode.VALIDATION_FAILED
       case HttpStatus.CONFLICT:
         return ErrorCode.CONFLICT
+      case HttpStatus.TOO_MANY_REQUESTS:
+        return ErrorCode.RATE_LIMITED
       default:
         return ErrorCode.UNKNOWN
     }

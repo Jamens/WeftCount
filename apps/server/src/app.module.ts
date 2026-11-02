@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { APP_INTERCEPTOR } from '@nestjs/core'
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { WeftNamingStrategy } from './common/naming-strategy'
-import { resolveDbPassword } from './config/security-env'
+import { resolveDbPassword, securityEnv } from './config/security-env'
 import { HealthController } from './health/health.controller'
 import { AuthModule } from './modules/auth/auth.module'
 import { TenantModule } from './modules/tenant/tenant.module'
@@ -59,6 +60,23 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
         retryDelay: 2000,
       }),
     }),
+    /**
+     * 全局限速。
+     *
+     * 只配一个名为 default 的限速器：@nestjs/throttler 会把**每个**已配置的
+     * 限速器套到**每条**路由上，配多个就等于给所有接口都叠上登录阈值。
+     * 登录端点要更严，用 `@Throttle({ default: {...} })` 在路由上覆盖即可。
+     *
+     * skipIf 让 RATE_LIMIT_ENABLED=false 能一键关闭（冒烟测试会用到）。
+     */
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: securityEnv.rateLimit.ttl,
+        limit: securityEnv.rateLimit.limit,
+        skipIf: () => !securityEnv.rateLimit.enabled,
+      },
+    ]),
     AuthModule,
     TenantModule,
     AuditModule,
@@ -85,6 +103,9 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
   ],
   controllers: [HealthController],
   providers: [
+    // 全局限速守卫：全局守卫先于路由上的 @UseGuards 执行，
+    // 因此限速发生在鉴权之前 —— 登录爆破在账号校验前就被拦下。
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // 顺序要求：响应包装在最外层，审计在里层，
     // 这样审计拿到的是原始业务数据而非 envelope
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },

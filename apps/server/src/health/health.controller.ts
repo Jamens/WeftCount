@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import { ApiTags } from '@nestjs/swagger'
 import type { ApiSuccess } from '@weftcount/shared'
 
@@ -9,6 +10,11 @@ interface HealthPayload {
   timestamp: string
 }
 
+/**
+ * 健康检查豁免限速。
+ * 探活/负载均衡会高频打这个端点，被限速误伤会导致实例被摘掉。
+ */
+@SkipThrottle()
 @ApiTags('健康检查')
 @Controller('health')
 export class HealthController {
